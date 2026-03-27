@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Asados al Barril</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="loading-logo" id="ll-logo">🔥</div>
+  <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;" id="ll-name">Cargando...</div>
+  <div class="loading-bar"><div class="loading-fill"></div></div>
+</div>
+
+<div id="toast"></div>
+<div class="mob-overlay" id="mob-overlay" onclick="closeMobSidebar()"></div>
+
+<!-- PIN -->
+<div id="pin-screen">
+  <div class="pin-logo" id="pin-logo">🔥</div>
+  <div class="pin-title">Panel Admin</div>
+  <div class="pin-sub">Ingresa tu PIN de acceso</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div class="pin-keypad">
+    <button class="pin-key" onclick="pinKey('1')">1</button>
+    <button class="pin-key" onclick="pinKey('2')">2</button>
+    <button class="pin-key" onclick="pinKey('3')">3</button>
+    <button class="pin-key" onclick="pinKey('4')">4</button>
+    <button class="pin-key" onclick="pinKey('5')">5</button>
+    <button class="pin-key" onclick="pinKey('6')">6</button>
+    <button class="pin-key" onclick="pinKey('7')">7</button>
+    <button class="pin-key" onclick="pinKey('8')">8</button>
+    <button class="pin-key" onclick="pinKey('9')">9</button>
+    <button class="pin-key" style="background:none;"></button>
+    <button class="pin-key" onclick="pinKey('0')">0</button>
+    <button class="pin-key" onclick="pinDel()">⌫</button>
+  </div>
+  <div class="pin-err" id="pin-err">PIN incorrecto. Intenta de nuevo.</div>
+</div>
+
+<!-- SEARCH -->
+<div class="search-overlay" id="search-overlay" onclick="if(event.target===this)closeSearch()">
+  <div class="search-box">
+    <div class="search-bar">
+      <button class="icon-btn" onclick="closeSearch()">←</button>
+      <input type="text" id="search-input" placeholder="Buscar productos..." oninput="doSearch(this.value)"/>
+      <button class="icon-btn" onclick="document.getElementById('search-input').value='';doSearch('')">✕</button>
+    </div>
+    <div class="search-results" id="search-results">
+      <div class="empty-s"><div style="font-size:36px">🔍</div><div style="font-size:14px;margin-top:8px;">Escribe para buscar</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- HOME -->
+<div id="view-home" class="view active">
+  <div class="client-header">
+    <div class="header-logo" id="hdr-logo">🔥</div>
+    <div class="header-name" id="hdr-name">Asados al Barril</div>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="openSearch()">🔍</button>
+      <button class="icon-btn cart-btn" onclick="goTo('view-cart')">
+        🛒<div class="cart-badge" id="cart-badge">0</div>
+      </button>
+    </div>
+  </div>
+  <div class="categories-bar" id="cats-bar">
+    <div class="cat-pill active" style="background:var(--brand);border-color:var(--brand);" onclick="filterCat('todos',this)">Todos</div>
+  </div>
+  <div class="products-section">
+    <div class="section-title" id="sec-title">Menú</div>
+    <div class="products-grid" id="prods-grid">
+      <div class="empty-s"><div style="font-size:36px">🍖</div><div style="font-size:14px;margin-top:8px;">Cargando productos...</div></div>
+    </div>
+  </div>
+  <button class="goto-cart-btn" id="goto-cart-btn" onclick="goTo('view-cart')">
+    <span>Ver carrito</span>
+    <span id="goto-cart-total" style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;"></span>
+  </button>
+</div>
+
+<!-- DETAIL -->
+<div id="view-detail" class="view">
+  <button class="detail-back" onclick="goBack()">←</button>
+  <div class="detail-img" id="d-img">🥩</div>
+  <div class="detail-body">
+    <div class="detail-name" id="d-name"></div>
+    <div class="detail-desc" id="d-desc"></div>
+    <div class="detail-price" id="d-price"></div>
+    <div class="detail-sec" id="d-ingr-title" style="display:none">Ingredientes</div>
+    <div id="d-ingr"></div>
+    <div class="detail-sec" id="d-extras-title" style="display:none">Adicionales opcionales</div>
+    <div id="d-extras"></div>
+  </div>
+  <div class="bottom-sheet">
+    <div class="sq-row">
+      <div class="sq-ctrl">
+        <button class="sq-btn" onclick="dQty(-1)">−</button>
+        <span class="sq-num" id="d-qty">1</span>
+        <button class="sq-btn" onclick="dQty(1)">+</button>
+      </div>
+      <div class="sq-total" id="d-total"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-s" onclick="addAndBack()">Agregar otro</button>
+      <button class="btn-p" style="display:block;width:auto;flex:1;" onclick="addAndCart()">Ir al carrito →</button>
+    </div>
+  </div>
+</div>
+
+<!-- CART -->
+<div id="view-cart" class="view">
+  <div class="cart-header">
+    <button class="icon-btn" onclick="goBack()">←</button>
+    <h2>Mi carrito</h2>
+  </div>
+  <div class="cart-list" id="cart-list"></div>
+  <div class="cart-footer" id="cart-footer"></div>
+</div>
+
+<!-- RESUMEN -->
+<div id="view-resumen" class="view">
+  <div class="resumen-header">
+    <button class="icon-btn" onclick="goBack()">←</button>
+    <h2>Resumen del pedido</h2>
+  </div>
+  <div class="resumen-content">
+    <div class="card-section">
+      <div class="card-section-header" onclick="openModal('modal-datos')">
+        <div>
+          <div class="card-section-title">📍 Datos de envío</div>
+          <div class="card-section-sub" id="datos-sub">Toca para ingresar tus datos</div>
+        </div>
+        <span style="font-size:20px;color:var(--text3)">›</span>
+      </div>
+    </div>
+    <div class="card-section">
+      <div class="card-section-header"><div class="card-section-title">🛒 Productos</div></div>
+      <div class="card-section-body" id="res-prods"></div>
+    </div>
+    <div class="card-section" id="card-dom">
+      <div class="card-section-header">
+        <div>
+          <div class="card-section-title">🛵 Domicilio</div>
+          <div class="card-section-sub">Costo de entrega</div>
+        </div>
+        <span id="dom-val-display" style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;"></span>
+      </div>
+    </div>
+    <div class="card-section">
+      <div class="card-section-header"><div class="card-section-title">🏷️ Cupón de descuento</div></div>
+      <div class="card-section-body">
+        <div class="coupon-row">
+          <input type="text" class="coupon-input" id="cupon-input" placeholder="CÓDIGO" maxlength="10"/>
+          <button class="coupon-btn" onclick="applyCoupon()">Aplicar</button>
+        </div>
+        <div id="cupon-status" style="margin-top:8px;font-size:13px;"></div>
+      </div>
+    </div>
+    <button class="btn-s" style="margin-bottom:12px;border-radius:12px;" onclick="goTo('view-home')">+ Agregar otro producto</button>
+    <div class="card-section"><div class="card-section-body" style="padding-top:14px;" id="res-totales"></div></div>
+  </div>
+  <div class="res-fixed">
+    <button class="btn-p" style="padding:15px;font-size:16px;font-weight:700;" onclick="confirmarPedido()">Confirmar pedido 🎉</button>
+  </div>
+</div>
+
+<!-- FACTURA -->
+<div id="view-factura" class="view">
+  <div class="fac-wrap">
+    <div class="fac-card">
+      <div class="fac-top">
+        <div class="fac-check">✓</div>
+        <h2>¡Gracias por tu pedido!</h2>
+        <p id="f-msg" style="font-size:14px;opacity:.85;margin-top:4px;">Tu pedido está siendo preparado</p>
+        <div class="fac-num" id="f-num">#0000</div>
+      </div>
+      <div class="fac-body">
+        <div class="fac-sec">
+          <h4>Datos de entrega</h4>
+          <div class="fac-row"><span>Nombre</span><span id="f-nombre">—</span></div>
+          <div class="fac-row"><span>Teléfono</span><span id="f-tel">—</span></div>
+          <div class="fac-row"><span>Dirección</span><span id="f-dir">—</span></div>
+          <div class="fac-row" id="f-row-rec" style="display:none"><span>Recibe</span><span id="f-rec">—</span></div>
+        </div>
+        <div class="fac-sec"><h4>Pedido</h4><div id="f-items"></div></div>
+        <div class="fac-sec"><div id="f-totales"></div></div>
+      </div>
+      <div class="fac-actions">
+        <button class="btn-s" onclick="goTo('view-home');resetPedido()">Hacer otro pedido</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="view-admin" class="view">
+  <div class="admin-sidebar" id="admin-sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo" id="sb-logo">🔥</div>
+      <span class="sb-name" id="sb-name">Asados al Barril</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" onclick="aPanel('pedidos',this)"><span class="nav-icon">📋</span><span class="nav-label">Pedidos</span><span class="nav-badge" id="n-badge" style="display:none">0</span></div>
+      <div class="nav-item" onclick="aPanel('productos',this)"><span class="nav-icon">🍖</span><span class="nav-label">Productos</span></div>
+      <div class="nav-item" onclick="aPanel('categorias',this)"><span class="nav-icon">🏷️</span><span class="nav-label">Categorías</span></div>
+      <div class="nav-item" onclick="aPanel('dashboard',this)"><span class="nav-icon">📊</span><span class="nav-label">Dashboard</span></div>
+      <div class="nav-item" onclick="aPanel('seguimiento',this)"><span class="nav-icon">🛵</span><span class="nav-label">Seguimiento</span></div>
+      <div class="nav-item" onclick="aPanel('novedades',this)"><span class="nav-icon">🔔</span><span class="nav-label">Novedades</span></div>
+      <div class="nav-item" onclick="aPanel('domicilio',this)"><span class="nav-icon">💰</span><span class="nav-label">Domicilio</span></div>
+      <div class="nav-item" onclick="aPanel('descuentos',this)"><span class="nav-icon">🎟️</span><span class="nav-label">Descuentos</span></div>
+      <div class="nav-item" onclick="aPanel('config',this)"><span class="nav-icon">⚙️</span><span class="nav-label">Configuración</span></div>
+    </nav>
+    <div class="sb-footer">
+      <div class="collapse-btn" onclick="toggleSidebar()">
+        <span class="nav-icon" id="col-icon">◀</span>
+        <span class="nav-label">Contraer</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="icon-btn" id="mob-menu-btn" style="display:none;" onclick="openMobSidebar()">☰</button>
+        <h1 id="a-title">Pedidos</h1>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-s" style="padding:7px 12px;border-radius:9px;font-size:13px;width:auto;" onclick="goTo('view-home')">← Tienda</button>
+        <button class="ab ab-d" style="padding:7px 12px;border-radius:9px;" onclick="logoutAdmin()">Salir</button>
+      </div>
+    </div>
+    <div class="admin-content">
+
+      <!-- PEDIDOS -->
+      <div id="panel-pedidos" class="admin-panel active">
+        <div class="admin-tabs">
+          <div class="admin-tab active" onclick="pTab('activos',this)">Activos</div>
+          <div class="admin-tab" onclick="pTab('preparando',this)">Preparando</div>
+          <div class="admin-tab" onclick="pTab('camino',this)">En camino</div>
+          <div class="admin-tab" onclick="pTab('entregado',this)">Entregados</div>
+          <div class="admin-tab" onclick="pTab('cancelado',this)">Cancelados</div>
+        </div>
+        <div class="admin-card">
+          <div class="admin-card-hdr">
+            <h3 id="p-tab-title">Pedidos activos</h3>
+            <input type="text" class="s-input" style="width:180px;" placeholder="Buscar..." oninput="filterPedidos(this.value)"/>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead><tr><th>#</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody id="p-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRODUCTOS -->
+      <div id="panel-productos" class="admin-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;">
+          <input type="text" class="s-input" style="width:180px;" placeholder="Buscar..." oninput="filterProductos(this.value)"/>
+          <button class="btn-add" onclick="openProdModal()">+ Nuevo producto</button>
+        </div>
+        <div class="prods-admin-grid" id="prods-admin"></div>
+      </div>
+
+      <!-- CATEGORÍAS -->
+      <div id="panel-categorias" class="admin-panel">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button class="btn-add" onclick="openCatModal()">+ Nueva categoría</button>
+        </div>
+        <div class="admin-card">
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead><tr><th>Color</th><th>Nombre</th><th>Productos</th><th>Acciones</th></tr></thead>
+              <tbody id="cats-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- DASHBOARD -->
+      <div id="panel-dashboard" class="admin-panel">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-value" id="s-hoy">0</div><div class="stat-label">Pedidos hoy</div></div>
+          <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-value" id="s-ing" style="font-size:17px;">$0</div><div class="stat-label">Ingresos hoy</div></div>
+          <div class="stat-card"><div class="stat-icon">📈</div><div class="stat-value" id="s-tot">0</div><div class="stat-label">Total pedidos</div></div>
+          <div class="stat-card"><div class="stat-icon">🛵</div><div class="stat-value" id="s-cam">0</div><div class="stat-label">En camino</div></div>
+        </div>
+        <div class="admin-card" style="padding:18px;margin-bottom:16px;">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:12px;">Pedidos últimos 7 días</div>
+          <div class="bar-chart" id="bar-chart"></div>
+        </div>
+        <div class="admin-card" style="padding:18px;">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:12px;">Productos más vendidos</div>
+          <div id="top-prods"></div>
+        </div>
+      </div>
+
+      <!-- SEGUIMIENTO -->
+      <div id="panel-seguimiento" class="admin-panel">
+        <div class="admin-card">
+          <div class="admin-card-hdr"><h3>Seguimiento de pedidos</h3></div>
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead><tr><th>#</th><th>Cliente</th><th>Estado</th><th>Acción</th></tr></thead>
+              <tbody id="seg-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- NOVEDADES -->
+      <div id="panel-novedades" class="admin-panel">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button class="btn-add" onclick="openModal('modal-nov')">+ Nueva novedad</button>
+        </div>
+        <div id="nov-list"></div>
+      </div>
+
+      <!-- DOMICILIO -->
+      <div id="panel-domicilio" class="admin-panel">
+        <div class="admin-card" style="padding:20px;max-width:460px;">
+          <h3 style="margin-bottom:18px;">Configuración de domicilio</h3>
+          <div class="f-field">
+            <label>Tipo de cobro</label>
+            <select id="dom-tipo" onchange="toggleDomWrap()">
+              <option value="fijo">Valor fijo por pedido</option>
+              <option value="gratis">Gratis</option>
+            </select>
+          </div>
+          <div class="f-field" id="dom-wrap">
+            <label>Valor del domicilio ($)</label>
+            <input type="number" id="dom-val-input" placeholder="5000" min="0"/>
+          </div>
+          <div class="toggle-wrap" style="margin-bottom:18px;" onclick="toggleEl('dom-tog')">
+            <div class="tog-track on" id="dom-tog"><div class="tog-thumb"></div></div>
+            <span style="font-size:14px;">Servicio de domicilio activo</span>
+          </div>
+          <button class="btn-p" style="padding:12px 24px;width:auto;" onclick="saveDomicilio()">Guardar cambios</button>
+        </div>
+      </div>
+
+      <!-- DESCUENTOS -->
+      <div id="panel-descuentos" class="admin-panel">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button class="btn-add" onclick="openCuponModal()">+ Generar cupón</button>
+        </div>
+        <div class="admin-card">
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead><tr><th>Código</th><th>Descuento</th><th>Usos</th><th>Estado</th><th></th></tr></thead>
+              <tbody id="cup-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONFIG -->
+      <div id="panel-config" class="admin-panel">
+        <div class="admin-card" style="padding:20px;max-width:500px;">
+          <h3 style="margin-bottom:18px;">Configuración de la cuenta</h3>
+          <div class="f-field">
+            <label>Logo del comercio</label>
+            <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
+              <div id="cfg-logo-prev" style="width:60px;height:60px;background:var(--brand-light);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden;flex-shrink:0;">🔥</div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <input type="text" id="cfg-emoji" placeholder="Emoji 🔥" style="width:110px;font-size:20px;text-align:center;" oninput="prevLogoEmoji(this.value)"/>
+                <label style="font-size:12px;color:var(--brand);cursor:pointer;text-transform:none;letter-spacing:0;">📷 Subir imagen<input type="file" id="cfg-logo-file" accept="image/*" style="display:none;" onchange="prevLogoFile(this)"/></label>
+              </div>
+            </div>
+          </div>
+          <div class="f-field"><label>Nombre del comercio</label><input type="text" id="cfg-nombre" placeholder="Nombre de tu negocio"/></div>
+          <div class="f-field"><label>PIN de administrador (6 dígitos)</label><input type="password" id="cfg-pin" placeholder="••••••" maxlength="6"/></div>
+          <div class="f-field"><label>Mensaje de confirmación del pedido</label><textarea id="cfg-msg" rows="3" style="resize:vertical;" placeholder="Tu pedido está siendo preparado..."></textarea></div>
+          <button class="btn-p" style="padding:12px 24px;width:auto;" onclick="saveConfig()">Guardar cambios</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- FAB ADMIN -->
+<button id="admin-fab" onclick="openAdmin()" style="position:fixed;bottom:24px;right:16px;background:var(--text);color:#fff;border-radius:14px;padding:11px 16px;font-size:13px;font-weight:600;box-shadow:var(--shadow-md);display:flex;align-items:center;gap:6px;z-index:80;">⚙️ Admin</button>
+
+<!-- ═══ MODALES ═══ -->
+<div class="modal-overlay" id="modal-datos">
+  <div class="modal"><div class="modal-handle"></div>
+    <div class="modal-hdr"><h3>Datos de envío</h3><button class="modal-close" onclick="closeModal('modal-datos')">✕</button></div>
+    <div class="modal-body">
+      <div class="f-field"><label>Nombre completo *</label><input type="text" id="d-nombre" placeholder="Tu nombre"/><div class="f-err" id="e-nom"></div></div>
+      <div class="f-field"><label>Correo electrónico *</label><input type="email" id="d-correo" placeholder="correo@ejemplo.com"/><div class="f-err" id="e-cor"></div></div>
+      <div class="f-field"><label>Teléfono / WhatsApp *</label><input type="tel" id="d-tel" placeholder="310 000 0000"/><div class="f-err" id="e-tel"></div></div>
+      <div class="f-field"><label>Dirección de entrega *</label><input type="text" id="d-dir" placeholder="Calle, barrio"/><div class="f-err" id="e-dir"></div></div>
+      <div class="f-field"><label>Complemento</label><input type="text" id="d-comp" placeholder="Apto, torre, referencia"/></div>
+      <div class="f-field"><label>Quién recibe (si es diferente)</label><input type="text" id="d-rec" placeholder="Nombre de quien recibe"/></div>
+    </div>
+    <div class="modal-footer"><button class="btn-p" onclick="saveDatos()">Confirmar datos ✓</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-confirmar">
+  <div class="modal"><div class="modal-handle"></div>
+    <div class="modal-hdr"><h3>Confirmar pedido</h3><button class="modal-close" onclick="closeModal('modal-confirmar')">✕</button></div>
+    <div class="modal-body" style="text-align:center;padding:24px 20px;">
+      <div style="font-size:48px;margin-bottom:14px;">🔥</div>
+      <p id="conf-msg" style="font-size:15px;color:var(--text2);line-height:1.6;"></p>
+      <div style="background:var(--bg);border-radius:12px;padding:14px;margin-top:16px;font-family:'Syne',sans-serif;font-weight:700;font-size:18px;color:var(--brand);" id="conf-total"></div>
+      <p style="font-size:13px;color:var(--text3);margin-top:10px;">💵 Pago contra entrega</p>
+    </div>
+    <div class="modal-footer" style="display:flex;gap:10px;">
+      <button class="btn-s" style="width:auto;flex:1;" onclick="closeModal('modal-confirmar')">Revisar</button>
+      <button class="btn-p" style="width:auto;flex:1;" id="btn-conf" onclick="finalizarPedido()">Confirmar 🎉</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-ped-det">
+  <div class="modal"><div class="modal-handle"></div>
+    <div class="modal-hdr"><h3>Detalle del pedido</h3><button class="modal-close" onclick="closeModal('modal-ped-det')">✕</button></div>
+    <div class="modal-body" id="ped-det-body"></div>
+    <div class="modal-footer" style="display:flex;gap:8px;flex-wrap:wrap;" id="ped-det-footer"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-prod">
+  <div class="modal"><div class="modal-handle"></div>
+    <div class="modal-hdr"><h3 id="mp-title">Nuevo producto</h3><button class="modal-close" onclick="closeModal('modal-prod')">✕</button></div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+        <button id="tb-com" class="btn-p" style="padding:11px;width:auto;font-size:14px;" onclick="setTipo('comestible')">🍖 Comestible</button>
+        <button id="tb-no" class="btn-s" style="padding:11px;width:auto;font-size:14px;" onclick="setTipo('nocomestible')">📦 No comestible</button>
+      </div>
+      <input type="hidden" id="pe-id"/>
+      <input type="hidden" id="pe-tipo" value="comestible"/>
+      <div class="f-field"><label>Nombre *</label><input type="text" id="pe-nom" placeholder="Nombre del producto"/></div>
+      <div class="f-field">
+        <label>Foto / Emoji</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div id="pe-img-prev" style="width:52px;height:52px;background:var(--bg2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;overflow:hidden;">📦</div>
+          <input type="text" id="pe-emoji" placeholder="Emoji 🍖" style="width:80px;font-size:20px;text-align:center;" oninput="prevProdEmoji(this.value)"/>
+          <label style="flex:1;padding:10px;border:1.5px dashed var(--border);border-radius:10px;text-align:center;cursor:pointer;font-size:12px;color:var(--text2);">
+            📷 Subir<input type="file" accept="image/*" style="display:none;" onchange="prevProdFile(this)"/>
+          </label>
+        </div>
+        <input type="hidden" id="pe-img-url"/>
+      </div>
+      <div class="f-field"><label>Descripción</label><textarea id="pe-desc" rows="2" placeholder="Descripción breve"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="f-field"><label>Precio de venta *</label><input type="number" id="pe-precio" placeholder="0" min="0" oninput="calcGan()"/></div>
+        <div class="f-field"><label>Costo (opcional)</label><input type="number" id="pe-costo" placeholder="0" min="0" oninput="calcGan()"/></div>
+      </div>
+      <div class="gan-badge" id="gan-badge">💡 Ganancia: <strong>$0 (0%)</strong></div>
+      <div class="f-field"><label>Categoría *</label><select id="pe-cat"><option value="">Selecciona categoría</option></select></div>
+      <div id="pe-ingr-wrap">
+        <div class="f-field">
+          <label>Ingredientes</label>
+          <div class="tag-input-row">
+            <input type="text" id="pe-ingr-input" class="s-input" placeholder="Ej: Papa criolla" style="flex:1;"/>
+            <button class="btn-add" style="padding:9px 14px;" onclick="addTag('ingr')">+</button>
+          </div>
+          <div class="tag-list" id="pe-ingr-tags"></div>
+        </div>
+        <div class="f-field">
+          <label>Adicionales opcionales</label>
+          <div class="tag-input-row">
+            <input type="text" id="pe-ext-input" class="s-input" placeholder="Ej: Chimichurri" style="flex:1;"/>
+            <button class="btn-add" style="padding:9px 14px;" onclick="addTag('ext')">+</button>
+          </div>
+          <div class="tag-list" id="pe-ext-tags"></div>
+        </div>
+      </div>
+      <div class="toggle-wrap" onclick="toggleEl('pe-activo')">
+        <div class="tog-track on" id="pe-activo"><div class="tog-thumb"></div></div>
+        <span style="font-size:14px;">Producto visible</span>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-p" onclick="saveProd()">Guardar producto</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-cat">
+  <div class="modal"><div class="modal-handle"></div>
+    <div class="modal-hdr"><h3 id="mc-title">Nueva categoría</h3><button class="modal-close" onclick="closeModal('modal-cat')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="ce-id"/>
+      <div class="f-field"><label>Nombre *</label><input type="text" id="ce-nom" placeholder="Nombre de la categoría"/></div>
+      <div class="f-field">
+        <label>Color</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <div class="color-sw sel" data-color="#C8401A" style="background:#C8401A;" onclick="pickColor(this)"></div>
+          <div class="color-sw" data-color="#F0A500" style="background:#F0A500;" onclick="pickColor(this)"></div>
+          <div class="color-sw" data-color="#2D7A4F" style="background:#2D7A4F;" onclick="pickColor(this)"></div>
+          <div class="color-sw" data-color="#1565C0" style="background:#1565C0;" onclick="pickColor(this)"></div>
+          <div class="color-sw" data-color="#6A1B9A" style="background:#6A1B9A;" onclick="pickColor(this)"></div>
+          <div class="color-sw" data-color="#00838F" style="background:#00838F;" onclick="pickColor(this)"></div>
+        </div>
+        <input type="color" id="ce-color" value="#C8401A" style="width:36px;height:36px;border:none;cursor:pointer;border-radius:8px;" oninput="pickColorCustom(this.value)"/>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-p" onclick="saveCat()">Guardar categoría</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-nov">
+  <div class="modal"><div class="modal-handle"></div>
+    <div class="modal-hdr"><h3>Nueva novedad</h3><button class="modal-close" onclick="closeModal('modal-nov')">✕</button></div>
+    <div class="modal-body">
+      <div class="f-field"><label>Título *</label><input type="text" id="nov-tit" placeholder="Ej: ¡Nueva promoción del día!"/></div>
+      <div class="f-field"><label>Descripción</label><textarea id="nov-desc" rows="3" placeholder="Detalles de la novedad..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn-p" onclick="saveNov()">Publicar novedad</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-seg">
+  <div class="modal"><div class="modal-handle"></div>
+    <div class="modal-hdr"><h3>Actualizar estado</h3><button class="modal-close" onclick="closeModal('modal-seg')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="seg-id"/>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:14px;">Nuevo estado para el pedido <strong id="seg-num"></strong>:</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn-s" style="text-align:left;" onclick="setEstado('activos')">📋 Activo — recibido, en espera</button>
+        <button class="btn-s" style="text-align:left;" onclick="setEstado('preparando')">🔥 Preparando — en cocina</button>
+        <button class="btn-s" style="text-align:left;" onclick="setEstado('camino')">🛵 En camino — salió a entregar</button>
+        <button class="btn-s" style="text-align:left;" onclick="setEstado('entregado')">✅ Entregado — completo</button>
+        <button class="btn-s" style="text-align:left;color:var(--danger);" onclick="setEstado('cancelado')">❌ Cancelado</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-cupon">
+  <div class="modal"><div class="modal-handle"></div>
+    <div class="modal-hdr"><h3 id="mcu-title">Generar cupón</h3><button class="modal-close" onclick="closeModal('modal-cupon')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="cue-id"/>
+      <div class="f-field">
+        <label>Código *</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="cue-cod" placeholder="PROMO20" style="text-transform:uppercase;flex:1;"/>
+          <button class="btn-add" style="padding:10px 14px;" onclick="genCuponCode()">🎲 Auto</button>
+        </div>
+      </div>
+      <div class="f-field"><label>Tipo de descuento</label><select id="cue-tipo"><option value="porcentaje">Porcentaje (%)</option><option value="fijo">Valor fijo ($)</option></select></div>
+      <div class="f-field"><label>Valor del descuento *</label><input type="number" id="cue-val" placeholder="0" min="0"/></div>
+      <div class="f-field"><label>Límite de usos (0 = ilimitado)</label><input type="number" id="cue-lim" placeholder="0" min="0"/></div>
+      <div class="toggle-wrap" onclick="toggleEl('cue-activo')">
+        <div class="tog-track on" id="cue-activo"><div class="tog-thumb"></div></div>
+        <span style="font-size:14px;">Cupón activo</span>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-p" onclick="saveCupon()">Guardar cupón</button></div>
+  </div>
+</div>
+
+<!-- Eliminar Service Workers anteriores -->
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+  caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+}
+</script>
+
+<!-- SCRIPTS -->
+<script type="module" src="js/app.js"></script>
+
+</body>
+</html>
