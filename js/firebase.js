@@ -11,12 +11,12 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.0/firebas
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 const FB = {
-  apiKey:            "PEGA_AQUI_TU_API_KEY",
-  authDomain:        "PEGA_AQUI_TU_AUTH_DOMAIN",
-  projectId:         "PEGA_AQUI_TU_PROJECT_ID",
-  storageBucket:     "PEGA_AQUI_TU_STORAGE_BUCKET",
-  messagingSenderId: "PEGA_AQUI_TU_SENDER_ID",
-  appId:             "PEGA_AQUI_TU_APP_ID"
+  apiKey:            "AIzaSyCv9Vh-5vrQGP-N73s8iN5dyLe9u1xf83U",
+  authDomain:        "asados-barril.firebaseapp.com",
+  projectId:         "asados-barril",
+  storageBucket:     "asados-barril.firebasestorage.app",
+  messagingSenderId: "1039961774178",
+  appId:             "1:1039961774178:web:df5454c07fa0d447eb993b"
 };
 
 const app     = initializeApp(FB);
