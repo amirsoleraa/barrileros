@@ -4,7 +4,7 @@
 
 :root {
   --brand: #B22000; --brand-dark: #4D1A00; --brand-light: #fdf0e8;
-  --accent: #D89D5D; --bg: #FDF8F3; --bg2: #F5EDE4; --surface: #FFFFFF;
+  --accent: #D89D5D; --bg: #FFFFFF; --bg2: #F5EDE4; --surface: #FFFFFF;
   --text: #4D1A00; --text2: #7A4520; --text3: #A07850; --border: #ddd0b0;
   --success: #2D7A4F; --danger: #B22000;
   --radius: 14px; --shadow: 0 2px 12px rgba(77,26,0,.08); --shadow-md: 0 4px 24px rgba(77,26,0,.13);
