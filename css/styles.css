@@ -4,9 +4,9 @@
 
 :root {
   --brand: #B22000; --brand-dark: #4D1A00; --brand-light: #fdf0e8;
-  --accent: #D89D5D; --bg: #FFFFFF; --bg2: #F5EDE4; --surface: #FFFFFF;
+  --accent: #D89D5D; --bg: #FDF8F3; --bg2: #F5EDE4; --surface: #FFFFFF;
   --text: #4D1A00; --text2: #7A4520; --text3: #A07850; --border: #ddd0b0;
-  --success: #2D7A4F; --danger: #b25000;
+  --success: #2D7A4F; --danger: #B22000;
   --radius: 14px; --shadow: 0 2px 12px rgba(77,26,0,.08); --shadow-md: 0 4px 24px rgba(77,26,0,.13);
   --sidebar-w: 240px; --sidebar-w-col: 64px;
 }
@@ -208,7 +208,7 @@ img{display:block;max-width:100%;}
 .pin-err.show{opacity:1;}
 
 /* SIDEBAR */
-.admin-sidebar{width:var(--sidebar-w);background:#1E1E1E;min-height:100vh;display:flex;flex-direction:column;transition:width .25s;flex-shrink:0;z-index:10;}
+.admin-sidebar{width:var(--sidebar-w);background:var(--text);min-height:100vh;display:flex;flex-direction:column;transition:width .25s;flex-shrink:0;z-index:10;}
 .admin-sidebar.collapsed{width:var(--sidebar-w-col);}
 .sb-brand{padding:18px 14px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);}
 .sb-logo{width:36px;height:36px;border-radius:10px;background:var(--brand);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;overflow:hidden;}
@@ -422,3 +422,71 @@ img{display:block;max-width:100%;}
   transition: color .15s;
 }
 .login-back:hover { color: var(--brand-dark); }
+
+/* ═══════════════════════════════════════════════
+   DETAIL MODAL — Desktop
+   ═══════════════════════════════════════════════ */
+@media (min-width: 768px) {
+  /* Overlay oscuro */
+  #view-detail {
+    display: none;
+    position: fixed !important;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,.45);
+    align-items: center;
+    justify-content: center;
+    min-height: unset;
+  }
+  #view-detail.active {
+    display: flex !important;
+  }
+
+  /* Tarjeta del modal */
+  .detail-modal-card {
+    background: var(--surface);
+    border-radius: 24px;
+    width: 90%;
+    max-width: 640px;
+    max-height: 88vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 24px 64px rgba(0,0,0,.22);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .detail-img {
+    height: 280px;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .detail-back {
+    top: 14px;
+    left: 14px;
+  }
+
+  .detail-body {
+    padding: 24px 28px 20px;
+  }
+
+  .detail-name { font-size: 26px; }
+  .detail-price { font-size: 26px; }
+
+  .bottom-sheet {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 24px 24px;
+    padding: 16px 28px;
+    margin-top: auto;
+  }
+}
+
+/* En mobile la tarjeta no existe, el layout es normal */
+@media (max-width: 767px) {
+  .detail-modal-card {
+    display: contents;
+  }
+}

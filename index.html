@@ -82,7 +82,8 @@
 </div>
 
 <!-- DETAIL -->
-<div id="view-detail" class="view">
+<div id="view-detail" class="view" onclick="if(event.target===this)goBack()">
+  <div class="detail-modal-card">
   <button class="detail-back" onclick="goBack()">←</button>
   <div class="detail-img" id="d-img">🥩</div>
   <div class="detail-body">

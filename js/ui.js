@@ -45,7 +45,13 @@ function _showView(viewId) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   $(viewId).classList.add('active');
   setCurrentView(viewId);
-  window.scrollTo(0, 0);
+  // Lock body scroll when detail modal is open on desktop
+  if (viewId === 'view-detail' && window.innerWidth >= 768) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+    window.scrollTo(0, 0);
+  }
   updateCartUI();
   if (viewId === 'view-resumen') renderResumen();
   if (viewId === 'view-cart')    renderCart();
