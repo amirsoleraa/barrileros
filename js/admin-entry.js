@@ -1,20 +1,19 @@
 // ═══════════════════════════════════════════════
-// app.js — Punto de entrada (cliente)
+// admin-entry.js — Punto de entrada (admin)
 // ═══════════════════════════════════════════════
 
 import { db, auth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from './firebase.js';
 import { setCFG, PRODUCTOS, CATEGORIAS, PEDIDOS, CUPONES, NOVEDADES } from './state.js';
-import { applyConfig, hideLoading, toast } from './ui.js';
-import { renderCats, renderProds, updateCartUI } from './products.js';
+import { applyConfig, toast } from './ui.js';
+import { renderCats } from './products.js';
+import { refreshAdmin, renderPedidosBadge } from './admin.js';
 import {
   getDoc, getDocs, collection, doc, query, orderBy, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-import './cart.js';
-
-// ── LOGIN ──
 const $ = id => document.getElementById(id);
 
+// ── LOGIN ADMIN ──
 window.doLogin = async function () {
   const email = $('login-email').value.trim();
   const pass  = $('login-pass').value;
@@ -38,6 +37,10 @@ window.doLogin = async function () {
   btn.disabled = false; btn.textContent = 'Ingresar';
 };
 
+window.logoutAdmin = async function () {
+  await signOut(auth);
+};
+
 // Permitir Enter en los inputs de login
 document.addEventListener('DOMContentLoaded', () => {
   ['login-email','login-pass'].forEach(id => {
@@ -48,26 +51,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── AUTH STATE ──
 onAuthStateChanged(auth, async user => {
+  const loginView = $('view-login');
+  const adminView = $('view-admin');
+  const loading   = $('loading-screen');
+
   if (user) {
-    // Sesión activa → cargar app
-    $('view-login')?.classList.remove('active');
-    await initApp();
+    if (loginView) loginView.classList.remove('active');
+    if (loading) { loading.style.opacity='0'; loading.style.transition='opacity .4s'; setTimeout(()=>loading.style.display='none',400); }
+    await initAdminApp();
+    if (adminView) { adminView.classList.add('active'); }
+    refreshAdmin();
   } else {
-    // Sin sesión → mostrar login
-    hideLoadingScreen();
-    $('view-login')?.classList.add('active');
+    if (loading) { loading.style.opacity='0'; loading.style.transition='opacity .4s'; setTimeout(()=>loading.style.display='none',400); }
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    if (loginView) loginView.classList.add('active');
   }
 });
 
-function hideLoadingScreen() {
-  const ls = $('loading-screen');
-  if (!ls) return;
-  ls.style.opacity = '0';
-  ls.style.transition = 'opacity .4s';
-  setTimeout(() => ls.style.display = 'none', 400);
-}
-
-async function initApp() {
+async function initAdminApp() {
   try {
     const cfgDoc = await getDoc(doc(db, 'config', 'main'));
     if (cfgDoc.exists()) setCFG(cfgDoc.data());
@@ -85,24 +86,14 @@ async function initApp() {
     const novSnap  = await getDocs(collection(db, 'novedades'));
     novSnap.forEach(d  => { NOVEDADES[d.id]  = { id: d.id, ...d.data() }; });
 
-    renderCats();
-    renderProds('todos');
-    updateCartUI();
-
-    hideLoading();
-    showView('view-home');
+    const pedQ = query(collection(db, 'pedidos'), orderBy('createdAt', 'desc'));
+    onSnapshot(pedQ, snap => {
+      snap.forEach(d => { PEDIDOS[d.id] = { id: d.id, ...d.data() }; });
+      snap.docChanges().forEach(ch => { if (ch.type === 'removed') delete PEDIDOS[ch.doc.id]; });
+      renderPedidosBadge();
+    });
   } catch (e) {
-    console.error('Error al inicializar la app:', e);
-    renderCats();
-    renderProds('todos');
-    hideLoading();
-    showView('view-home');
-    toast('⚠️ Sin conexión — modo offline');
+    console.error('Error al inicializar admin:', e);
+    toast('⚠️ Error al cargar datos');
   }
-}
-
-function showView(id) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  const el = $(id);
-  if (el) el.classList.add('active');
 }
