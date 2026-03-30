@@ -55,6 +55,7 @@ onAuthStateChanged(auth, async user => {
   } else {
     // Sin sesión → mostrar login
     hideLoadingScreen();
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     $('view-login')?.classList.add('active');
   }
 });

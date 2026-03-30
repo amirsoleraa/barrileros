@@ -5,7 +5,7 @@
 import { currentView, viewStack, setCurrentView, setViewStack, CFG } from './state.js';
 import { updateCartUI } from './products.js';
 import { renderCart, renderResumen } from './cart.js';
-import { refreshAdmin } from './admin.js';
+
 
 // ── UTILS BÁSICOS ──
 export const $ = id => document.getElementById(id);
@@ -49,7 +49,7 @@ function _showView(viewId) {
   updateCartUI();
   if (viewId === 'view-resumen') renderResumen();
   if (viewId === 'view-cart')    renderCart();
-  if (viewId === 'view-admin')   refreshAdmin();
+  if (viewId === 'view-admin' && typeof window.refreshAdminFn === 'function') window.refreshAdminFn();
 }
 
 // ── MODALES ──
@@ -76,31 +76,26 @@ export function applyConfig() {
   const logo   = $('ll-logo');
   const name   = $('ll-name');
 
-  if (CFG.logoUrl) {
-    logo.innerHTML = `<img src="${CFG.logoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:18px;">`;
-  } else {
-    logo.textContent = CFG.logoEmoji || '🔥';
+  if (logo) {
+    if (CFG.logoUrl) logo.innerHTML = `<img src="${CFG.logoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:18px;">`;
+    else logo.textContent = CFG.logoEmoji || '🔥';
   }
-  name.textContent = CFG.nombreComercio || 'Cargando...';
+  if (name) name.textContent = CFG.nombreComercio || 'Cargando...';
 
   const hdrLogo = $('hdr-logo');
-  if (CFG.logoUrl) hdrLogo.innerHTML = `<img src="${CFG.logoUrl}">`;
-  else hdrLogo.textContent = CFG.logoEmoji || '🔥';
-  $('hdr-name').textContent = CFG.nombreComercio || 'Asados al Barril';
+  if (hdrLogo) { if (CFG.logoUrl) hdrLogo.innerHTML = `<img src="${CFG.logoUrl}">`; else hdrLogo.textContent = CFG.logoEmoji || '🔥'; }
+  if ($('hdr-name')) $('hdr-name').textContent = CFG.nombreComercio || 'Asados al Barril';
 
   const sbLogo = $('sb-logo');
-  if (CFG.logoUrl) sbLogo.innerHTML = `<img src="${CFG.logoUrl}">`;
-  else sbLogo.textContent = CFG.logoEmoji || '🔥';
-  $('sb-name').textContent = CFG.nombreComercio || 'Asados al Barril';
+  if (sbLogo) { if (CFG.logoUrl) sbLogo.innerHTML = `<img src="${CFG.logoUrl}">`; else sbLogo.textContent = CFG.logoEmoji || '🔥'; }
+  if ($('sb-name')) $('sb-name').textContent = CFG.nombreComercio || 'Asados al Barril';
 
   const pinLogo = $('pin-logo');
-  if (CFG.logoUrl) pinLogo.innerHTML = `<img src="${CFG.logoUrl}">`;
-  else pinLogo.textContent = CFG.logoEmoji || '🔥';
+  if (pinLogo) { if (CFG.logoUrl) pinLogo.innerHTML = `<img src="${CFG.logoUrl}">`; else pinLogo.textContent = CFG.logoEmoji || '🔥'; }
 
   if ($('dom-tipo'))      $('dom-tipo').value       = CFG.domicilioTipo   || 'fijo';
   if ($('dom-val-input')) $('dom-val-input').value  = CFG.domicilioValor  || 0;
-  if (CFG.domicilioActivo) $('dom-tog').classList.add('on');
-  else                     $('dom-tog').classList.remove('on');
+  if ($('dom-tog')) { if (CFG.domicilioActivo) $('dom-tog').classList.add('on'); else $('dom-tog').classList.remove('on'); }
 
   if ($('cfg-emoji'))   $('cfg-emoji').value   = CFG.logoEmoji           || '';
   if ($('cfg-nombre'))  $('cfg-nombre').value  = CFG.nombreComercio      || '';
