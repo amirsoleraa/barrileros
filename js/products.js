@@ -56,14 +56,20 @@ export function renderProds(catId) {
   }
 
   grid.innerHTML = prods.map(p => {
-    const imgH     = p.imgUrl ? `<img src="${p.imgUrl}" alt="${p.nombre}">` : (p.emoji || '🍖');
+    const imgContent = p.imgUrl
+      ? `<img src="${p.imgUrl}" alt="${p.nombre}">`
+      : `<div class="prod-img-blob"></div>${p.emoji || '🍖'}`;
     const inCart   = cart.find(i => i.id === p.id);
     const qtyVisible = inCart ? 'visible' : '';
     const qtyNum   = inCart ? inCart.qty : 1;
     const qaDisplay = inCart ? 'display:none;' : '';
     return `
     <div class="prod-card" onclick="openDetail('${p.id}')">
-      <div class="prod-img">${imgH}</div>
+      <div class="prod-img">
+        ${imgContent}
+        <div class="prod-expand">⤢</div>
+        <div class="prod-bookmark">🔖</div>
+      </div>
       <div class="prod-info">
         <div class="prod-name">${p.nombre}</div>
         ${p.descripcion ? `<div class="prod-desc">${p.descripcion}</div>` : ''}

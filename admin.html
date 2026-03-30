@@ -48,21 +48,22 @@
       <div class="sb-logo" id="sb-logo">🔥</div>
       <span class="sb-name" id="sb-name">Asados al Barril</span>
     </div>
+    <button class="sb-pin-btn" id="sb-pin-btn" onclick="toggleSidebarPin()" title="Fijar menú">📌</button>
     <nav class="sidebar-nav">
-      <div class="nav-item active" onclick="aPanel('pedidos',this)"><span class="nav-icon">📋</span><span class="nav-label">Pedidos</span><span class="nav-badge" id="n-badge" style="display:none">0</span></div>
-      <div class="nav-item" onclick="aPanel('productos',this)"><span class="nav-icon">🍖</span><span class="nav-label">Productos</span></div>
-      <div class="nav-item" onclick="aPanel('categorias',this)"><span class="nav-icon">🏷️</span><span class="nav-label">Categorías</span></div>
-      <div class="nav-item" onclick="aPanel('dashboard',this)"><span class="nav-icon">📊</span><span class="nav-label">Dashboard</span></div>
-      <div class="nav-item" onclick="aPanel('seguimiento',this)"><span class="nav-icon">🛵</span><span class="nav-label">Seguimiento</span></div>
-      <div class="nav-item" onclick="aPanel('novedades',this)"><span class="nav-icon">🔔</span><span class="nav-label">Novedades</span></div>
-      <div class="nav-item" onclick="aPanel('domicilio',this)"><span class="nav-icon">💰</span><span class="nav-label">Domicilio</span></div>
-      <div class="nav-item" onclick="aPanel('descuentos',this)"><span class="nav-icon">🎟️</span><span class="nav-label">Descuentos</span></div>
-      <div class="nav-item" onclick="aPanel('config',this)"><span class="nav-icon">⚙️</span><span class="nav-label">Configuración</span></div>
+      <div class="nav-item active" data-tip="Pedidos" onclick="aPanel('pedidos',this)"><span class="nav-icon">📋</span><span class="nav-label">Pedidos</span><span class="nav-badge" id="n-badge" style="display:none">0</span></div>
+      <div class="nav-item" data-tip="Productos" onclick="aPanel('productos',this)"><span class="nav-icon">🍖</span><span class="nav-label">Productos</span></div>
+      <div class="nav-item" data-tip="Categorías" onclick="aPanel('categorias',this)"><span class="nav-icon">🏷️</span><span class="nav-label">Categorías</span></div>
+      <div class="nav-item" data-tip="Dashboard" onclick="aPanel('dashboard',this)"><span class="nav-icon">📊</span><span class="nav-label">Dashboard</span></div>
+      <div class="nav-item" data-tip="Seguimiento" onclick="aPanel('seguimiento',this)"><span class="nav-icon">🛵</span><span class="nav-label">Seguimiento</span></div>
+      <div class="nav-item" data-tip="Novedades" onclick="aPanel('novedades',this)"><span class="nav-icon">🔔</span><span class="nav-label">Novedades</span></div>
+      <div class="nav-item" data-tip="Domicilio" onclick="aPanel('domicilio',this)"><span class="nav-icon">💰</span><span class="nav-label">Domicilio</span></div>
+      <div class="nav-item" data-tip="Descuentos" onclick="aPanel('descuentos',this)"><span class="nav-icon">🎟️</span><span class="nav-label">Descuentos</span></div>
+      <div class="nav-item" data-tip="Colores" onclick="aPanel('colores',this)"><span class="nav-icon">🎨</span><span class="nav-label">Colores</span></div>
+      <div class="nav-item" data-tip="Configuración" onclick="aPanel('config',this)"><span class="nav-icon">⚙️</span><span class="nav-label">Configuración</span></div>
     </nav>
     <div class="sb-footer">
-      <div class="collapse-btn" onclick="toggleSidebar()">
-        <span class="nav-icon" id="col-icon">◀</span>
-        <span class="nav-label">Contraer</span>
+      <div class="nav-item" data-tip="Salir" onclick="logoutAdmin()" style="color:rgba(255,100,80,.6);">
+        <span class="nav-icon">🚪</span><span class="nav-label">Salir</span>
       </div>
     </div>
   </div>
@@ -205,6 +206,131 @@
       </div>
 
       <!-- CONFIG -->
+      <div id="panel-colores" class="admin-panel">
+        <div class="admin-card" style="padding:24px;max-width:600px;">
+          <h3 style="margin-bottom:6px;">🎨 Colores del tema</h3>
+          <p style="font-size:13px;color:var(--text3);margin-bottom:22px;">Personaliza la paleta de colores de toda la tienda. Los cambios se aplican en tiempo real.</p>
+
+          <!-- Presets -->
+          <div style="margin-bottom:24px;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:10px;">Paletas rápidas</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;" id="theme-presets">
+              <button class="theme-preset-btn active" data-preset="fuego" onclick="applyPreset(this,'fuego')">
+                <span style="display:flex;gap:4px;margin-bottom:4px;">
+                  <span style="width:16px;height:16px;border-radius:4px;background:#B22000;"></span>
+                  <span style="width:16px;height:16px;border-radius:4px;background:#D89D5D;"></span>
+                  <span style="width:16px;height:16px;border-radius:4px;background:#FDF8F3;"></span>
+                </span>
+                <span style="font-size:11px;">🔥 Fuego</span>
+              </button>
+              <button class="theme-preset-btn" data-preset="carbon" onclick="applyPreset(this,'carbon')">
+                <span style="display:flex;gap:4px;margin-bottom:4px;">
+                  <span style="width:16px;height:16px;border-radius:4px;background:#E63E11;"></span>
+                  <span style="width:16px;height:16px;border-radius:4px;background:#FF6B3D;"></span>
+                  <span style="width:16px;height:16px;border-radius:4px;background:#1a1a1a;"></span>
+                </span>
+                <span style="font-size:11px;">🖤 Carbón</span>
+              </button>
+              <button class="theme-preset-btn" data-preset="selva" onclick="applyPreset(this,'selva')">
+                <span style="display:flex;gap:4px;margin-bottom:4px;">
+                  <span style="width:16px;height:16px;border-radius:4px;background:#1B6B3A;"></span>
+                  <span style="width:16px;height:16px;border-radius:4px;background:#5DAD6F;"></span>
+                  <span style="width:16px;height:16px;border-radius:4px;background:#F0F8F2;"></span>
+                </span>
+                <span style="font-size:11px;">🌿 Selva</span>
+              </button>
+              <button class="theme-preset-btn" data-preset="noche" onclick="applyPreset(this,'noche')">
+                <span style="display:flex;gap:4px;margin-bottom:4px;">
+                  <span style="width:16px;height:16px;border-radius:4px;background:#7C3AED;"></span>
+                  <span style="width:16px;height:16px;border-radius:4px;background:#A78BFA;"></span>
+                  <span style="width:16px;height:16px;border-radius:4px;background:#0f0f18;"></span>
+                </span>
+                <span style="font-size:11px;">🌙 Noche</span>
+              </button>
+              <button class="theme-preset-btn" data-preset="ocean" onclick="applyPreset(this,'ocean')">
+                <span style="display:flex;gap:4px;margin-bottom:4px;">
+                  <span style="width:16px;height:16px;border-radius:4px;background:#0369A1;"></span>
+                  <span style="width:16px;height:16px;border-radius:4px;background:#38BDF8;"></span>
+                  <span style="width:16px;height:16px;border-radius:4px;background:#F0F9FF;"></span>
+                </span>
+                <span style="font-size:11px;">🌊 Océano</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Custom colors -->
+          <div style="margin-bottom:24px;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:12px;">Colores personalizados</div>
+            <div class="color-editor-grid">
+              <div class="color-editor-row">
+                <div class="color-preview-dot" id="cp-brand"></div>
+                <div class="color-editor-info">
+                  <div class="color-editor-label">Color principal (brand)</div>
+                  <div class="color-editor-hint">Botones, precios, acentos</div>
+                </div>
+                <input type="color" class="color-picker-input" id="ci-brand" oninput="liveColor('--brand',this.value,'ci-brand','cp-brand')"/>
+              </div>
+              <div class="color-editor-row">
+                <div class="color-preview-dot" id="cp-brand-dark"></div>
+                <div class="color-editor-info">
+                  <div class="color-editor-label">Color oscuro (hover)</div>
+                  <div class="color-editor-hint">Estado hover de botones</div>
+                </div>
+                <input type="color" class="color-picker-input" id="ci-brand-dark" oninput="liveColor('--brand-dark',this.value,'ci-brand-dark','cp-brand-dark')"/>
+              </div>
+              <div class="color-editor-row">
+                <div class="color-preview-dot" id="cp-brand-light"></div>
+                <div class="color-editor-info">
+                  <div class="color-editor-label">Color claro (fondos)</div>
+                  <div class="color-editor-hint">Fondos suaves y tarjetas</div>
+                </div>
+                <input type="color" class="color-picker-input" id="ci-brand-light" oninput="liveColor('--brand-light',this.value,'ci-brand-light','cp-brand-light')"/>
+              </div>
+              <div class="color-editor-row">
+                <div class="color-preview-dot" id="cp-bg"></div>
+                <div class="color-editor-info">
+                  <div class="color-editor-label">Fondo principal</div>
+                  <div class="color-editor-hint">Color de fondo de la app</div>
+                </div>
+                <input type="color" class="color-picker-input" id="ci-bg" oninput="liveColor('--bg',this.value,'ci-bg','cp-bg')"/>
+              </div>
+              <div class="color-editor-row">
+                <div class="color-preview-dot" id="cp-text"></div>
+                <div class="color-editor-info">
+                  <div class="color-editor-label">Color de texto</div>
+                  <div class="color-editor-hint">Texto principal de la app</div>
+                </div>
+                <input type="color" class="color-picker-input" id="ci-text" oninput="liveColor('--text',this.value,'ci-text','cp-text')"/>
+              </div>
+              <div class="color-editor-row">
+                <div class="color-preview-dot" id="cp-accent"></div>
+                <div class="color-editor-info">
+                  <div class="color-editor-label">Color de acento</div>
+                  <div class="color-editor-hint">Detalles secundarios</div>
+                </div>
+                <input type="color" class="color-picker-input" id="ci-accent" oninput="liveColor('--accent',this.value,'ci-accent','cp-accent')"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div style="margin-bottom:20px;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:10px;">Vista previa</div>
+            <div style="background:var(--bg);border-radius:14px;padding:16px;border:1.5px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+              <button style="background:var(--brand);color:#fff;border:none;padding:10px 18px;border-radius:10px;font-weight:600;cursor:default;">Agregar al carrito</button>
+              <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:var(--brand);">$45.000</span>
+              <span style="background:var(--brand-light);color:var(--brand-dark);padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;">🔥 Popular</span>
+              <span style="font-size:13px;color:var(--text2);">Texto secundario</span>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn-p" style="padding:12px 24px;width:auto;" onclick="saveColores()">💾 Guardar colores</button>
+            <button class="btn-s" style="padding:12px 18px;width:auto;" onclick="resetColores()">↺ Restablecer</button>
+          </div>
+        </div>
+      </div>
+
       <div id="panel-config" class="admin-panel">
         <div class="admin-card" style="padding:20px;max-width:500px;">
           <h3 style="margin-bottom:18px;">Configuración de la cuenta</h3>

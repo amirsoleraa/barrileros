@@ -60,7 +60,7 @@ window.aPanel = function (name, el) {
   document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
   const panel = $('panel-' + name);
   if (panel) panel.classList.add('active');
-  const titles = { pedidos: 'Pedidos', productos: 'Productos', categorias: 'Categorías', dashboard: 'Dashboard', seguimiento: 'Seguimiento', novedades: 'Novedades', domicilio: 'Domicilio', descuentos: 'Descuentos', config: 'Configuración' };
+  const titles = { pedidos: 'Pedidos', productos: 'Productos', categorias: 'Categorías', dashboard: 'Dashboard', seguimiento: 'Seguimiento', novedades: 'Novedades', domicilio: 'Domicilio', descuentos: 'Descuentos', colores: '🎨 Colores del tema', config: 'Configuración' };
   $('a-title').textContent = titles[name] || name;
   if (name === 'pedidos')    renderPedidosTable();
   if (name === 'productos')  renderProductosAdmin();
@@ -70,16 +70,145 @@ window.aPanel = function (name, el) {
   if (name === 'novedades')  renderNovedades();
   if (name === 'descuentos') renderCupones();
   if (name === 'config')     applyConfig();
+  if (name === 'colores')    initColorEditor();
   closeMobSidebar();
 };
 
-window.toggleSidebar = function () {
-  setSidebarCollapsed(!sidebarCollapsed);
-  $('admin-sidebar').classList.toggle('collapsed', sidebarCollapsed);
-  $('col-icon').textContent = sidebarCollapsed ? '▶' : '◀';
+// ── SIDEBAR PIN (hover-expand / fixed) ──
+window.toggleSidebarPin = function () {
+  const sb = $('admin-sidebar');
+  const pinned = sb.classList.toggle('pinned');
+  const btn = $('sb-pin-btn');
+  if (btn) btn.title = pinned ? 'Desfijar menú' : 'Fijar menú';
+  localStorage.setItem('sb-pinned', pinned ? '1' : '0');
 };
+// Restore pin state on load
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('sb-pinned') === '1') {
+    const sb = $('admin-sidebar');
+    if (sb) { sb.classList.add('pinned'); const btn = $('sb-pin-btn'); if (btn) btn.title = 'Desfijar menú'; }
+  }
+});
+window.toggleSidebar   = window.toggleSidebarPin; // legacy compat
 window.openMobSidebar  = function () { $('admin-sidebar').classList.add('mob-open'); $('mob-overlay').classList.add('open'); };
 window.closeMobSidebar = function () { $('admin-sidebar').classList.remove('mob-open'); $('mob-overlay').classList.remove('open'); };
+
+// ══════════════════════════════════════════════
+// COLOR THEME EDITOR
+// ══════════════════════════════════════════════
+const COLOR_VARS = ['--brand','--brand-dark','--brand-light','--bg','--text','--accent'];
+const COLOR_INPUT_MAP = {
+  '--brand':       { input: 'ci-brand',      dot: 'cp-brand' },
+  '--brand-dark':  { input: 'ci-brand-dark', dot: 'cp-brand-dark' },
+  '--brand-light': { input: 'ci-brand-light',dot: 'cp-brand-light' },
+  '--bg':          { input: 'ci-bg',         dot: 'cp-bg' },
+  '--text':        { input: 'ci-text',       dot: 'cp-text' },
+  '--accent':      { input: 'ci-accent',     dot: 'cp-accent' },
+};
+
+const PRESETS = {
+  fuego:  { '--brand':'#B22000','--brand-dark':'#4D1A00','--brand-light':'#fdf0e8','--bg':'#FDF8F3','--text':'#4D1A00','--accent':'#D89D5D' },
+  carbon: { '--brand':'#E63E11','--brand-dark':'#9A2000','--brand-light':'#2a1a14','--bg':'#1a1a1a','--text':'#f0e8e0','--accent':'#FF6B3D' },
+  selva:  { '--brand':'#1B6B3A','--brand-dark':'#0D3D21','--brand-light':'#E8F5EC','--bg':'#F0F8F2','--text':'#0D3D21','--accent':'#5DAD6F' },
+  noche:  { '--brand':'#7C3AED','--brand-dark':'#4C1D95','--brand-light':'#1e1530','--bg':'#0f0f18','--text':'#e8e0f8','--accent':'#A78BFA' },
+  ocean:  { '--brand':'#0369A1','--brand-dark':'#01344F','--brand-light':'#E0F2FE','--bg':'#F0F9FF','--text':'#01344F','--accent':'#38BDF8' },
+};
+
+function getCSSVar(v) {
+  return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+}
+
+function rgbToHex(str) {
+  // Handles both #hex and rgb(...)
+  if (!str) return '#000000';
+  if (str.startsWith('#')) { if (str.length === 4) return '#' + str[1]+str[1]+str[2]+str[2]+str[3]+str[3]; return str; }
+  const m = str.match(/\d+/g);
+  if (!m || m.length < 3) return '#000000';
+  return '#' + m.slice(0,3).map(n => parseInt(n).toString(16).padStart(2,'0')).join('');
+}
+
+window.initColorEditor = function () {
+  COLOR_VARS.forEach(v => {
+    const map = COLOR_INPUT_MAP[v];
+    if (!map) return;
+    const hex = rgbToHex(getCSSVar(v));
+    const inp = $(map.input);
+    const dot = $(map.dot);
+    if (inp) inp.value = hex;
+    if (dot) dot.style.background = hex;
+  });
+};
+
+window.liveColor = function (cssVar, val, inputId, dotId) {
+  document.documentElement.style.setProperty(cssVar, val);
+  const dot = $(dotId);
+  if (dot) dot.style.background = val;
+  // Deselect presets
+  document.querySelectorAll('.theme-preset-btn').forEach(b => b.classList.remove('active'));
+};
+
+window.applyPreset = function (btn, name) {
+  const preset = PRESETS[name];
+  if (!preset) return;
+  document.querySelectorAll('.theme-preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  Object.entries(preset).forEach(([v, val]) => {
+    document.documentElement.style.setProperty(v, val);
+    const map = COLOR_INPUT_MAP[v];
+    if (!map) return;
+    const inp = $(map.input);
+    const dot = $(map.dot);
+    if (inp) inp.value = val;
+    if (dot) dot.style.background = val;
+  });
+};
+
+window.saveColores = async function () {
+  const colores = {};
+  COLOR_VARS.forEach(v => {
+    colores[v.replace('--','')] = getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  });
+  try {
+    const { doc: fsDoc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    await setDoc(fsDoc(db, 'config', 'colores'), colores);
+    toast('🎨 Colores guardados');
+  } catch(e) {
+    // Fallback: save to localStorage for offline/demo
+    localStorage.setItem('theme-colors', JSON.stringify(colores));
+    toast('🎨 Colores guardados (local)');
+  }
+};
+
+window.resetColores = function () {
+  applyPreset(document.querySelector('[data-preset="fuego"]'), 'fuego');
+  toast('↺ Colores restablecidos');
+};
+
+// Load saved colors on init
+async function loadSavedColors() {
+  try {
+    const { getDoc: fsGetDoc, doc: fsDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const snap = await fsGetDoc(fsDoc(db, 'config', 'colores'));
+    if (snap.exists()) {
+      const data = snap.data();
+      Object.entries(data).forEach(([k, v]) => {
+        document.documentElement.style.setProperty('--' + k, v);
+      });
+      return;
+    }
+  } catch(e) { /* ignore */ }
+  // Fallback localStorage
+  try {
+    const saved = localStorage.getItem('theme-colors');
+    if (saved) {
+      const data = JSON.parse(saved);
+      Object.entries(data).forEach(([k, v]) => {
+        document.documentElement.style.setProperty('--' + k, v);
+      });
+    }
+  } catch(e) { /* ignore */ }
+}
+loadSavedColors();
 
 // ── PEDIDOS ──
 export function renderPedidosBadge() {

@@ -72,6 +72,22 @@ async function initApp() {
   try {
     const cfgDoc = await getDoc(doc(db, 'config', 'main'));
     if (cfgDoc.exists()) setCFG(cfgDoc.data());
+
+    // Load saved theme colors
+    try {
+      const colorDoc = await getDoc(doc(db, 'config', 'colores'));
+      if (colorDoc.exists()) {
+        Object.entries(colorDoc.data()).forEach(([k, v]) => {
+          document.documentElement.style.setProperty('--' + k, v);
+        });
+      }
+    } catch(e) {
+      // Fallback localStorage
+      try {
+        const saved = localStorage.getItem('theme-colors');
+        if (saved) { Object.entries(JSON.parse(saved)).forEach(([k,v]) => document.documentElement.style.setProperty('--'+k,v)); }
+      } catch(_) {}
+    }
     applyConfig();
 
     const catSnap  = await getDocs(collection(db, 'categorias'));
