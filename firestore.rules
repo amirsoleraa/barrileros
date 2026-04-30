@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── HELPER: verifica si el usuario autenticado tiene rol admin ──
+    // El campo "role" se asigna desde la consola Firebase o desde una
+    // Cloud Function al crear el usuario. Nunca desde el cliente.
+    function isAdmin() {
+      return request.auth != null
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ── USUARIOS — cada uno lee/escribe solo su propio doc ──
+    // El campo "role" SOLO puede ser escrito por admins existentes.
+    match /users/{userId} {
+      allow read:  if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId
+                    && !('role' in request.resource.data);
+      allow update: if (request.auth != null && request.auth.uid == userId
+                    && !('role' in request.resource.data))
+                    || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── CONFIGURACIÓN — lectura solo admin, escritura solo admin ──
+    // Se eliminó "allow read: if true" que exponía el PIN al público.
+    match /config/{docId} {
+      allow read:  if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ── CATEGORÍAS — lectura pública, escritura solo admin ──
+    match /categorias/{catId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // ── PRODUCTOS — lectura pública, escritura solo admin ──
+    match /productos/{prodId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // ── PEDIDOS ──
+    // Crear: cualquiera puede hacer un pedido (cliente sin login)
+    // Leer/actualizar/eliminar: solo admin
+    match /pedidos/{pedidoId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ── CUPONES ──
+    // Lectura pública (validar código en checkout sin exponer config interna)
+    // Crear/eliminar: solo admin
+    // Update: SOLO admin — se eliminó "if true" que permitía alterar descuentos
+    // El incremento de usos ahora se hace desde una Cloud Function o con
+    // una regla de campo específica (ver README → Cupones seguros).
+    match /cupones/{cuponId} {
+      allow read:          if true;
+      allow create, delete: if isAdmin();
+      allow update:        if isAdmin()
+                           || (request.auth == null
+                               && request.resource.data.diff(resource.data).affectedKeys()
+                                  .hasOnly(['usos'])
+                               && request.resource.data.usos == resource.data.usos + 1);
+    }
+
+    // ── NOVEDADES — lectura pública, escritura solo admin ──
+    match /novedades/{novId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // ── BLOQUEAR TODO LO DEMÁS ──
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

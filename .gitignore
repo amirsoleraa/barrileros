@@ -1,0 +1,18 @@
+# Variables de entorno — NUNCA subir al repo
+.env
+.env.local
+.env.*.local
+
+# Dependencias
+node_modules/
+
+# Build Vite
+dist/
+dist-ssr/
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Netlify
+.netlify/

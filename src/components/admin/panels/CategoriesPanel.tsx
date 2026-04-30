@@ -1,0 +1,147 @@
+import { useState } from 'react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAppStore } from '@/stores/useAppStore';
+import { Modal } from '@/components/ui/Modal';
+import type { Categoria } from '@/types';
+
+const COLOR_SWATCHES = [
+  '#F4521E','#EF4444','#F97316','#EAB308','#22C55E',
+  '#14B8A6','#3B82F6','#8B5CF6','#EC4899','#111111',
+];
+
+export function CategoriesPanel() {
+  const { categorias, productos, showToast, setCategorias } = useAppStore();
+  const [isOpen, setIsOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [nombre, setNombre] = useState('');
+  const [color, setColor] = useState('#F4521E');
+  const [saving, setSaving] = useState(false);
+
+  const cats = Object.values(categorias).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+
+  function prodCount(catId: string) {
+    return Object.values(productos).filter(p => p.categoriaId === catId).length;
+  }
+
+  function openCreate() {
+    setEditId(null); setNombre(''); setColor('#F4521E');
+    setIsOpen(true);
+  }
+  function openEdit(c: Categoria) {
+    setEditId(c.id); setNombre(c.nombre); setColor(c.color);
+    setIsOpen(true);
+  }
+
+  async function handleSave() {
+    if (!nombre.trim()) { showToast('El nombre es obligatorio'); return; }
+    setSaving(true);
+    try {
+      if (editId) {
+        await updateDoc(doc(db, 'categorias', editId), { nombre: nombre.trim(), color });
+        setCategorias({ ...categorias, [editId]: { ...categorias[editId], nombre: nombre.trim(), color } });
+        showToast('Categoría actualizada');
+      } else {
+        const r = await addDoc(collection(db, 'categorias'), { nombre: nombre.trim(), color, orden: cats.length });
+        setCategorias({ ...categorias, [r.id]: { id: r.id, nombre: nombre.trim(), color, orden: cats.length } });
+        showToast('Categoría creada');
+      }
+      setIsOpen(false);
+    } catch (e) {
+      showToast('Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (prodCount(id) > 0) { showToast('No puedes eliminar una categoría con productos asignados'); return; }
+    if (!window.confirm('¿Eliminar esta categoría?')) return;
+    await deleteDoc(doc(db, 'categorias', id));
+    const next = { ...categorias };
+    delete next[id];
+    setCategorias(next);
+    showToast('Categoría eliminada');
+  }
+
+  return (
+    <div>
+      <div className="admin-card-hdr" style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', marginBottom: 16 }}>
+        <h3>Categorías ({cats.length})</h3>
+        <button className="btn-add" onClick={openCreate}>
+          <Plus size={16} /> Nueva categoría
+        </button>
+      </div>
+
+      <div className="admin-card">
+        {cats.length === 0 ? (
+          <div className="empty-s">No hay categorías aún.</div>
+        ) : (
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Color</th>
+                <th>Nombre</th>
+                <th>Productos</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cats.map(c => (
+                <tr key={c.id}>
+                  <td>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: c.color, border: '2px solid rgba(0,0,0,.08)' }} />
+                  </td>
+                  <td><strong>{c.nombre}</strong></td>
+                  <td>{prodCount(c.id)}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button className="ab ab-e" onClick={() => openEdit(c)}><Pencil size={12} /> Editar</button>
+                      <button className="ab ab-d" onClick={() => handleDelete(c.id)}><Trash2 size={12} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title={editId ? 'Editar categoría' : 'Nueva categoría'}>
+        <div className="f-field">
+          <label>Nombre *</label>
+          <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Asados, Acompañamientos..." />
+        </div>
+        <div className="f-field">
+          <label>Color</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+            {COLOR_SWATCHES.map(c => (
+              <div
+                key={c}
+                onClick={() => setColor(c)}
+                style={{
+                  width: 32, height: 32, borderRadius: 8, background: c, cursor: 'pointer',
+                  border: `3px solid ${color === c ? 'var(--text)' : 'transparent'}`,
+                  transition: 'transform .12s',
+                }}
+              />
+            ))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input type="color" value={color} onChange={e => setColor(e.target.value)}
+              style={{ width: 40, height: 40, border: 'none', borderRadius: 8, cursor: 'pointer', padding: 2 }} />
+            <input value={color} onChange={e => setColor(e.target.value)} style={{ flex: 1 }}
+              className="s-input" placeholder="#F4521E" />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
+          <button className="btn-s" onClick={() => setIsOpen(false)}>Cancelar</button>
+          <button className="btn-p" onClick={handleSave} disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+      </Modal>
+    </div>
+  );
+}

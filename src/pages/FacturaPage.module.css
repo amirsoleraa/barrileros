@@ -1,0 +1,111 @@
+.page {
+    background: var(--bg);
+    min-height: 100vh;
+}
+
+.wrap {
+    padding: 24px 14px 60px;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.card {
+    background: var(--surface);
+    border-radius: 22px;
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+/* Brand colored top band */
+.top {
+    background: linear-gradient(
+        135deg,
+        var(--brand-dark) 0%,
+        var(--brand) 100%
+    );
+    padding: 28px 22px;
+    text-align: center;
+    color: #fff;
+}
+.check {
+    width: 56px;
+    height: 56px;
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+}
+.top h2 {
+    font-family: "Rubik", sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+}
+.num {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 8px;
+    letter-spacing: 0.02em;
+}
+
+.body {
+    padding: 20px;
+}
+
+.sec {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+.lastSec {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.sec h4 {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.facRow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13.5px;
+    margin-bottom: 6px;
+    color: var(--text2);
+    gap: 12px;
+}
+.facRow span:last-child {
+    text-align: right;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.totalRow {
+    font-family: "Rubik", sans-serif;
+    font-weight: 800;
+    font-size: 17px;
+    color: var(--brand);
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 6px;
+}
+.totalRow span:last-child {
+    color: var(--brand);
+}
+
+.actions {
+    padding: 18px 0 0;
+}

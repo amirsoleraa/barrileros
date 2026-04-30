@@ -1,0 +1,57 @@
+.bar {
+  padding: 10px 16px 12px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  position: sticky;
+  top: 58px;
+  z-index: 90;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.bar::after {
+  content: '';
+  min-width: 4px;
+  flex-shrink: 0;
+}
+.bar::-webkit-scrollbar { display: none; }
+
+.pill {
+  padding: 7px 16px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all .2s cubic-bezier(.34,1.56,.64,1);
+  border: 1.5px solid var(--border2);
+  color: var(--text3);
+  background: transparent;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+.pill:not(.active):hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+  box-shadow: 0 3px 14px rgba(255,98,41,.4);
+}
+
+@media (min-width: 640px) {
+  .bar { padding: 12px 28px 14px; top: 58px; }
+}
+
+@media (min-width: 1024px) {
+  .bar {
+    padding: 14px max(32px, calc((100vw - 1280px) / 2 + 32px)) 16px;
+    top: 66px;
+  }
+  .pill { padding: 8px 20px; font-size: 14px; }
+}
