@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 import { useAdminInit } from '@/hooks/useAdminInit';
+import { useAuth } from '@/hooks/useAuth';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminTopbar } from '@/components/admin/AdminTopbar';
-import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { Toast } from '@/components/ui/Toast';
 import styles from './AdminPage.module.css';
 
@@ -13,7 +13,6 @@ function AdminContent() {
 
   return (
     <div className={styles.layout}>
-      {/* Mobile backdrop */}
       {menuOpen && (
         <div className={styles.overlay} onClick={() => setMenuOpen(false)} />
       )}
@@ -34,6 +33,13 @@ function AdminContent() {
   );
 }
 
-export function AdminPage() {
+function AdminGuard() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/admin/login" replace />;
   return <AdminContent />;
+}
+
+export function AdminPage() {
+  return <AdminGuard />;
 }

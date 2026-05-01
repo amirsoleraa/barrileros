@@ -1,24 +1,42 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Flame } from 'lucide-react';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import { useAppStore } from '@/stores/useAppStore';
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
   const { cfg } = useAppStore();
-  const [email, setEmail] = useState('');
-  const [pass, setPass]  = useState('');
+  const { user, loading: authLoading, signIn } = useAuth();
+  const [email, setEmail]     = useState('');
+  const [pass, setPass]       = useState('');
+  const [err, setErr]         = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  if (authLoading) return null;
+  if (user) return <Navigate to="/admin" replace />;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    navigate('/admin');
+    if (!email.trim() || !pass) return;
+    setErr('');
+    setSubmitting(true);
+    const error = await signIn(email.trim(), pass);
+    if (error) {
+      setErr(error);
+      setSubmitting(false);
+    } else {
+      navigate('/admin', { replace: true });
+    }
   }
 
   return (
     <div className="login-bg">
       <div className="login-card">
         <div className="login-icon-wrap">
-          {cfg.logoUrl ? <img src={cfg.logoUrl} alt={cfg.nombreComercio} /> : <span>{cfg.logoEmoji}</span>}
+          {cfg.logoUrl
+            ? <img src={cfg.logoUrl} alt={cfg.nombreComercio} />
+            : <span>{cfg.logoEmoji}</span>
+          }
         </div>
         <h1 className="login-title">{cfg.nombreComercio}</h1>
         <p className="login-sub">Panel de administración</p>
@@ -32,6 +50,7 @@ export function AdminLoginPage() {
               onChange={e => setEmail(e.target.value)}
               placeholder="admin@correo.com"
               autoComplete="email"
+              required
             />
           </div>
           <div className="f-field">
@@ -42,6 +61,7 @@ export function AdminLoginPage() {
               onChange={e => setPass(e.target.value)}
               placeholder="••••••••"
               autoComplete="current-password"
+              required
             />
           </div>
           {err && <p className="login-err">{err}</p>}
@@ -49,9 +69,9 @@ export function AdminLoginPage() {
             type="submit"
             className="btn-p"
             style={{ marginTop: 8 }}
-            disabled={loading}
+            disabled={submitting}
           >
-            {loading ? 'Ingresando...' : 'Ingresar'}
+            {submitting ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
 

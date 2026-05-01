@@ -5,7 +5,6 @@ import { useAppStore } from '@/stores/useAppStore';
 import { applyThemeColors } from '@/lib/utils';
 import type { AppConfig, Producto, Categoria, Cupon, Novedad, Publicidad } from '@/types';
 
-/** Rechaza si Firebase no responde en `ms` milisegundos */
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
@@ -26,31 +25,40 @@ export function useFirebaseInit() {
 
     async function init() {
       try {
-        const [cfgDoc, colorDoc, catSnap, prodSnap, cupSnap] = await withTimeout(
-          Promise.all([
-            getDoc(doc(db, 'config', 'main')),
-            getDoc(doc(db, 'config', 'colores')),
-            getDocs(collection(db, 'categorias')),
-            getDocs(collection(db, 'productos')),
-            getDocs(collection(db, 'cupones')),
-          ]),
-          8000 // 8 s máximo; si no hay red, la app carga vacía
-        );
+        // Config se carga por separado — si falla (sin red o permisos) no bloquea el catálogo
+        getDoc(doc(db, 'config', 'main')).then(d => {
+          if (d.exists()) setCfg(d.data() as Partial<AppConfig>);
+        }).catch(() => {});
 
-        if (cfgDoc.exists()) setCfg(cfgDoc.data() as Partial<AppConfig>);
-
-        if (colorDoc.exists()) {
-          applyThemeColors(colorDoc.data() as Record<string, string>);
-        } else {
+        getDoc(doc(db, 'config', 'colores')).then(d => {
+          if (d.exists()) {
+            applyThemeColors(d.data() as Record<string, string>);
+          } else {
+            try {
+              const saved = localStorage.getItem('theme-colors');
+              if (saved) applyThemeColors(JSON.parse(saved));
+            } catch (_) {}
+          }
+        }).catch(() => {
           try {
             const saved = localStorage.getItem('theme-colors');
             if (saved) applyThemeColors(JSON.parse(saved));
           } catch (_) {}
-        }
+        });
 
-        const prods: Record<string, Producto>  = {};
-        const cats:  Record<string, Categoria> = {};
-        const cups:  Record<string, Cupon>     = {};
+        // Catálogo crítico — timeout de 8 s
+        const [catSnap, prodSnap, cupSnap] = await withTimeout(
+          Promise.all([
+            getDocs(collection(db, 'categorias')),
+            getDocs(collection(db, 'productos')),
+            getDocs(collection(db, 'cupones')),
+          ]),
+          8000
+        );
+
+        const cats: Record<string, Categoria> = {};
+        const prods: Record<string, Producto> = {};
+        const cups: Record<string, Cupon>     = {};
 
         catSnap.forEach(d  => { cats[d.id]  = { id: d.id, ...d.data() } as Categoria; });
         prodSnap.forEach(d => { prods[d.id] = { id: d.id, ...d.data() } as Producto; });
@@ -60,7 +68,7 @@ export function useFirebaseInit() {
         setProductos(prods);
         setCupones(cups);
 
-        // Novedades y publicidades: no bloqueantes
+        // No bloqueantes
         getDocs(collection(db, 'novedades')).then(snap => {
           const novs: Record<string, Novedad> = {};
           snap.forEach(d => { novs[d.id] = { id: d.id, ...d.data() } as Novedad; });
@@ -76,14 +84,12 @@ export function useFirebaseInit() {
 
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        // Errores esperados cuando Firestore no está creado o no hay red
         if (msg.includes('offline') || msg.includes('timeout') || msg.includes('unavailable')) {
-          console.warn('[Firebase] Sin conexión a Firestore — la tienda carga vacía.');
+          console.warn('[Firebase] Sin conexión — la tienda carga vacía.');
         } else {
           console.error('[Firebase] Error al cargar datos:', e);
         }
       } finally {
-        // Tiempo mínimo de visualización del splash screen
         await new Promise(r => setTimeout(r, 2800));
         setLoading(false);
       }

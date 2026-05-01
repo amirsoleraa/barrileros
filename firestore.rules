@@ -14,19 +14,25 @@ service cloud.firestore {
     // El campo "role" SOLO puede ser escrito por admins existentes.
     match /users/{userId} {
       allow read:  if request.auth != null && request.auth.uid == userId;
+      // Bootstrap: permite rol 'admin' solo si aún no existe config/adminReady
       allow create: if request.auth != null && request.auth.uid == userId
-                    && !('role' in request.resource.data);
+                    && (!('role' in request.resource.data)
+                        || (request.resource.data.role == 'admin'
+                            && !exists(/databases/$(database)/documents/config/adminReady)));
       allow update: if (request.auth != null && request.auth.uid == userId
                     && !('role' in request.resource.data))
                     || isAdmin();
       allow delete: if isAdmin();
     }
 
-    // ── CONFIGURACIÓN — lectura solo admin, escritura solo admin ──
-    // Se eliminó "allow read: if true" que exponía el PIN al público.
+    // ── CONFIGURACIÓN ──
+    // main y colores: lectura pública (nombre del comercio, logo, tema)
+    // adminReady: solo admin (documento de bootstrap)
     match /config/{docId} {
-      allow read:  if isAdmin();
-      allow write: if isAdmin();
+      allow read:  if docId == 'main' || docId == 'colores' || isAdmin();
+      allow write: if isAdmin()
+                   || (docId == 'adminReady'
+                       && !exists(/databases/$(database)/documents/config/adminReady));
     }
 
     // ── CATEGORÍAS — lectura pública, escritura solo admin ──
