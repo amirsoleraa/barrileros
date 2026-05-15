@@ -14,6 +14,7 @@ const DEFAULT_CFG: AppConfig = {
   domicilioValor: 5000,
   mensajeConfirmacion: 'Tu pedido está siendo preparado. ¡Gracias por tu compra!',
   whatsappNumero: '',
+  camposFormulario: { correo: true, tel: true, dir: true, barrio: true, comp: true, recibe: true },
 };
 
 

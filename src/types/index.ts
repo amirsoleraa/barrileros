@@ -2,6 +2,15 @@
 // types/index.ts — Tipos TypeScript del dominio
 // ═══════════════════════════════════════════════
 
+export interface CamposFormulario {
+  correo?: boolean;
+  tel?: boolean;
+  dir?: boolean;
+  barrio?: boolean;
+  comp?: boolean;
+  recibe?: boolean;
+}
+
 export interface AppConfig {
   nombreComercio: string;
   logoEmoji: string;
@@ -11,6 +20,7 @@ export interface AppConfig {
   domicilioValor: number;
   mensajeConfirmacion: string;
   whatsappNumero?: string;
+  camposFormulario?: CamposFormulario;
 }
 
 export interface Categoria {
@@ -60,9 +70,9 @@ export interface CartItem {
 
 export interface DatosEnvio {
   nombre: string;
-  correo: string;
-  tel: string;
-  dir: string;
+  correo?: string;
+  tel?: string;
+  dir?: string;
   barrio?: string;
   comp?: string;
   recibe?: string;

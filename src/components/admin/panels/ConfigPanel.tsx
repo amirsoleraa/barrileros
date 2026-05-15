@@ -4,6 +4,19 @@ import { setDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { uploadImage } from '@/lib/cloudinary';
 import { useAppStore } from '@/stores/useAppStore';
+import { Toggle } from '@/components/ui/Toggle';
+import type { CamposFormulario } from '@/types';
+
+const CAMPOS_CONFIG: { key: keyof CamposFormulario; label: string; desc: string }[] = [
+  { key: 'correo', label: 'Correo electrónico', desc: 'Para enviar confirmación por email' },
+  { key: 'tel',    label: 'Teléfono',           desc: 'Número de contacto del cliente' },
+  { key: 'dir',    label: 'Dirección de entrega', desc: 'Dirección física de domicilio' },
+  { key: 'barrio', label: 'Barrio',             desc: 'Barrio o sector del cliente' },
+  { key: 'comp',   label: 'Apto / Torre / Referencia', desc: 'Complemento de la dirección' },
+  { key: 'recibe', label: '¿Quién recibe?',     desc: 'Persona diferente al comprador' },
+];
+
+const DEFAULT_CAMPOS: CamposFormulario = { correo: true, tel: true, dir: true, barrio: true, comp: true, recibe: true };
 
 export function ConfigPanel() {
   const { cfg, setCfg, showToast } = useAppStore();
@@ -15,6 +28,8 @@ export function ConfigPanel() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState(cfg.logoUrl);
   const [saving, setSaving]     = useState(false);
+  const [campos, setCampos]     = useState<CamposFormulario>({ ...DEFAULT_CAMPOS, ...(cfg.camposFormulario ?? {}) });
+  const [savingCampos, setSavingCampos] = useState(false);
 
   useEffect(() => {
     setNombre(cfg.nombreComercio);
@@ -23,6 +38,7 @@ export function ConfigPanel() {
     setLogoPreview(cfg.logoUrl);
     setMensaje(cfg.mensajeConfirmacion);
     setWhatsapp(cfg.whatsappNumero ?? '');
+    setCampos({ ...DEFAULT_CAMPOS, ...(cfg.camposFormulario ?? {}) });
   }, [cfg]);
 
   function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -58,6 +74,20 @@ export function ConfigPanel() {
       console.error(e);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSaveCampos() {
+    setSavingCampos(true);
+    try {
+      await setDoc(doc(db, 'config', 'main'), { camposFormulario: campos }, { merge: true });
+      setCfg({ camposFormulario: campos });
+      showToast('Campos actualizados', 'success');
+    } catch (e) {
+      showToast('Error al guardar', 'error');
+      console.error(e);
+    } finally {
+      setSavingCampos(false);
     }
   }
 
@@ -122,6 +152,34 @@ export function ConfigPanel() {
           <button className="btn-p" onClick={handleSave} disabled={saving} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 }}>
             <Save size={16} />
             {saving ? 'Guardando...' : 'Guardar configuración'}
+          </button>
+        </div>
+      </div>
+      <div className="admin-card" style={{ marginTop: 20 }}>
+        <div className="admin-card-hdr">
+          <h3>Campos del formulario de entrega</h3>
+        </div>
+        <div style={{ padding: '4px 20px 16px' }}>
+          <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 16 }}>
+            El campo <strong>Nombre completo</strong> siempre es obligatorio. Los demás son configurables.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {CAMPOS_CONFIG.map(({ key, label, desc }) => (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{label}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>{desc}</div>
+                </div>
+                <Toggle
+                  value={campos[key] !== false}
+                  onChange={v => setCampos(prev => ({ ...prev, [key]: v }))}
+                />
+              </div>
+            ))}
+          </div>
+          <button className="btn-p" onClick={handleSaveCampos} disabled={savingCampos} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+            <Save size={16} />
+            {savingCampos ? 'Guardando...' : 'Guardar campos'}
           </button>
         </div>
       </div>

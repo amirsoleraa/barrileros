@@ -55,11 +55,22 @@ export function ResumenPage() {
 
   const { register, handleSubmit, formState: { errors } } = useForm<DatosForm>({
     defaultValues: datosEnvio ?? {},
+    shouldUnregister: true,
   });
 
+  const cf = cfg.camposFormulario ?? {};
+  const mostrar = {
+    correo: cf.correo !== false,
+    tel:    cf.tel    !== false,
+    dir:    cf.dir    !== false,
+    barrio: cf.barrio !== false,
+    comp:   cf.comp   !== false,
+    recibe: cf.recibe !== false,
+  };
+
   function onSaveDatos(data: DatosForm) {
-    if (!isValidEmail(data.correo)) return;
-    if (!isValidPhone(data.tel)) return;
+    if (mostrar.correo && data.correo && !isValidEmail(data.correo)) return;
+    if (mostrar.tel    && data.tel    && !isValidPhone(data.tel))    return;
     setDatosEnvio(data as DatosEnvio);
     setDatosOpen(false);
     showToast('Datos de entrega guardados');
@@ -214,7 +225,9 @@ export function ResumenPage() {
               </h3>
               {datosEnvio
                 ? <p style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>
-                    {datosEnvio.nombre} · {datosEnvio.tel}{datosEnvio.barrio ? ` · ${datosEnvio.barrio}` : ''}
+                    {datosEnvio.nombre}
+                    {mostrar.tel && datosEnvio.tel ? ` · ${datosEnvio.tel}` : ''}
+                    {datosEnvio.barrio ? ` · ${datosEnvio.barrio}` : ''}
                   </p>
                 : <p style={{ fontSize: 13, color: 'var(--brand)', marginTop: 2 }}>Toca para agregar →</p>
               }
@@ -292,33 +305,45 @@ export function ResumenPage() {
             <input {...register('nombre', { required: 'Obligatorio' })} placeholder="Tu nombre" />
             {errors.nombre && <span className="f-err">{errors.nombre.message}</span>}
           </div>
-          <div className="f-field">
-            <label>Correo electrónico *</label>
-            <input {...register('correo', { required: 'Obligatorio', validate: v => isValidEmail(v) || 'Correo inválido' })} placeholder="correo@ejemplo.com" type="email" />
-            {errors.correo && <span className="f-err">{errors.correo.message}</span>}
-          </div>
-          <div className="f-field">
-            <label>Teléfono *</label>
-            <input {...register('tel', { required: 'Obligatorio', validate: v => isValidPhone(v) || 'Teléfono inválido (ej: 3001234567)' })} placeholder="3001234567" />
-            {errors.tel && <span className="f-err">{errors.tel.message}</span>}
-          </div>
-          <div className="f-field">
-            <label>Dirección de entrega *</label>
-            <input {...register('dir', { required: 'Obligatorio' })} placeholder="Calle 45 # 23-10" />
-            {errors.dir && <span className="f-err">{errors.dir.message}</span>}
-          </div>
-          <div className="f-field">
-            <label>Barrio</label>
-            <input {...register('barrio')} placeholder="Nombre del barrio" />
-          </div>
-          <div className="f-field">
-            <label>Apartamento / Torre / Referencia</label>
-            <input {...register('comp')} placeholder="Apto 301, Torre B..." />
-          </div>
-          <div className="f-field">
-            <label>¿Quién recibe? (si es diferente)</label>
-            <input {...register('recibe')} placeholder="Nombre de quien recibe" />
-          </div>
+          {mostrar.correo && (
+            <div className="f-field">
+              <label>Correo electrónico *</label>
+              <input {...register('correo', { required: 'Obligatorio', validate: v => isValidEmail(v || '') || 'Correo inválido' })} placeholder="correo@ejemplo.com" type="email" />
+              {errors.correo && <span className="f-err">{errors.correo.message}</span>}
+            </div>
+          )}
+          {mostrar.tel && (
+            <div className="f-field">
+              <label>Teléfono *</label>
+              <input {...register('tel', { required: 'Obligatorio', validate: v => isValidPhone(v || '') || 'Teléfono inválido (ej: 3001234567)' })} placeholder="3001234567" />
+              {errors.tel && <span className="f-err">{errors.tel.message}</span>}
+            </div>
+          )}
+          {mostrar.dir && (
+            <div className="f-field">
+              <label>Dirección de entrega *</label>
+              <input {...register('dir', { required: 'Obligatorio' })} placeholder="Calle 45 # 23-10" />
+              {errors.dir && <span className="f-err">{errors.dir.message}</span>}
+            </div>
+          )}
+          {mostrar.barrio && (
+            <div className="f-field">
+              <label>Barrio</label>
+              <input {...register('barrio')} placeholder="Nombre del barrio" />
+            </div>
+          )}
+          {mostrar.comp && (
+            <div className="f-field">
+              <label>Apartamento / Torre / Referencia</label>
+              <input {...register('comp')} placeholder="Apto 301, Torre B..." />
+            </div>
+          )}
+          {mostrar.recibe && (
+            <div className="f-field">
+              <label>¿Quién recibe? (si es diferente)</label>
+              <input {...register('recibe')} placeholder="Nombre de quien recibe" />
+            </div>
+          )}
           <button type="submit" className="btn-p" style={{ marginTop: 8 }}>
             Guardar datos
           </button>
