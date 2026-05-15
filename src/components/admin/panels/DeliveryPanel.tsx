@@ -172,13 +172,13 @@ export function DeliveryPanel() {
           setSaving(false);
           return;
         }
-        const ds: DeliverySettings = {
-          origin_lat:       originLat,
-          origin_lng:       originLng,
-          origin_address:   originAddress,
-          price_per_km:     pkm,
-          min_delivery_fee: mf || undefined,
-          updated_at:       serverTimestamp(),
+        const ds = {
+          origin_lat:    originLat,
+          origin_lng:    originLng,
+          origin_address: originAddress,
+          price_per_km:  pkm,
+          updated_at:    serverTimestamp(),
+          ...(mf ? { min_delivery_fee: mf } : {}),
         };
         await setDoc(doc(db, 'config', 'delivery_settings'), ds);
       }
