@@ -20,6 +20,19 @@ export interface Categoria {
   orden?: number;
 }
 
+export interface Adicional {
+  id: string;
+  nombre: string;
+  precio: number;
+  costo: number;
+  activo: boolean;
+}
+
+export interface ProductoAdicional {
+  adicionalId: string;
+  cantidadMax: number;
+}
+
 export interface Producto {
   id: string;
   nombre: string;
@@ -31,7 +44,7 @@ export interface Producto {
   categoriaId: string;
   tipo: 'comestible' | 'nocomestible';
   ingredientes: string[];
-  adicionales: string[];
+  adicionales: ProductoAdicional[];
   activo: boolean;
 }
 

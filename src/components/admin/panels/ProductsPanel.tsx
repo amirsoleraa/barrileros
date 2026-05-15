@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/Modal';
 import { TagInput } from '@/components/ui/TagInput';
 import { Toggle } from '@/components/ui/Toggle';
 import { fmtPrice } from '@/lib/utils';
-import type { Producto } from '@/types';
+import type { Producto, ProductoAdicional } from '@/types';
 
 interface ProdForm {
   nombre: string;
@@ -28,8 +28,8 @@ const DEFAULT_FORM: ProdForm = {
 };
 
 export function ProductsPanel() {
-  const { productos, categorias, showToast, setProductos } = useAppStore();
-  const { productosFiltro, setProductosFiltro, tmpIngrTags, tmpExtTags, setTmpIngrTags, setTmpExtTags } = useAdminStore();
+  const { productos, categorias, adicionales, showToast, setProductos } = useAppStore();
+  const { productosFiltro, setProductosFiltro, tmpIngrTags, setTmpIngrTags } = useAdminStore();
 
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -37,6 +37,7 @@ export function ProductsPanel() {
   const [imgFile, setImgFile] = useState<File | null>(null);
   const [imgPreview, setImgPreview] = useState('');
   const [saving, setSaving] = useState(false);
+  const [tmpAdicionales, setTmpAdicionales] = useState<ProductoAdicional[]>([]);
 
   const filtered = Object.values(productos).filter(p =>
     !productosFiltro || p.nombre.toLowerCase().includes(productosFiltro.toLowerCase())
@@ -46,7 +47,7 @@ export function ProductsPanel() {
     setEditId(null);
     setForm(DEFAULT_FORM);
     setTmpIngrTags([]);
-    setTmpExtTags([]);
+    setTmpAdicionales([]);
     setImgFile(null);
     setImgPreview('');
     setIsOpen(true);
@@ -61,10 +62,29 @@ export function ProductsPanel() {
       tipo: p.tipo, activo: p.activo,
     });
     setTmpIngrTags(p.ingredientes ?? []);
-    setTmpExtTags(p.adicionales ?? []);
+    // Guard: existing products may have legacy string[] adicionales
+    const loaded = (p.adicionales ?? []).filter(
+      (a): a is ProductoAdicional => typeof a === 'object' && 'adicionalId' in a
+    );
+    setTmpAdicionales(loaded);
     setImgFile(null);
     setImgPreview(p.imgUrl ?? '');
     setIsOpen(true);
+  }
+
+  function toggleAdicional(adicionalId: string) {
+    setTmpAdicionales(prev => {
+      if (prev.find(a => a.adicionalId === adicionalId)) {
+        return prev.filter(a => a.adicionalId !== adicionalId);
+      }
+      return [...prev, { adicionalId, cantidadMax: 1 }];
+    });
+  }
+
+  function setCantidadMax(adicionalId: string, cantidadMax: number) {
+    setTmpAdicionales(prev =>
+      prev.map(a => a.adicionalId === adicionalId ? { ...a, cantidadMax } : a)
+    );
   }
 
   async function handleSave() {
@@ -89,7 +109,7 @@ export function ProductsPanel() {
         categoriaId: form.categoriaId,
         tipo: form.tipo,
         ingredientes: form.tipo === 'comestible' ? tmpIngrTags : [],
-        adicionales: tmpExtTags,
+        adicionales: tmpAdicionales,
         activo: form.activo,
       };
 
@@ -250,8 +270,53 @@ export function ProductsPanel() {
             </div>
           )}
           <div className="f-field">
-            <label>Adicionales (opcionales para el cliente)</label>
-            <TagInput tags={tmpExtTags} onChange={setTmpExtTags} placeholder="Ej: Queso, Chimichurri..." />
+            <label>Adicionales disponibles</label>
+            {Object.keys(adicionales).length === 0 ? (
+              <div style={{ fontSize: 13, color: 'var(--text2)', padding: '8px 0' }}>
+                No hay adicionales creados. Ve a <strong>Adicionales</strong> para crear primero.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                {Object.values(adicionales)
+                  .filter(a => a.activo)
+                  .sort((a, b) => a.nombre.localeCompare(b.nombre))
+                  .map(ad => {
+                    const sel = tmpAdicionales.find(a => a.adicionalId === ad.id);
+                    return (
+                      <div key={ad.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '8px 10px', borderRadius: 8,
+                        background: sel ? 'rgba(var(--brand-rgb, 255 98 41) / .08)' : 'var(--bg2)',
+                        border: `1px solid ${sel ? 'rgba(var(--brand-rgb, 255 98 41) / .3)' : 'var(--border)'}`,
+                        cursor: 'pointer', transition: 'all .15s',
+                      }} onClick={() => toggleAdicional(ad.id)}>
+                        <input
+                          type="checkbox"
+                          checked={!!sel}
+                          onChange={() => toggleAdicional(ad.id)}
+                          onClick={e => e.stopPropagation()}
+                          style={{ accentColor: 'var(--brand)', width: 15, height: 15, flexShrink: 0, cursor: 'pointer' }}
+                        />
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{ad.nombre}</span>
+                        <span style={{ fontSize: 12, color: 'var(--brand)', fontWeight: 600 }}>{fmtPrice(ad.precio)}</span>
+                        {sel && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={e => e.stopPropagation()}>
+                            <span style={{ fontSize: 12, color: 'var(--text2)' }}>Máx:</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="20"
+                              value={sel.cantidadMax}
+                              onChange={e => setCantidadMax(ad.id, Math.max(1, parseInt(e.target.value) || 1))}
+                              style={{ width: 52, textAlign: 'center', padding: '3px 6px', fontSize: 13, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)' }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
           <Toggle value={form.activo} onChange={v => setForm(f => ({ ...f, activo: v }))} label="Visible en la tienda" />
 

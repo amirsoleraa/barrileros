@@ -20,6 +20,7 @@ import { CouponsPanel }     from '@/components/admin/panels/CouponsPanel';
 import { ColorsPanel }      from '@/components/admin/panels/ColorsPanel';
 import { ConfigPanel }      from '@/components/admin/panels/ConfigPanel';
 import { PublicidadPanel }  from '@/components/admin/panels/PublicidadPanel';
+import { AdicionalesPanel } from '@/components/admin/panels/AdicionalesPanel';
 
 // Layout del cliente — incluye CartPanel, Toast y LoadingScreen globales
 function ClientLayout() {
@@ -52,6 +53,7 @@ export default function App() {
           <Route index element={<Navigate to="pedidos" replace />} />
           <Route path="pedidos"     element={<OrdersPanel />} />
           <Route path="productos"   element={<ProductsPanel />} />
+          <Route path="adicionales" element={<AdicionalesPanel />} />
           <Route path="categorias"  element={<CategoriesPanel />} />
           <Route path="dashboard"   element={<DashboardPanel />} />
           <Route path="seguimiento" element={<TrackingPanel />} />

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Minus, Plus, ShoppingCart, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, ShoppingCart } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useCartStore } from '@/stores/useCartStore';
 import { fmtPrice } from '@/lib/utils';
+import type { ProductoAdicional } from '@/types';
 import styles from './ProductDetail.module.css';
 
 interface ProductDetailProps {
@@ -12,18 +13,19 @@ interface ProductDetailProps {
 }
 
 export function ProductDetail({ productId, onClose, onGoToCart }: ProductDetailProps) {
-  const { productos } = useAppStore();
+  const { productos, adicionales } = useAppStore();
   const { addItem, setCartOpen } = useCartStore();
 
   const [qty, setQty] = useState(1);
-  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
+  // Record<adicionalId, qty seleccionado>
+  const [selectedExtras, setSelectedExtras] = useState<Record<string, number>>({});
 
   const product = productId ? productos[productId] : null;
 
   useEffect(() => {
     if (productId) {
       setQty(1);
-      setSelectedExtras([]);
+      setSelectedExtras({});
     }
   }, [productId]);
 
@@ -36,24 +38,44 @@ export function ProductDetail({ productId, onClose, onGoToCart }: ProductDetailP
 
   if (!product) return null;
 
-  function toggleExtra(name: string) {
-    setSelectedExtras(prev =>
-      prev.includes(name) ? prev.filter(e => e !== name) : [...prev, name]
-    );
+  // Guard: existing products may have legacy string[] adicionales
+  const prodAdicionales = (product.adicionales ?? []).filter(
+    (a): a is ProductoAdicional => typeof a === 'object' && 'adicionalId' in a
+  );
+
+  function setExtraQty(adicionalId: string, value: number, cantidadMax: number) {
+    const clamped = Math.max(0, Math.min(value, cantidadMax));
+    setSelectedExtras(prev => ({ ...prev, [adicionalId]: clamped }));
   }
 
-  const extrasTotal = 0; // Los adicionales no tienen precio extra en este modelo
-  const total = (product.precio + extrasTotal) * qty;
+  const extrasUnitPrice = prodAdicionales.reduce((sum, pa) => {
+    const ad = adicionales[pa.adicionalId];
+    const selQty = selectedExtras[pa.adicionalId] ?? 0;
+    return sum + (ad ? ad.precio * selQty : 0);
+  }, 0);
+
+  const unitPrice = product.precio + extrasUnitPrice;
+  const total = unitPrice * qty;
 
   function handleAdd(openCart: boolean) {
+    const extrasStrings: string[] = [];
+    prodAdicionales.forEach(pa => {
+      const ad = adicionales[pa.adicionalId];
+      const selQty = selectedExtras[pa.adicionalId] ?? 0;
+      if (ad && selQty > 0) {
+        const label = selQty > 1 ? `${ad.nombre} (×${selQty})` : ad.nombre;
+        extrasStrings.push(label);
+      }
+    });
+
     addItem({
       id: product!.id,
       name: product!.nombre,
-      price: product!.precio,
+      price: unitPrice,
       emoji: product!.emoji ?? '🍖',
       imgUrl: product!.imgUrl ?? '',
       qty,
-      extras: selectedExtras,
+      extras: extrasStrings,
     });
     onClose();
     if (openCart) {
@@ -96,19 +118,48 @@ export function ProductDetail({ productId, onClose, onGoToCart }: ProductDetailP
           )}
 
           {/* Adicionales */}
-          {product.adicionales?.length > 0 && (
+          {prodAdicionales.length > 0 && (
             <div>
               <div className={styles.secLabel}>Adicionales</div>
-              <div>
-                {product.adicionales.map(ext => (
-                  <span
-                    key={ext}
-                    className={`${styles.extraTag} ${selectedExtras.includes(ext) ? styles.selected : ''}`}
-                    onClick={() => toggleExtra(ext)}
-                  >
-                    {ext}
-                  </span>
-                ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {prodAdicionales.map(pa => {
+                  const ad = adicionales[pa.adicionalId];
+                  if (!ad || !ad.activo) return null;
+                  const selQty = selectedExtras[pa.adicionalId] ?? 0;
+                  if (pa.cantidadMax === 1) {
+                    return (
+                      <div
+                        key={pa.adicionalId}
+                        className={`${styles.extraTag} ${selQty > 0 ? styles.selected : ''}`}
+                        onClick={() => setExtraQty(pa.adicionalId, selQty > 0 ? 0 : 1, 1)}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+                      >
+                        <span>{ad.nombre}</span>
+                        {ad.precio > 0 && <span style={{ fontSize: 12, opacity: .8 }}>+{fmtPrice(ad.precio)}</span>}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={pa.adicionalId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 10, border: '1px solid var(--border2)', background: selQty > 0 ? 'rgba(255,255,255,.05)' : 'transparent' }}>
+                      <div>
+                        <span style={{ fontSize: 14 }}>{ad.nombre}</span>
+                        {ad.precio > 0 && <span style={{ fontSize: 12, color: 'var(--brand)', marginLeft: 8 }}>+{fmtPrice(ad.precio)} c/u</span>}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <button
+                          style={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid var(--border2)', background: 'transparent', color: 'var(--text)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                          onClick={() => setExtraQty(pa.adicionalId, selQty - 1, pa.cantidadMax)}
+                        ><Minus size={13} /></button>
+                        <span style={{ minWidth: 18, textAlign: 'center', fontSize: 15, fontWeight: 600 }}>{selQty}</span>
+                        <button
+                          style={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid var(--border2)', background: selQty >= pa.cantidadMax ? 'var(--border2)' : 'var(--brand)', color: '#fff', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: selQty >= pa.cantidadMax ? 'not-allowed' : 'pointer' }}
+                          onClick={() => setExtraQty(pa.adicionalId, selQty + 1, pa.cantidadMax)}
+                          disabled={selQty >= pa.cantidadMax}
+                        ><Plus size={13} /></button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

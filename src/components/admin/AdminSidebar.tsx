@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   ClipboardList, UtensilsCrossed, Tag, BarChart2, Bike,
-  Bell, Truck, Ticket, Palette, Settings, LogOut, Store, Megaphone,
+  Bell, Truck, Ticket, Palette, Settings, LogOut, Store, Megaphone, PlusCircle,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
@@ -12,6 +12,7 @@ import styles from './AdminSidebar.module.css';
 const NAV_ITEMS = [
   { path: 'pedidos',     icon: ClipboardList,   label: 'Pedidos',       tip: 'Pedidos' },
   { path: 'productos',   icon: UtensilsCrossed, label: 'Productos',     tip: 'Productos' },
+  { path: 'adicionales', icon: PlusCircle,      label: 'Adicionales',   tip: 'Adicionales' },
   { path: 'categorias',  icon: Tag,             label: 'Categorías',    tip: 'Categorías' },
   { path: 'dashboard',   icon: BarChart2,       label: 'Dashboard',     tip: 'Dashboard' },
   { path: 'seguimiento', icon: Bike,            label: 'Seguimiento',   tip: 'Seguimiento' },

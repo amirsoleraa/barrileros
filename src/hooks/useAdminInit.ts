@@ -8,10 +8,10 @@ import { db, firebaseReady } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { applyThemeColors } from '@/lib/utils';
-import type { AppConfig, Producto, Categoria, Cupon, Novedad, Pedido } from '@/types';
+import type { AppConfig, Producto, Categoria, Cupon, Novedad, Pedido, Adicional } from '@/types';
 
 export function useAdminInit() {
-  const { setCfg, setProductos, setCategorias, setCupones, setNovedades, showToast } = useAppStore();
+  const { setCfg, setProductos, setCategorias, setCupones, setNovedades, setAdicionales, showToast } = useAppStore();
   const { setPedidos } = useAdminStore();
   const [ready, setReady] = useState(false);
 
@@ -25,13 +25,14 @@ export function useAdminInit() {
 
     async function init() {
       try {
-        const [cfgDoc, colorDoc, catSnap, prodSnap, cupSnap, novSnap] = await Promise.all([
+        const [cfgDoc, colorDoc, catSnap, prodSnap, cupSnap, novSnap, adSnap] = await Promise.all([
           getDoc(doc(db, 'config', 'main')),
           getDoc(doc(db, 'config', 'colores')),
           getDocs(collection(db, 'categorias')),
           getDocs(collection(db, 'productos')),
           getDocs(collection(db, 'cupones')),
           getDocs(collection(db, 'novedades')),
+          getDocs(collection(db, 'adicionales')),
         ]);
 
         if (cfgDoc.exists()) setCfg(cfgDoc.data() as Partial<AppConfig>);
@@ -41,16 +42,19 @@ export function useAdminInit() {
         const prods: Record<string, Producto>    = {};
         const cups:  Record<string, Cupon>       = {};
         const novs:  Record<string, Novedad>     = {};
+        const ads:   Record<string, Adicional>   = {};
 
         catSnap.forEach(d  => { cats[d.id]  = { id: d.id, ...d.data() } as Categoria; });
         prodSnap.forEach(d => { prods[d.id] = { id: d.id, ...d.data() } as Producto; });
         cupSnap.forEach(d  => { cups[d.id]  = { id: d.id, ...d.data() } as Cupon; });
         novSnap.forEach(d  => { novs[d.id]  = { id: d.id, ...d.data() } as Novedad; });
+        adSnap.forEach(d   => { ads[d.id]   = { id: d.id, ...d.data() } as Adicional; });
 
         setCategorias(cats);
         setProductos(prods);
         setCupones(cups);
         setNovedades(novs);
+        setAdicionales(ads);
       } catch (e) {
         console.error('Error al inicializar admin:', e);
       }
