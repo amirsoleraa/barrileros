@@ -70,4 +70,11 @@ export const COLOR_PRESETS: Record<string, Record<string, string>> = {
     text: '#F4EFE6', text2: '#C0A890', text3: '#8A7060',
     border: 'rgba(255,255,255,.09)', border2: 'rgba(255,255,255,.15)',
   },
+  crema: {
+    brand: '#C8421A', 'brand-dark': '#A83410', 'brand-light': '#FFF0EB',
+    'brand-mid': '#D9562A', accent: '#E8845A',
+    bg: '#FAF6EF', bg2: '#F2EAE0', bg3: '#E8DDD0', surface: '#FFFFFF',
+    text: '#2A1F14', text2: '#7A6555', text3: '#B0A090',
+    border: '#E4D8CC', border2: '#D0C0AE',
+  },
 };

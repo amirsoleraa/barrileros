@@ -75,6 +75,7 @@ export function ColorsPanel() {
               cafe:   '☕ Café cálido',
               neutro: '🌑 Gris neutro',
               medio:  '🤎 Café medio',
+              crema:  '🍦 Crema',
             };
             return (
               <button
