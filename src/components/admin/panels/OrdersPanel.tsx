@@ -55,7 +55,7 @@ export function OrdersPanel() {
         return p.numero.toLowerCase().includes(q) ||
           (p.cliente?.nombre ?? '').toLowerCase().includes(q);
       })
-      .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+      .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
   }
 
   async function moveToState(pedidoId: string, estado: PedidoTab) {

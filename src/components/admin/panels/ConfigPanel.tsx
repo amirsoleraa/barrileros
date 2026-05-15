@@ -5,7 +5,20 @@ import { db } from '@/lib/firebase';
 import { uploadImage } from '@/lib/cloudinary';
 import { useAppStore } from '@/stores/useAppStore';
 import { Toggle } from '@/components/ui/Toggle';
+import { ColorsPanel } from './ColorsPanel';
 import type { CamposFormulario } from '@/types';
+
+type ConfigTab = 'general' | 'colores';
+
+function tabStyle(active: boolean): React.CSSProperties {
+  return {
+    padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
+    fontSize: 14, fontWeight: 600, fontFamily: 'inherit', transition: 'all .15s',
+    background: active ? 'var(--surface)' : 'transparent',
+    color: active ? 'var(--text)' : 'var(--text2)',
+    boxShadow: active ? '0 1px 4px rgba(0,0,0,.1)' : 'none',
+  };
+}
 
 const CAMPOS_CONFIG: { key: keyof CamposFormulario; label: string; desc: string }[] = [
   { key: 'correo', label: 'Correo electrónico', desc: 'Para enviar confirmación por email' },
@@ -30,6 +43,7 @@ export function ConfigPanel() {
   const [saving, setSaving]     = useState(false);
   const [campos, setCampos]     = useState<CamposFormulario>({ ...DEFAULT_CAMPOS, ...(cfg.camposFormulario ?? {}) });
   const [savingCampos, setSavingCampos] = useState(false);
+  const [tab, setTab] = useState<ConfigTab>('general');
 
   useEffect(() => {
     setNombre(cfg.nombreComercio);
@@ -92,7 +106,15 @@ export function ConfigPanel() {
   }
 
   return (
-    <div style={{ maxWidth: 520 }}>
+    <div style={{ maxWidth: 620 }}>
+      <div style={{ display: 'flex', gap: 2, marginBottom: 20, background: 'var(--bg2)', padding: 4, borderRadius: 10, border: '1px solid var(--border)', width: 'fit-content' }}>
+        <button style={tabStyle(tab === 'general')} onClick={() => setTab('general')}>General</button>
+        <button style={tabStyle(tab === 'colores')} onClick={() => setTab('colores')}>Colores</button>
+      </div>
+
+      {tab === 'colores' && <ColorsPanel />}
+
+      {tab === 'general' && <>
       <div className="admin-card">
         <div className="admin-card-hdr">
           <h3>Configuración del negocio</h3>
@@ -183,6 +205,7 @@ export function ConfigPanel() {
           </button>
         </div>
       </div>
+      </>}
     </div>
   );
 }

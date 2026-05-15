@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  ClipboardList, UtensilsCrossed, Tag, BarChart2, Bike,
-  Bell, Truck, Ticket, Palette, Settings, LogOut, Store, Megaphone, PlusCircle,
+  ClipboardList, UtensilsCrossed, BarChart2,
+  Bell, Truck, Settings, LogOut, Store, Megaphone,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
@@ -10,18 +10,13 @@ import { useAuth } from '@/hooks/useAuth';
 import styles from './AdminSidebar.module.css';
 
 const NAV_ITEMS = [
-  { path: 'pedidos',     icon: ClipboardList,   label: 'Pedidos',       tip: 'Pedidos' },
-  { path: 'productos',   icon: UtensilsCrossed, label: 'Productos',     tip: 'Productos' },
-  { path: 'adicionales', icon: PlusCircle,      label: 'Adicionales',   tip: 'Adicionales' },
-  { path: 'categorias',  icon: Tag,             label: 'Categorías',    tip: 'Categorías' },
-  { path: 'dashboard',   icon: BarChart2,       label: 'Dashboard',     tip: 'Dashboard' },
-  { path: 'seguimiento', icon: Bike,            label: 'Seguimiento',   tip: 'Seguimiento' },
-  { path: 'novedades',   icon: Bell,            label: 'Novedades',     tip: 'Novedades' },
-  { path: 'domicilio',   icon: Truck,           label: 'Domicilio',     tip: 'Domicilio' },
-  { path: 'descuentos',  icon: Ticket,          label: 'Descuentos',    tip: 'Descuentos' },
-  { path: 'colores',      icon: Palette,    label: 'Colores',       tip: 'Colores' },
-  { path: 'publicidades', icon: Megaphone,  label: 'Publicidades',  tip: 'Publicidades' },
-  { path: 'config',       icon: Settings,   label: 'Configuración', tip: 'Config' },
+  { path: 'pedidos',   icon: ClipboardList,   label: 'Pedidos',       tip: 'Pedidos' },
+  { path: 'catalogo',  icon: UtensilsCrossed, label: 'Catálogo',      tip: 'Catálogo' },
+  { path: 'dashboard', icon: BarChart2,       label: 'Dashboard',     tip: 'Dashboard' },
+  { path: 'logistica', icon: Truck,           label: 'Logística',     tip: 'Logística' },
+  { path: 'novedades', icon: Bell,            label: 'Novedades',     tip: 'Novedades' },
+  { path: 'marketing', icon: Megaphone,       label: 'Marketing',     tip: 'Marketing' },
+  { path: 'config',    icon: Settings,        label: 'Configuración', tip: 'Config' },
 ];
 
 interface NavItemProps {
