@@ -21,7 +21,7 @@ export function useFirebaseInit() {
       criticalReady++;
       if (criticalReady >= 3 && !loadingDone) {
         loadingDone = true;
-        setTimeout(() => setLoading(false), 2800);
+        setTimeout(() => setLoading(false), 500);
       }
     }
 
