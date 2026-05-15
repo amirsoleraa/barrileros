@@ -15,6 +15,7 @@ import { DashboardPanel } from '@/components/admin/panels/DashboardPanel';
 import { LogisticaPanel } from '@/components/admin/panels/LogisticaPanel';
 import { NewsPanel }      from '@/components/admin/panels/NewsPanel';
 import { MarketingPanel } from '@/components/admin/panels/MarketingPanel';
+import { HistorialPanel } from '@/components/admin/panels/HistorialPanel';
 import { ConfigPanel }    from '@/components/admin/panels/ConfigPanel';
 
 // Layout del cliente — incluye CartPanel, Toast y LoadingScreen globales
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="logistica" element={<LogisticaPanel />} />
           <Route path="novedades" element={<NewsPanel />} />
           <Route path="marketing" element={<MarketingPanel />} />
+          <Route path="historial" element={<HistorialPanel />} />
           <Route path="config"    element={<ConfigPanel />} />
         </Route>
 

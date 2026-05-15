@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   ClipboardList, UtensilsCrossed, BarChart2,
-  Bell, Truck, Settings, LogOut, Store, Megaphone,
+  Bell, Truck, Settings, LogOut, Store, Megaphone, History,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { path: 'logistica', icon: Truck,           label: 'Logística',     tip: 'Logística' },
   { path: 'novedades', icon: Bell,            label: 'Novedades',     tip: 'Novedades' },
   { path: 'marketing', icon: Megaphone,       label: 'Marketing',     tip: 'Marketing' },
+  { path: 'historial', icon: History,         label: 'Historial',     tip: 'Historial' },
   { path: 'config',    icon: Settings,        label: 'Configuración', tip: 'Config' },
 ];
 

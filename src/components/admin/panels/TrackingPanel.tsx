@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   MapPin, Plus, Trash2, CheckCircle, User, Package,
   ChevronDown, ChevronUp, ArrowUp, ArrowDown, Flag,
+  XCircle, RotateCcw,
 } from 'lucide-react';
 import {
   collection, addDoc, getDocs, updateDoc, deleteDoc,
@@ -10,6 +11,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { useAppStore } from '@/stores/useAppStore';
+import { Modal } from '@/components/ui/Modal';
 import { fmtPrice } from '@/lib/utils';
 import type { RutaEntrega, Pedido } from '@/types';
 
@@ -29,11 +31,14 @@ interface RouteTimelineProps {
   pedidos: Record<string, Pedido>;
   onReorder: (rutaId: string, newOrder: string[]) => Promise<void>;
   onDeliverStop: (rutaId: string, pedidoId: string) => Promise<void>;
+  onCancelStop: (rutaId: string, pedidoId: string) => Promise<void>;
+  onRescheduleStop: (rutaId: string, pedidoId: string) => Promise<void>;
+  onAddOrder: (rutaId: string) => void;
   onFinalizar: (ruta: RutaEntrega) => Promise<void>;
   onEliminar: (id: string) => Promise<void>;
 }
 
-function RouteTimeline({ ruta, pedidos, onReorder, onDeliverStop, onFinalizar, onEliminar }: RouteTimelineProps) {
+function RouteTimeline({ ruta, pedidos, onReorder, onDeliverStop, onCancelStop, onRescheduleStop, onAddOrder, onFinalizar, onEliminar }: RouteTimelineProps) {
   const stops    = ruta.pedidoIds.map(id => pedidos[id]).filter(Boolean);
   const delivered = stops.filter(p => p.estado === 'entregado').length;
   const total     = stops.length;
@@ -125,7 +130,7 @@ function RouteTimeline({ ruta, pedidos, onReorder, onDeliverStop, onFinalizar, o
 
                     {/* Acciones de la parada */}
                     {!isDone && (
-                      <div style={{ display: 'flex', gap: 6, marginTop: 10, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                         {/* Reordenar */}
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button
@@ -160,6 +165,22 @@ function RouteTimeline({ ruta, pedidos, onReorder, onDeliverStop, onFinalizar, o
                         >
                           <CheckCircle size={13} /> Marcar entregado
                         </button>
+                        {/* Cancelar pedido */}
+                        <button
+                          onClick={() => onCancelStop(ruta.id, pid)}
+                          style={{ width: 34, height: 34, borderRadius: 10, border: 'none', cursor: 'pointer', background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                          title="Cancelar pedido"
+                        >
+                          <XCircle size={15} />
+                        </button>
+                        {/* Reprogramar */}
+                        <button
+                          onClick={() => onRescheduleStop(ruta.id, pid)}
+                          style={{ width: 34, height: 34, borderRadius: 10, border: '1px solid var(--border)', cursor: 'pointer', background: 'var(--bg)', color: 'var(--text2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                          title="Reprogramar para otra ruta"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
                       </div>
                     )}
 
@@ -179,7 +200,10 @@ function RouteTimeline({ ruta, pedidos, onReorder, onDeliverStop, onFinalizar, o
       </div>
 
       {/* Acciones de la ruta */}
-      <div style={{ padding: '8px 16px 14px', display: 'flex', gap: 8 }}>
+      <div style={{ padding: '8px 16px 14px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button className="ab ab-b" onClick={() => onAddOrder(ruta.id)} style={{ gap: 4, fontSize: 12 }}>
+          <Plus size={12} /> Agregar pedido
+        </button>
         <button className="ab ab-d" onClick={() => onEliminar(ruta.id)} style={{ gap: 4, fontSize: 12 }}>
           <Trash2 size={12} /> Eliminar ruta
         </button>
@@ -209,13 +233,14 @@ export function TrackingPanel() {
     .filter(p => p.estado === 'camino')
     .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
 
-  const [selected, setSelected]         = useState<Set<string>>(new Set());
-  const [nombreRuta, setNombreRuta]     = useState('');
-  const [repartidor, setRepartidor]     = useState('');
-  const [creatingRuta, setCreatingRuta] = useState(false);
-  const [rutas, setRutas]               = useState<RutaEntrega[]>([]);
-  const [loadingRutas, setLoadingRutas] = useState(true);
-  const [expanded, setExpanded]         = useState<Set<string>>(new Set());
+  const [selected, setSelected]           = useState<Set<string>>(new Set());
+  const [nombreRuta, setNombreRuta]       = useState('');
+  const [repartidor, setRepartidor]       = useState('');
+  const [creatingRuta, setCreatingRuta]   = useState(false);
+  const [rutas, setRutas]                 = useState<RutaEntrega[]>([]);
+  const [loadingRutas, setLoadingRutas]   = useState(true);
+  const [expanded, setExpanded]           = useState<Set<string>>(new Set());
+  const [addingToRutaId, setAddingToRutaId] = useState<string | null>(null);
 
   function toggleSelect(id: string) {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -274,18 +299,66 @@ export function TrackingPanel() {
   }
 
   async function handleDeliverStop(rutaId: string, pedidoId: string) {
-    await updateDoc(doc(db, 'pedidos', pedidoId), { estado: 'entregado' });
+    const ruta = rutas.find(r => r.id === rutaId);
+    await updateDoc(doc(db, 'pedidos', pedidoId), {
+      estado: 'entregado',
+      rutaNombre:       ruta?.nombre     ?? '',
+      repartidorNombre: ruta?.repartidor ?? '',
+    });
     showToast('Pedido marcado como entregado', 'success');
-    // El store de pedidos se actualiza vía onSnapshot en useAdminInit — no necesitamos forzar
+  }
+
+  async function handleCancelStop(rutaId: string, pedidoId: string) {
+    if (!window.confirm('¿Cancelar este pedido?')) return;
+    const ruta = rutas.find(r => r.id === rutaId)!;
+    const newIds = ruta.pedidoIds.filter(id => id !== pedidoId);
+    await Promise.all([
+      updateDoc(doc(db, 'pedidos', pedidoId), {
+        estado: 'cancelado',
+        rutaNombre:       ruta.nombre,
+        repartidorNombre: ruta.repartidor ?? '',
+      }),
+      updateDoc(doc(db, 'rutas', rutaId), { pedidoIds: newIds }),
+    ]);
+    setRutas(prev => prev.map(r => r.id === rutaId ? { ...r, pedidoIds: newIds } : r));
+    showToast('Pedido cancelado', 'success');
+  }
+
+  async function handleRescheduleStop(rutaId: string, pedidoId: string) {
+    if (!window.confirm('¿Reprogramar este pedido? Se quitará de la ruta y quedará disponible para otra.')) return;
+    const ruta = rutas.find(r => r.id === rutaId)!;
+    const newIds = ruta.pedidoIds.filter(id => id !== pedidoId);
+    await updateDoc(doc(db, 'rutas', rutaId), { pedidoIds: newIds });
+    setRutas(prev => prev.map(r => r.id === rutaId ? { ...r, pedidoIds: newIds } : r));
+    showToast('Pedido reprogramado. Disponible para nueva ruta.', 'success');
+  }
+
+  async function handleAddOrderToRuta(rutaId: string, pedidoId: string) {
+    const ruta = rutas.find(r => r.id === rutaId)!;
+    if (ruta.pedidoIds.includes(pedidoId)) return;
+    const newIds = [...ruta.pedidoIds, pedidoId];
+    await updateDoc(doc(db, 'rutas', rutaId), { pedidoIds: newIds });
+    setRutas(prev => prev.map(r => r.id === rutaId ? { ...r, pedidoIds: newIds } : r));
+    setAddingToRutaId(null);
+    showToast('Pedido agregado a la ruta', 'success');
   }
 
   async function handleFinalizarRuta(ruta: RutaEntrega) {
     if (!window.confirm(`¿Finalizar "${ruta.nombre}"? Los pedidos pendientes se marcarán como Entregados.`)) return;
     try {
+      const snapshot = ruta.pedidoIds.map(pid => pedidos[pid]).filter(Boolean);
       await Promise.all([
-        updateDoc(doc(db, 'rutas', ruta.id), { estado: 'completada' }),
+        updateDoc(doc(db, 'rutas', ruta.id), {
+          estado: 'completada',
+          completadaEn: serverTimestamp(),
+          pedidosSnapshot: snapshot,
+        }),
         ...ruta.pedidoIds.map(pid =>
-          updateDoc(doc(db, 'pedidos', pid), { estado: 'entregado' }).catch(() => {})
+          updateDoc(doc(db, 'pedidos', pid), {
+            estado: 'entregado',
+            rutaNombre:       ruta.nombre,
+            repartidorNombre: ruta.repartidor ?? '',
+          }).catch(() => {})
         ),
       ]);
       setRutas(prev => prev.filter(r => r.id !== ruta.id));
@@ -481,6 +554,9 @@ export function TrackingPanel() {
                       pedidos={pedidos}
                       onReorder={handleReorder}
                       onDeliverStop={handleDeliverStop}
+                      onCancelStop={handleCancelStop}
+                      onRescheduleStop={handleRescheduleStop}
+                      onAddOrder={setAddingToRutaId}
                       onFinalizar={handleFinalizarRuta}
                       onEliminar={handleEliminarRuta}
                     />
@@ -491,6 +567,47 @@ export function TrackingPanel() {
           </div>
         )}
       </div>
+
+      {/* Modal: agregar pedido a ruta */}
+      {addingToRutaId && (
+        <Modal isOpen onClose={() => setAddingToRutaId(null)} title="Agregar pedido a la ruta" maxWidth={460}>
+          {(() => {
+            const rutaForAdd = rutas.find(r => r.id === addingToRutaId);
+            const unassigned = rutaForAdd
+              ? enCamino.filter(p => !rutaForAdd.pedidoIds.includes(p.id))
+              : [];
+            if (unassigned.length === 0) return (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text3)' }}>
+                No hay pedidos en camino disponibles para agregar
+              </div>
+            );
+            return (
+              <div>
+                {unassigned.map(p => (
+                  <div
+                    key={p.id}
+                    onClick={() => handleAddOrderToRuta(addingToRutaId, p.id)}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '12px 0', borderBottom: '1px solid var(--border)',
+                      cursor: 'pointer', gap: 12,
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--brand)' }}>#{p.numero}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{p.cliente?.nombre}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 1 }}>
+                        {[p.cliente?.barrio, p.cliente?.dir].filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{fmtPrice(p.total)}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </Modal>
+      )}
     </div>
   );
 }

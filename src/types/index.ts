@@ -21,6 +21,7 @@ export interface AppConfig {
   mensajeConfirmacion: string;
   whatsappNumero?: string;
   camposFormulario?: CamposFormulario;
+  historialPin?: string;
 }
 
 export interface Categoria {
@@ -99,6 +100,8 @@ export interface Pedido {
   cupon: string | null;
   mensajeConfirmacion: string;
   createdAt?: { seconds: number; nanoseconds: number };
+  rutaNombre?: string;
+  repartidorNombre?: string;
 }
 
 export interface RutaEntrega {
@@ -108,6 +111,19 @@ export interface RutaEntrega {
   pedidoIds: string[];
   estado: 'activa' | 'completada';
   createdAt?: { seconds: number; nanoseconds: number };
+  completadaEn?: { seconds: number; nanoseconds: number };
+  pedidosSnapshot?: Pedido[];
+}
+
+export interface HistorialDia {
+  id: string;
+  fecha: string;
+  fechaLabel: string;
+  pedidos: Pedido[];
+  totalEntregados: number;
+  totalCancelados: number;
+  totalRecaudo: number;
+  creadoEn?: { seconds: number; nanoseconds: number };
 }
 
 export interface Publicidad {

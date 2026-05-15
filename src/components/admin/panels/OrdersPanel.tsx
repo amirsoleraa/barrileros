@@ -1,12 +1,12 @@
 import { useState, useRef } from 'react';
-import { Eye, Trash2, ChevronRight, ChevronLeft, Clock, RotateCcw } from 'lucide-react';
-import { updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { Eye, Trash2, ChevronRight, ChevronLeft, Clock, RotateCcw, Archive } from 'lucide-react';
+import { updateDoc, deleteDoc, doc, addDoc, collection, serverTimestamp, writeBatch, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
 import { fmtPrice, ESTADO_INFO } from '@/lib/utils';
-import type { Pedido, PedidoTab } from '@/types';
+import type { Pedido, PedidoTab, RutaEntrega } from '@/types';
 
 const COLS: { key: PedidoTab; label: string; color: string }[] = [
   { key: 'activos',    label: 'Activos',    color: '#15803D' },
@@ -38,6 +38,7 @@ export function OrdersPanel() {
   const [detailPedido, setDetailPedido] = useState<Pedido | null>(null);
   const [deleting, setDeleting]         = useState<string | null>(null);
   const [activeCol, setActiveCol]       = useState<PedidoTab>('activos');
+  const [cerrando, setCerrando]         = useState(false);
 
   // kanban desktop drag
   const dragId  = useRef<string | null>(null);
@@ -69,6 +70,65 @@ export function OrdersPanel() {
     await deleteDoc(doc(db, 'pedidos', pedidoId));
     setDeleting(null);
     showToast('Pedido eliminado');
+  }
+
+  async function handleCerrarDia() {
+    const finalizados = allPedidos.filter(p => p.estado === 'entregado' || p.estado === 'cancelado');
+    if (finalizados.length === 0) { showToast('No hay pedidos finalizados para archivar', 'error'); return; }
+    const entregados = finalizados.filter(p => p.estado === 'entregado');
+    const cancelados = finalizados.filter(p => p.estado === 'cancelado');
+    if (!window.confirm(
+      `¿Cerrar el día?\n\nSe archivarán:\n• ${entregados.length} entregado${entregados.length !== 1 ? 's' : ''}\n• ${cancelados.length} cancelado${cancelados.length !== 1 ? 's' : ''}\n\nEl panel quedará en 0. Los datos se guardan en Historial.`
+    )) return;
+
+    setCerrando(true);
+    try {
+      // Enrich with ruta info from completed rutas
+      const rutasMap: Record<string, { nombre: string; repartidor?: string }> = {};
+      try {
+        const snap = await getDocs(query(collection(db, 'rutas'), where('estado', '==', 'completada')));
+        snap.forEach(d => {
+          const data = d.data() as RutaEntrega;
+          for (const pid of (data.pedidoIds ?? [])) {
+            if (!rutasMap[pid]) rutasMap[pid] = { nombre: data.nombre, repartidor: data.repartidor };
+          }
+        });
+      } catch {}
+
+      const historialPedidos = finalizados.map(p => ({
+        ...p,
+        rutaNombre:        p.rutaNombre        ?? rutasMap[p.id]?.nombre     ?? '',
+        repartidorNombre:  p.repartidorNombre  ?? rutasMap[p.id]?.repartidor ?? '',
+      }));
+
+      const ahora      = new Date();
+      const fecha      = ahora.toISOString().slice(0, 10);
+      const fechaLabel = ahora.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+      const totalRecaudo = entregados.reduce((s, p) => s + p.total, 0);
+
+      await addDoc(collection(db, 'historial_pedidos'), {
+        fecha, fechaLabel,
+        pedidos: historialPedidos,
+        totalEntregados: entregados.length,
+        totalCancelados: cancelados.length,
+        totalRecaudo,
+        creadoEn: serverTimestamp(),
+      });
+
+      // Hard-delete in batches of 499
+      for (let i = 0; i < finalizados.length; i += 499) {
+        const batch = writeBatch(db);
+        finalizados.slice(i, i + 499).forEach(p => batch.delete(doc(db, 'pedidos', p.id)));
+        await batch.commit();
+      }
+
+      showToast(`Día cerrado. ${finalizados.length} pedidos archivados.`, 'success');
+    } catch (e) {
+      showToast('Error al cerrar el día', 'error');
+      console.error(e);
+    } finally {
+      setCerrando(false);
+    }
   }
 
   // ── drag (desktop kanban) ──────────────────────
@@ -190,6 +250,24 @@ export function OrdersPanel() {
           <span style={{ background: 'var(--brand)', color: '#fff', borderRadius: 20, padding: '5px 12px', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
             {activosCount} nuevo{activosCount > 1 ? 's' : ''}
           </span>
+        )}
+        {allPedidos.some(p => p.estado === 'entregado' || p.estado === 'cancelado') && (
+          <button
+            onClick={handleCerrarDia}
+            disabled={cerrando}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 13px', borderRadius: 20,
+              border: '1px solid var(--border)', background: 'var(--bg)',
+              color: 'var(--text2)', cursor: 'pointer', fontSize: 13,
+              fontWeight: 600, fontFamily: 'inherit', whiteSpace: 'nowrap',
+              opacity: cerrando ? .6 : 1,
+            }}
+            title="Archivar pedidos entregados y cancelados"
+          >
+            <Archive size={13} />
+            {cerrando ? 'Archivando...' : `Cerrar día (${allPedidos.filter(p => p.estado === 'entregado' || p.estado === 'cancelado').length})`}
+          </button>
         )}
       </div>
 

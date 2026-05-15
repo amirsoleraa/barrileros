@@ -38,6 +38,7 @@ export function ConfigPanel() {
   const [logoUrl, setLogoUrl]   = useState(cfg.logoUrl);
   const [mensaje, setMensaje]   = useState(cfg.mensajeConfirmacion);
   const [whatsapp, setWhatsapp] = useState(cfg.whatsappNumero ?? '');
+  const [historialPin, setHistorialPin] = useState(cfg.historialPin ?? '');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState(cfg.logoUrl);
   const [saving, setSaving]     = useState(false);
@@ -52,6 +53,7 @@ export function ConfigPanel() {
     setLogoPreview(cfg.logoUrl);
     setMensaje(cfg.mensajeConfirmacion);
     setWhatsapp(cfg.whatsappNumero ?? '');
+    setHistorialPin(cfg.historialPin ?? '');
     setCampos({ ...DEFAULT_CAMPOS, ...(cfg.camposFormulario ?? {}) });
   }, [cfg]);
 
@@ -77,6 +79,7 @@ export function ConfigPanel() {
         logoUrl: finalLogoUrl,
         mensajeConfirmacion: mensaje.trim(),
         whatsappNumero: whatsapp.replace(/\D/g, ''),
+        historialPin: historialPin.trim(),
       };
 
       await setDoc(doc(db, 'config', 'main'), updates, { merge: true });
@@ -168,6 +171,18 @@ export function ConfigPanel() {
             <textarea value={mensaje} onChange={e => setMensaje(e.target.value)} rows={3} placeholder="Tu pedido está siendo preparado..." style={{ resize: 'none' }} />
             <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
               Este mensaje aparece en el recibo y en el email de confirmación.
+            </div>
+          </div>
+          <div className="f-field">
+            <label>PIN del historial</label>
+            <input
+              value={historialPin}
+              onChange={e => setHistorialPin(e.target.value)}
+              placeholder="Ej: 1234"
+              maxLength={8}
+            />
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
+              Se solicita para editar registros en el Historial de pedidos.
             </div>
           </div>
 

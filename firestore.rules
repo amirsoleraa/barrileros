@@ -94,6 +94,11 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // ── HISTORIAL DE PEDIDOS — solo admin ──
+    match /historial_pedidos/{diaId} {
+      allow read, write: if isAdmin();
+    }
+
     // ── BLOQUEAR TODO LO DEMÁS ──
     match /{document=**} {
       allow read, write: if false;
