@@ -11,7 +11,8 @@ export function haversineKm(
     Math.cos(lat1 * (Math.PI / 180)) *
     Math.cos(lat2 * (Math.PI / 180)) *
     Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  // Factor 1.3 para aproximar distancia por carretera (Haversine es línea recta)
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3;
 }
 
 /** Tarifa de domicilio en pesos, respetando la tarifa mínima. */
