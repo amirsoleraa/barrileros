@@ -16,12 +16,30 @@ export interface AppConfig {
   logoEmoji: string;
   logoUrl: string;
   domicilioActivo: boolean;
-  domicilioTipo: 'fijo' | 'gratis';
+  domicilioTipo: 'fijo' | 'gratis' | 'por_km';
   domicilioValor: number;
   mensajeConfirmacion: string;
   whatsappNumero?: string;
   camposFormulario?: CamposFormulario;
   historialPin?: string;
+}
+
+export interface DeliverySettings {
+  origin_lat: number;
+  origin_lng: number;
+  origin_address: string;
+  price_per_km: number;
+  min_delivery_fee?: number;
+  updated_at?: unknown;
+}
+
+export interface LocationData {
+  lat: number;
+  lng: number;
+  address: string;
+  notes: string;
+  distance_km: number;
+  delivery_fee: number;
 }
 
 export interface Categoria {
@@ -99,6 +117,7 @@ export interface Pedido {
   total: number;
   cupon: string | null;
   mensajeConfirmacion: string;
+  location?: LocationData | null;
   createdAt?: { seconds: number; nanoseconds: number };
   rutaNombre?: string;
   repartidorNombre?: string;

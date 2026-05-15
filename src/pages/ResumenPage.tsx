@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Ticket, CheckCircle, MessageCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, Ticket, CheckCircle, MessageCircle, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
@@ -7,9 +7,10 @@ import { db } from '@/lib/firebase';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
+import { LocationPicker } from '@/components/client/LocationPicker';
 import { sendOrderConfirmation } from '@/lib/email';
 import { fmtPrice, generarNumeroPedido, isValidEmail, isValidPhone } from '@/lib/utils';
-import type { DatosEnvio, Pedido } from '@/types';
+import type { DatosEnvio, Pedido, LocationData } from '@/types';
 import styles from './ResumenPage.module.css';
 
 interface DatosForm {
@@ -32,16 +33,21 @@ export function ResumenPage() {
     return () => { delete document.documentElement.dataset.theme; };
   }, []);
 
-  const [datosOpen, setDatosOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [cuponCode, setCuponCode] = useState('');
-  const [cuponMsg, setCuponMsg] = useState('');
-  const [cuponOk, setCuponOk] = useState(false);
+  const esPorKm = cfg.domicilioActivo && cfg.domicilioTipo === 'por_km';
 
-  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const [datosOpen,    setDatosOpen]    = useState(false);
+  const [confirmOpen,  setConfirmOpen]  = useState(false);
+  const [sending,      setSending]      = useState(false);
+  const [cuponCode,    setCuponCode]    = useState('');
+  const [cuponMsg,     setCuponMsg]     = useState('');
+  const [cuponOk,      setCuponOk]      = useState(false);
+  const [locationData, setLocationData] = useState<LocationData | null>(null);
+
+  const subtotal  = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const domicilio = cfg.domicilioActivo
-    ? (cfg.domicilioTipo === 'gratis' ? 0 : cfg.domicilioValor)
+    ? cfg.domicilioTipo === 'gratis'  ? 0
+    : cfg.domicilioTipo === 'por_km'  ? (locationData?.delivery_fee ?? 0)
+    : cfg.domicilioValor
     : 0;
   const descuento = cuponAplicado
     ? Math.min(
@@ -62,9 +68,9 @@ export function ResumenPage() {
   const mostrar = {
     correo: cf.correo !== false,
     tel:    cf.tel    !== false,
-    dir:    cf.dir    !== false,
-    barrio: cf.barrio !== false,
-    comp:   cf.comp   !== false,
+    dir:    cf.dir    !== false && !esPorKm,   // oculto cuando usa mapa
+    barrio: cf.barrio !== false && !esPorKm,
+    comp:   cf.comp   !== false && !esPorKm,
     recibe: cf.recibe !== false,
   };
 
@@ -73,7 +79,7 @@ export function ResumenPage() {
     if (mostrar.tel    && data.tel    && !isValidPhone(data.tel))    return;
     setDatosEnvio(data as DatosEnvio);
     setDatosOpen(false);
-    showToast('Datos de entrega guardados');
+    showToast('Datos guardados');
   }
 
   function applyCoupon() {
@@ -81,43 +87,44 @@ export function ResumenPage() {
     if (!code) return;
     const cup = Object.values(cupones).find(c => c.codigo === code && c.activo !== false);
     if (!cup) {
-      setCuponMsg('Cupón inválido o expirado');
-      setCuponOk(false);
-      setCuponAplicado(null);
-      return;
+      setCuponMsg('Cupón inválido o expirado'); setCuponOk(false); setCuponAplicado(null); return;
     }
     if (cup.limite > 0 && cup.usos >= cup.limite) {
-      setCuponMsg('Cupón agotado');
-      setCuponOk(false);
-      setCuponAplicado(null);
-      return;
+      setCuponMsg('Cupón agotado'); setCuponOk(false); setCuponAplicado(null); return;
     }
     setCuponAplicado(cup);
-    const label = cup.tipo === 'porcentaje' ? `${cup.valor}% de descuento` : `${fmtPrice(cup.valor)} de descuento`;
-    setCuponMsg(`Cupón aplicado — ${label}`);
+    setCuponMsg(`Cupón aplicado — ${cup.tipo === 'porcentaje' ? `${cup.valor}%` : fmtPrice(cup.valor)} de descuento`);
     setCuponOk(true);
   }
 
   function handleConfirmar() {
-    if (!cart.length) { showToast('Tu carrito está vacío'); return; }
-    if (!datosEnvio)  { setDatosOpen(true); return; }
+    if (!cart.length)    { showToast('Tu carrito está vacío'); return; }
+    if (!datosEnvio)     { setDatosOpen(true); return; }
+    if (esPorKm && (!locationData?.lat || !locationData?.lng)) {
+      showToast('Selecciona tu dirección de entrega en el mapa'); return;
+    }
     setConfirmOpen(true);
   }
 
   function buildWhatsappUrl(numero: string, items: Pedido['items']) {
     const num = cfg.whatsappNumero?.replace(/\D/g, '');
     if (!num) return null;
+
     const itemsText = items
       .map(i => `• ${i.qty}× ${i.nombre}${i.extras?.length ? ` (+${i.extras.join(', ')})` : ''} — ${fmtPrice(i.precio * i.qty)}`)
       .join('\n');
-    const dir = [datosEnvio!.dir, datosEnvio!.barrio, datosEnvio!.comp].filter(Boolean).join(', ');
+
+    const dirLine = esPorKm && locationData
+      ? `📍 ${locationData.address}${locationData.notes ? `\n📝 ${locationData.notes}` : ''}\n📏 Distancia: ${locationData.distance_km} km`
+      : `📍 ${[datosEnvio!.dir, datosEnvio!.barrio, datosEnvio!.comp].filter(Boolean).join(', ')}`;
+
     const msg = [
       `¡Hola ${cfg.nombreComercio}! 🔥 Quiero confirmar mi pedido:`,
       ``,
       `📋 *Pedido #${numero}*`,
       `👤 ${datosEnvio!.nombre}`,
       `📞 ${datosEnvio!.tel}`,
-      `📍 ${dir}`,
+      dirLine,
       ``,
       `🛒 *Productos:*`,
       itemsText,
@@ -126,13 +133,14 @@ export function ResumenPage() {
       descuento > 0  ? `🎟 Descuento: -${fmtPrice(descuento)}` : '',
       `💰 *Total: ${fmtPrice(total)}*`,
     ].filter(l => l !== '').join('\n');
+
     return `https://api.whatsapp.com/send/?phone=${num}&text=${encodeURIComponent(msg)}&type=phone_number&app_absent=0`;
   }
 
   async function finalizarPedido(openWA = false) {
     setSending(true);
     const numero = generarNumeroPedido();
-    const items = cart.map(i => ({ id: i.id, nombre: i.name, precio: i.price, qty: i.qty, extras: i.extras }));
+    const items  = cart.map(i => ({ id: i.id, nombre: i.name, precio: i.price, qty: i.qty, extras: i.extras }));
     const pedido: Omit<Pedido, 'id'> = {
       numero,
       estado: 'activos',
@@ -144,18 +152,17 @@ export function ResumenPage() {
       total,
       cupon: cuponAplicado ? cuponAplicado.codigo : null,
       mensajeConfirmacion: cfg.mensajeConfirmacion || '',
+      location: locationData ?? null,
       createdAt: serverTimestamp() as unknown as Pedido['createdAt'],
     };
 
     try {
-      const ref = await addDoc(collection(db, 'pedidos'), pedido);
+      const ref       = await addDoc(collection(db, 'pedidos'), pedido);
       const fullPedido = { ...pedido, id: ref.id };
 
       if (cuponAplicado) {
         const cup = Object.values(cupones).find(c => c.codigo === cuponAplicado.codigo);
-        if (cup) {
-          updateDoc(doc(db, 'cupones', cup.id), { usos: (cup.usos || 0) + 1 }).catch(() => {});
-        }
+        if (cup) updateDoc(doc(db, 'cupones', cup.id), { usos: (cup.usos || 0) + 1 }).catch(() => {});
       }
 
       setLastPedido(fullPedido as Pedido);
@@ -179,10 +186,7 @@ export function ResumenPage() {
 
   const hasWhatsapp = !!cfg.whatsappNumero?.replace(/\D/g, '');
 
-  if (cart.length === 0) {
-    navigate('/');
-    return null;
-  }
+  if (cart.length === 0) { navigate('/'); return null; }
 
   return (
     <div className={styles.page}>
@@ -195,6 +199,7 @@ export function ResumenPage() {
       </div>
 
       <div className={styles.content}>
+
         {/* Productos */}
         <div className={styles.card}>
           <div className={styles.cardHdr}><h3>Productos</h3></div>
@@ -219,19 +224,43 @@ export function ResumenPage() {
           </div>
         </div>
 
-        {/* Datos de entrega */}
-        <div className={styles.card} style={{ cursor: 'pointer' }} onClick={() => setDatosOpen(true)}>
+        {/* ── Dirección de entrega (solo cuando es por_km) ── */}
+        {esPorKm && (
+          <div className={styles.card}>
+            <div className={styles.cardHdr}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <MapPin size={16} color="var(--brand)" />
+                Dirección de entrega
+              </h3>
+              {locationData?.lat && (
+                <span style={{ fontSize: 12, color: 'var(--success)' }}>✓ Ubicación seleccionada</span>
+              )}
+            </div>
+            <div className={styles.cardBody} style={{ paddingTop: 12 }}>
+              <LocationPicker onChange={setLocationData} />
+            </div>
+          </div>
+        )}
+
+        {/* ── Datos personales ── */}
+        <div
+          className={styles.card}
+          style={{ cursor: 'pointer' }}
+          onClick={() => setDatosOpen(true)}
+        >
           <div className={styles.cardHdr}>
             <div>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <MapPin size={16} color="var(--brand)" />
-                Datos de entrega
+                {esPorKm
+                  ? <><User size={16} color="var(--brand)" /> Datos personales</>
+                  : <><MapPin size={16} color="var(--brand)" /> Datos de entrega</>
+                }
               </h3>
               {datosEnvio
                 ? <p style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>
                     {datosEnvio.nombre}
                     {mostrar.tel && datosEnvio.tel ? ` · ${datosEnvio.tel}` : ''}
-                    {datosEnvio.barrio ? ` · ${datosEnvio.barrio}` : ''}
+                    {!esPorKm && datosEnvio.barrio ? ` · ${datosEnvio.barrio}` : ''}
                   </p>
                 : <p style={{ fontSize: 13, color: 'var(--brand)', marginTop: 2 }}>Toca para agregar →</p>
               }
@@ -277,7 +306,14 @@ export function ResumenPage() {
             {cfg.domicilioActivo && (
               <div className={styles.resRow}>
                 <span>Domicilio</span>
-                <span>{domicilio === 0 ? 'Gratis' : fmtPrice(domicilio)}</span>
+                <span>
+                  {cfg.domicilioTipo === 'gratis'
+                    ? 'Gratis'
+                    : esPorKm && !locationData
+                      ? <span style={{ color: 'var(--text3)', fontSize: 12 }}>Selecciona dirección</span>
+                      : fmtPrice(domicilio)
+                  }
+                </span>
               </div>
             )}
             {descuento > 0 && (
@@ -301,8 +337,8 @@ export function ResumenPage() {
         </button>
       </div>
 
-      {/* Modal: Datos de entrega */}
-      <Modal isOpen={datosOpen} onClose={() => setDatosOpen(false)} title="Datos de entrega">
+      {/* Modal: Datos personales / entrega */}
+      <Modal isOpen={datosOpen} onClose={() => setDatosOpen(false)} title={esPorKm ? 'Datos personales' : 'Datos de entrega'}>
         <form onSubmit={handleSubmit(onSaveDatos)}>
           <div className="f-field">
             <label>Nombre completo *</label>
@@ -323,6 +359,7 @@ export function ResumenPage() {
               {errors.tel && <span className="f-err">{errors.tel.message}</span>}
             </div>
           )}
+          {/* Dir/barrio/comp solo cuando NO es por_km */}
           {mostrar.dir && (
             <div className="f-field">
               <label>Dirección de entrega *</label>
@@ -361,6 +398,12 @@ export function ResumenPage() {
           <p style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.6 }}>
             {cfg.mensajeConfirmacion || '¡Tu pedido está listo para confirmar!'}
           </p>
+          {esPorKm && locationData && (
+            <p style={{ fontSize: 13, color: 'var(--text3)', marginTop: 8 }}>
+              📍 {locationData.address || 'Ubicación seleccionada en mapa'}<br />
+              📏 {locationData.distance_km} km · 🚗 Domicilio: {fmtPrice(locationData.delivery_fee)}
+            </p>
+          )}
           <p style={{ fontWeight: 700, fontSize: 22, color: 'var(--brand)', marginTop: 16 }}>
             Total: {fmtPrice(total)}
           </p>
