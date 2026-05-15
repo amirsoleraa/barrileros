@@ -170,8 +170,14 @@
   overflow: hidden;
   position: relative;
   scroll-snap-align: start;
-  cursor: default;
+  cursor: pointer;
   border: 1px solid var(--border);
+}
+.imgCard:hover .imgCardPhoto {
+  transform: scale(1.04);
+}
+.imgCardPhoto {
+  transition: transform 0.25s ease;
 }
 
 .imgCardPhoto {
@@ -232,3 +238,45 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ── Lightbox ── */
+.lbOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0,0,0,.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  cursor: zoom-out;
+}
+
+.lbImage {
+  max-width: 100%;
+  max-height: 90dvh;
+  width: auto;
+  height: auto;
+  border-radius: 16px;
+  object-fit: contain;
+  cursor: default;
+  box-shadow: 0 8px 40px rgba(0,0,0,.6);
+}
+
+.lbClose {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.lbClose:hover { background: rgba(255,255,255,.22); }
