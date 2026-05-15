@@ -224,7 +224,7 @@
   letter-spacing: -.02em;
 }
 
-.sheetActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sheetActions { display: flex; gap: 10px; }
 
 /* ── Desktop: centered modal ── */
 @keyframes scaleIn {

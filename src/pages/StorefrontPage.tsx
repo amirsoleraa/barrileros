@@ -34,7 +34,6 @@ export function StorefrontPage() {
       <ProductDetail
         productId={detailId}
         onClose={() => setDetailId(null)}
-        onGoToCart={() => setDetailId(null)}
       />
 
       <SearchOverlay

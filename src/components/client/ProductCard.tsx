@@ -10,22 +10,14 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onOpenDetail }: ProductCardProps) {
-  const { cart, addItem, updateQty } = useCartStore();
+  const { cart, updateQty } = useCartStore();
 
   const cartEntry = cart.find(i => i.id === product.id && i.extras.length === 0);
   const qty = cartEntry?.qty ?? 0;
 
   function quickAdd(e: React.MouseEvent) {
     e.stopPropagation();
-    addItem({
-      id: product.id,
-      name: product.nombre,
-      price: product.precio,
-      emoji: product.emoji ?? '🍖',
-      imgUrl: product.imgUrl ?? '',
-      qty: 1,
-      extras: [],
-    });
+    onOpenDetail(product.id);
   }
 
   function changeQty(e: React.MouseEvent, delta: number) {

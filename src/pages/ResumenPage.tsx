@@ -200,16 +200,20 @@ export function ResumenPage() {
           <div className={styles.cardHdr}><h3>Productos</h3></div>
           <div className={styles.cardBody}>
             {cart.map((item, i) => (
-              <div key={i} className={styles.resRow}>
-                <span>
-                  {item.name} x{item.qty}
+              <div key={i} className={styles.productRow}>
+                <div className={styles.productThumb}>
+                  {item.imgUrl
+                    ? <img src={item.imgUrl} alt={item.name} />
+                    : <span>{item.emoji ?? '🍖'}</span>
+                  }
+                </div>
+                <div className={styles.productInfo}>
+                  <span className={styles.productName}>{item.name} × {item.qty}</span>
                   {item.extras.length > 0 && (
-                    <small style={{ color: 'var(--text3)', marginLeft: 4 }}>
-                      + {item.extras.join(', ')}
-                    </small>
+                    <span className={styles.productExtras}>+ {item.extras.join(', ')}</span>
                   )}
-                </span>
-                <span style={{ fontWeight: 600 }}>{fmtPrice(item.price * item.qty)}</span>
+                </div>
+                <span className={styles.productPrice}>{fmtPrice(item.price * item.qty)}</span>
               </div>
             ))}
           </div>

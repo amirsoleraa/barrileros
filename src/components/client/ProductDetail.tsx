@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Minus, Plus, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Minus, Plus } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useCartStore } from '@/stores/useCartStore';
 import { fmtPrice } from '@/lib/utils';
@@ -9,12 +9,11 @@ import styles from './ProductDetail.module.css';
 interface ProductDetailProps {
   productId: string | null;
   onClose: () => void;
-  onGoToCart: () => void;
 }
 
-export function ProductDetail({ productId, onClose, onGoToCart }: ProductDetailProps) {
+export function ProductDetail({ productId, onClose }: ProductDetailProps) {
   const { productos, adicionales } = useAppStore();
-  const { addItem, setCartOpen } = useCartStore();
+  const { addItem } = useCartStore();
 
   const [qty, setQty] = useState(1);
   // Record<adicionalId, qty seleccionado>
@@ -57,7 +56,7 @@ export function ProductDetail({ productId, onClose, onGoToCart }: ProductDetailP
   const unitPrice = product.precio + extrasUnitPrice;
   const total = unitPrice * qty;
 
-  function handleAdd(openCart: boolean) {
+  function handleAdd() {
     const extrasStrings: string[] = [];
     prodAdicionales.forEach(pa => {
       const ad = adicionales[pa.adicionalId];
@@ -78,9 +77,6 @@ export function ProductDetail({ productId, onClose, onGoToCart }: ProductDetailP
       extras: extrasStrings,
     });
     onClose();
-    if (openCart) {
-      setCartOpen(true);
-    }
   }
 
   return (
@@ -180,13 +176,8 @@ export function ProductDetail({ productId, onClose, onGoToCart }: ProductDetailP
             <span className={styles.sqTotal}>{fmtPrice(total)}</span>
           </div>
           <div className={styles.sheetActions}>
-            <button className="btn-s" onClick={() => handleAdd(false)}>
-              Agregar
-            </button>
-            <button className="btn-p" onClick={() => handleAdd(true)}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <ShoppingCart size={16} />
-              Ver carrito
+            <button className="btn-p" onClick={handleAdd} style={{ flex: 1 }}>
+              Agregar al carrito
             </button>
           </div>
         </div>
