@@ -44,22 +44,30 @@ export function applyThemeColors(colors: Record<string, string>): void {
 export const COLOR_PRESETS: Record<string, Record<string, string>> = {
   fuego: {
     brand: '#F4521E', 'brand-dark': '#C93D0F', 'brand-light': '#FFF0EB',
-    bg: '#F7F7F5', text: '#111111', accent: '#FF7A45',
+    'brand-mid': '#FF6B35', accent: '#FF9A62',
+    bg: '#F8F6F2', bg2: '#EDEAE4', bg3: '#E2DDD7', surface: '#FFFFFF',
+    text: '#1A1612', text2: '#6B6460', text3: '#A8A09A',
+    border: '#E8E4DE', border2: '#D0CBC4',
   },
-  carbon: {
-    brand: '#EF4444', 'brand-dark': '#B91C1C', 'brand-light': '#FEF2F2',
-    bg: '#1A1A1A', text: '#F5F5F5', accent: '#F87171',
+  cafe: {
+    brand: '#FF6229', 'brand-dark': '#E0501A', 'brand-light': 'rgba(255,98,41,.15)',
+    'brand-mid': '#FF7A42', accent: '#FFAD7A',
+    bg: '#1E1710', bg2: '#2A2018', bg3: '#342A1E', surface: '#261E15',
+    text: '#F4EFE6', text2: '#B09080', text3: '#7A6855',
+    border: 'rgba(255,255,255,.08)', border2: 'rgba(255,255,255,.13)',
   },
-  selva: {
-    brand: '#16A34A', 'brand-dark': '#15803D', 'brand-light': '#F0FDF4',
-    bg: '#F7FAF7', text: '#14532D', accent: '#4ADE80',
+  neutro: {
+    brand: '#FF6229', 'brand-dark': '#E0501A', 'brand-light': 'rgba(255,98,41,.15)',
+    'brand-mid': '#FF7A42', accent: '#FFAD7A',
+    bg: '#1A1A1A', bg2: '#242424', bg3: '#2E2E2E', surface: '#222222',
+    text: '#F0F0F0', text2: '#AAAAAA', text3: '#707070',
+    border: 'rgba(255,255,255,.08)', border2: 'rgba(255,255,255,.13)',
   },
-  noche: {
-    brand: '#7C3AED', 'brand-dark': '#6D28D9', 'brand-light': '#F5F3FF',
-    bg: '#0F0F1A', text: '#F1F0FF', accent: '#A78BFA',
-  },
-  oceano: {
-    brand: '#0EA5E9', 'brand-dark': '#0284C7', 'brand-light': '#F0F9FF',
-    bg: '#F0F9FF', text: '#0C4A6E', accent: '#38BDF8',
+  medio: {
+    brand: '#FF6229', 'brand-dark': '#E0501A', 'brand-light': 'rgba(255,98,41,.15)',
+    'brand-mid': '#FF7A42', accent: '#FFAD7A',
+    bg: '#2C2218', bg2: '#382C20', bg3: '#44362A', surface: '#342820',
+    text: '#F4EFE6', text2: '#C0A890', text3: '#8A7060',
+    border: 'rgba(255,255,255,.09)', border2: 'rgba(255,255,255,.15)',
   },
 };

@@ -69,22 +69,28 @@ export function ColorsPanel() {
       <div className="admin-card" style={{ marginBottom: 20 }}>
         <div className="admin-card-hdr"><h3>Temas predefinidos</h3></div>
         <div style={{ padding: '16px 20px', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {Object.entries(COLOR_PRESETS).map(([name, preset]) => (
-            <button
-              key={name}
-              className={`theme-preset-btn ${activePreset === name ? 'active' : ''}`}
-              onClick={() => applyPreset(name)}
-            >
-              <div style={{ display: 'flex', gap: 3, marginBottom: 6 }}>
-                {['brand', 'bg', 'text'].map(k => (
-                  <div key={k} style={{ width: 14, height: 14, borderRadius: 4, background: preset[k] }} />
-                ))}
-              </div>
-              <span style={{ textTransform: 'capitalize' }}>
-                {name === 'fuego' ? '🔥' : name === 'carbon' ? '🖤' : name === 'selva' ? '🌿' : name === 'noche' ? '🌙' : '🌊'} {name}
-              </span>
-            </button>
-          ))}
+          {Object.entries(COLOR_PRESETS).map(([name, preset]) => {
+            const LABELS: Record<string, string> = {
+              fuego:  '🔥 Fuego',
+              cafe:   '☕ Café cálido',
+              neutro: '🌑 Gris neutro',
+              medio:  '🤎 Café medio',
+            };
+            return (
+              <button
+                key={name}
+                className={`theme-preset-btn ${activePreset === name ? 'active' : ''}`}
+                onClick={() => applyPreset(name)}
+              >
+                <div style={{ display: 'flex', gap: 3, marginBottom: 6 }}>
+                  {['brand', 'bg', 'surface'].map(k => (
+                    <div key={k} style={{ width: 14, height: 14, borderRadius: 4, background: preset[k] }} />
+                  ))}
+                </div>
+                <span>{LABELS[name] ?? name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
