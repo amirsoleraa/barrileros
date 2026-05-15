@@ -47,12 +47,11 @@ export function useFirebaseInit() {
         });
 
         // Catálogo crítico — timeout de 8 s
-        const [catSnap, prodSnap, cupSnap, adSnap] = await withTimeout(
+        const [catSnap, prodSnap, cupSnap] = await withTimeout(
           Promise.all([
             getDocs(collection(db, 'categorias')),
             getDocs(collection(db, 'productos')),
             getDocs(collection(db, 'cupones')),
-            getDocs(collection(db, 'adicionales')),
           ]),
           8000
         );
@@ -60,17 +59,21 @@ export function useFirebaseInit() {
         const cats: Record<string, Categoria> = {};
         const prods: Record<string, Producto> = {};
         const cups: Record<string, Cupon>     = {};
-        const ads: Record<string, Adicional>  = {};
 
         catSnap.forEach(d  => { cats[d.id]  = { id: d.id, ...d.data() } as Categoria; });
         prodSnap.forEach(d => { prods[d.id] = { id: d.id, ...d.data() } as Producto; });
         cupSnap.forEach(d  => { cups[d.id]  = { id: d.id, ...d.data() } as Cupon; });
-        adSnap.forEach(d   => { ads[d.id]   = { id: d.id, ...d.data() } as Adicional; });
 
         setCategorias(cats);
         setProductos(prods);
         setCupones(cups);
-        setAdicionales(ads);
+
+        // No bloqueantes
+        getDocs(collection(db, 'adicionales')).then(snap => {
+          const ads: Record<string, Adicional> = {};
+          snap.forEach(d => { ads[d.id] = { id: d.id, ...d.data() } as Adicional; });
+          setAdicionales(ads);
+        }).catch(() => {});
 
         // No bloqueantes
         getDocs(collection(db, 'novedades')).then(snap => {

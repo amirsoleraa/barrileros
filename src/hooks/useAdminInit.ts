@@ -25,14 +25,13 @@ export function useAdminInit() {
 
     async function init() {
       try {
-        const [cfgDoc, colorDoc, catSnap, prodSnap, cupSnap, novSnap, adSnap] = await Promise.all([
+        const [cfgDoc, colorDoc, catSnap, prodSnap, cupSnap, novSnap] = await Promise.all([
           getDoc(doc(db, 'config', 'main')),
           getDoc(doc(db, 'config', 'colores')),
           getDocs(collection(db, 'categorias')),
           getDocs(collection(db, 'productos')),
           getDocs(collection(db, 'cupones')),
           getDocs(collection(db, 'novedades')),
-          getDocs(collection(db, 'adicionales')),
         ]);
 
         if (cfgDoc.exists()) setCfg(cfgDoc.data() as Partial<AppConfig>);
@@ -42,19 +41,24 @@ export function useAdminInit() {
         const prods: Record<string, Producto>    = {};
         const cups:  Record<string, Cupon>       = {};
         const novs:  Record<string, Novedad>     = {};
-        const ads:   Record<string, Adicional>   = {};
 
         catSnap.forEach(d  => { cats[d.id]  = { id: d.id, ...d.data() } as Categoria; });
         prodSnap.forEach(d => { prods[d.id] = { id: d.id, ...d.data() } as Producto; });
         cupSnap.forEach(d  => { cups[d.id]  = { id: d.id, ...d.data() } as Cupon; });
         novSnap.forEach(d  => { novs[d.id]  = { id: d.id, ...d.data() } as Novedad; });
-        adSnap.forEach(d   => { ads[d.id]   = { id: d.id, ...d.data() } as Adicional; });
 
         setCategorias(cats);
         setProductos(prods);
         setCupones(cups);
         setNovedades(novs);
-        setAdicionales(ads);
+
+        // Adicionales — no bloquea el resto si la colección no existe aún
+        try {
+          const adSnap = await getDocs(collection(db, 'adicionales'));
+          const ads: Record<string, Adicional> = {};
+          adSnap.forEach(d => { ads[d.id] = { id: d.id, ...d.data() } as Adicional; });
+          setAdicionales(ads);
+        } catch (_) {}
       } catch (e) {
         console.error('Error al inicializar admin:', e);
       }
