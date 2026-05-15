@@ -27,6 +27,7 @@ function LocationPickerInner({ onChange, deliverySettings }: {
   const [lat,        setLat]        = useState<number | null>(null);
   const [lng,        setLng]        = useState<number | null>(null);
   const [address,    setAddress]    = useState('');
+  const [barrio,     setBarrio]     = useState('');
   const [notes,      setNotes]      = useState('');
   const [geoError,   setGeoError]   = useState('');
   const [geoLoading, setGeoLoading] = useState(false);
@@ -44,8 +45,8 @@ function LocationPickerInner({ onChange, deliverySettings }: {
       distance_km  = Math.round(raw * 10) / 10;
       delivery_fee = calcDeliveryFee(distance_km, deliverySettings.price_per_km, deliverySettings.min_delivery_fee);
     }
-    onChangeRef.current({ lat, lng, address, notes, distance_km, delivery_fee });
-  }, [lat, lng, address, notes, deliverySettings]);
+    onChangeRef.current({ lat, lng, address, barrio, notes, distance_km, delivery_fee });
+  }, [lat, lng, address, barrio, notes, deliverySettings]);
 
   const applyCenter = useCallback((latLng: any) => {
     const newLat = typeof latLng.lat === 'function' ? latLng.lat() : latLng.lat;
@@ -182,15 +183,29 @@ function LocationPickerInner({ onChange, deliverySettings }: {
         {geoError && <div className={styles.geoErrBox} style={{ marginTop: 8 }}>{geoError}</div>}
       </div>
 
-      {/* Notas adicionales */}
+      {/* Barrio */}
       <div>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
-          Indicaciones adicionales
+          Barrio <span style={{ color: 'var(--danger, #dc2626)' }}>*</span>
+        </div>
+        <input
+          className={styles.notesInput}
+          style={{ resize: 'none', padding: '11px 13px' }}
+          placeholder="Ej: El Prado, Manga, Bocagrande…"
+          value={barrio}
+          onChange={e => setBarrio(e.target.value)}
+        />
+      </div>
+
+      {/* Indicaciones adicionales */}
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
+          Indicaciones adicionales <span style={{ color: 'var(--danger, #dc2626)' }}>*</span>
         </div>
         <textarea
           className={styles.notesInput}
           rows={2}
-          placeholder="Apto, piso, color de puerta, referencias del lugar…"
+          placeholder="Apto, torre, piso, color de puerta, referencias del lugar…"
           value={notes}
           onChange={e => setNotes(e.target.value)}
         />

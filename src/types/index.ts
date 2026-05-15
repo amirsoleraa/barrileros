@@ -37,6 +37,7 @@ export interface LocationData {
   lat: number;
   lng: number;
   address: string;
+  barrio: string;
   notes: string;
   distance_km: number;
   delivery_fee: number;

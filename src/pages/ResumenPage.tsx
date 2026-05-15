@@ -101,7 +101,13 @@ export function ResumenPage() {
     if (!cart.length)    { showToast('Tu carrito está vacío'); return; }
     if (!datosEnvio)     { setDatosOpen(true); return; }
     if (esPorKm && (!locationData?.lat || !locationData?.lng)) {
-      showToast('Selecciona tu dirección de entrega en el mapa'); return;
+      showToast('Mueve el mapa para seleccionar tu dirección de entrega'); return;
+    }
+    if (esPorKm && !locationData?.barrio?.trim()) {
+      showToast('Ingresa el nombre de tu barrio'); return;
+    }
+    if (esPorKm && !locationData?.notes?.trim()) {
+      showToast('Ingresa las indicaciones adicionales (apto, torre, referencia...)'); return;
     }
     setConfirmOpen(true);
   }
@@ -115,7 +121,13 @@ export function ResumenPage() {
       .join('\n');
 
     const dirLine = esPorKm && locationData
-      ? `📍 ${locationData.address}${locationData.notes ? `\n📝 ${locationData.notes}` : ''}\n📏 Distancia: ${locationData.distance_km} km`
+      ? [
+          `📍 ${locationData.address}`,
+          locationData.barrio ? `🏘 Barrio: ${locationData.barrio}` : '',
+          locationData.notes  ? `📝 ${locationData.notes}` : '',
+          `📏 Distancia: ${locationData.distance_km} km`,
+          `🗺 https://www.google.com/maps?q=${locationData.lat},${locationData.lng}`,
+        ].filter(Boolean).join('\n')
       : `📍 ${[datosEnvio!.dir, datosEnvio!.barrio, datosEnvio!.comp].filter(Boolean).join(', ')}`;
 
     const msg = [
@@ -399,9 +411,11 @@ export function ResumenPage() {
             {cfg.mensajeConfirmacion || '¡Tu pedido está listo para confirmar!'}
           </p>
           {esPorKm && locationData && (
-            <p style={{ fontSize: 13, color: 'var(--text3)', marginTop: 8 }}>
+            <p style={{ fontSize: 13, color: 'var(--text3)', marginTop: 8, lineHeight: 1.6 }}>
               📍 {locationData.address || 'Ubicación seleccionada en mapa'}<br />
-              📏 {locationData.distance_km} km · 🚗 Domicilio: {fmtPrice(locationData.delivery_fee)}
+              {locationData.barrio && <>🏘 {locationData.barrio}<br /></>}
+              {locationData.notes  && <>📝 {locationData.notes}<br /></>}
+              📏 {locationData.distance_km} km · 🚗 {fmtPrice(locationData.delivery_fee)}
             </p>
           )}
           <p style={{ fontWeight: 700, fontSize: 22, color: 'var(--brand)', marginTop: 16 }}>

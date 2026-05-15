@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   MapPin, Plus, Trash2, CheckCircle, User, Package,
   ChevronDown, ChevronUp, ArrowUp, ArrowDown, Flag,
-  XCircle, RotateCcw,
+  XCircle, RotateCcw, ExternalLink,
 } from 'lucide-react';
 import {
   collection, addDoc, getDocs, updateDoc, deleteDoc,
@@ -36,9 +36,10 @@ interface RouteTimelineProps {
   onAddOrder: (rutaId: string) => void;
   onFinalizar: (ruta: RutaEntrega) => Promise<void>;
   onEliminar: (id: string) => Promise<void>;
+  onSelectPedido: (p: Pedido) => void;
 }
 
-function RouteTimeline({ ruta, pedidos, onReorder, onDeliverStop, onCancelStop, onRescheduleStop, onAddOrder, onFinalizar, onEliminar }: RouteTimelineProps) {
+function RouteTimeline({ ruta, pedidos, onReorder, onDeliverStop, onCancelStop, onRescheduleStop, onAddOrder, onFinalizar, onEliminar, onSelectPedido }: RouteTimelineProps) {
   const stops    = ruta.pedidoIds.map(id => pedidos[id]).filter(Boolean);
   const delivered = stops.filter(p => p.estado === 'entregado').length;
   const total     = stops.length;
@@ -108,13 +109,30 @@ function RouteTimeline({ ruta, pedidos, onReorder, onDeliverStop, onCancelStop, 
               }}>
                 {p ? (
                   <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <div
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}
+                      onClick={() => onSelectPedido(p)}
+                    >
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 700, fontSize: 13 }}>{p.cliente?.nombre}</div>
                         <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
-                          {[p.cliente?.barrio, p.cliente?.dir].filter(Boolean).join(' · ')}
+                          {p.location
+                            ? [p.location.barrio, p.location.notes].filter(Boolean).join(' · ')
+                            : [p.cliente?.barrio, p.cliente?.dir].filter(Boolean).join(' · ')
+                          }
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text3)' }}>{p.cliente?.tel}</div>
+                        {p.location && (
+                          <a
+                            href={`https://www.google.com/maps?q=${p.location.lat},${p.location.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            style={{ fontSize: 11, color: 'var(--brand)', display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 4, textDecoration: 'none' }}
+                          >
+                            <ExternalLink size={10} /> Google Maps
+                          </a>
+                        )}
                         <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
                           {p.items?.slice(0, 2).map((it, i) => (
                             <span key={i}>{i > 0 ? ' · ' : ''}{it.qty}× {it.nombre}</span>
@@ -241,6 +259,7 @@ export function TrackingPanel() {
   const [loadingRutas, setLoadingRutas]   = useState(true);
   const [expanded, setExpanded]           = useState<Set<string>>(new Set());
   const [addingToRutaId, setAddingToRutaId] = useState<string | null>(null);
+  const [detallePedido, setDetallePedido] = useState<Pedido | null>(null);
 
   function toggleSelect(id: string) {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -559,6 +578,7 @@ export function TrackingPanel() {
                       onAddOrder={setAddingToRutaId}
                       onFinalizar={handleFinalizarRuta}
                       onEliminar={handleEliminarRuta}
+                      onSelectPedido={setDetallePedido}
                     />
                   )}
                 </div>
@@ -567,6 +587,71 @@ export function TrackingPanel() {
           </div>
         )}
       </div>
+
+      {/* Modal: detalle de pedido desde ruta */}
+      <Modal isOpen={!!detallePedido} onClose={() => setDetallePedido(null)} title={`Pedido #${detallePedido?.numero}`} maxWidth={480}>
+        {detallePedido && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text3)', marginBottom: 8, fontWeight: 600 }}>Cliente</div>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{detallePedido.cliente?.nombre}</div>
+              {detallePedido.cliente?.tel    && <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 2 }}>{detallePedido.cliente.tel}</div>}
+              {detallePedido.cliente?.correo && <div style={{ fontSize: 13, color: 'var(--text2)' }}>{detallePedido.cliente.correo}</div>}
+              {!detallePedido.location && (
+                <div style={{ fontSize: 13, color: 'var(--text2)' }}>
+                  {[detallePedido.cliente?.dir, detallePedido.cliente?.barrio, detallePedido.cliente?.comp].filter(Boolean).join(' · ')}
+                </div>
+              )}
+            </div>
+
+            {detallePedido.location && (
+              <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 14px' }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text3)', marginBottom: 8, fontWeight: 600 }}>Ubicación GPS</div>
+                {detallePedido.location.barrio && (
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>🏘 {detallePedido.location.barrio}</div>
+                )}
+                {detallePedido.location.notes && (
+                  <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 2 }}>📝 {detallePedido.location.notes}</div>
+                )}
+                {detallePedido.location.address && (
+                  <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 10 }}>{detallePedido.location.address}</div>
+                )}
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {detallePedido.location.distance_km > 0 && (
+                    <span style={{ fontSize: 12, color: 'var(--text2)' }}>📏 {detallePedido.location.distance_km} km</span>
+                  )}
+                  <a
+                    href={`https://www.google.com/maps?q=${detallePedido.location.lat},${detallePedido.location.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      fontSize: 13, fontWeight: 600, color: 'var(--brand)',
+                      textDecoration: 'none', padding: '7px 12px',
+                      borderRadius: 8, border: '1px solid var(--brand)',
+                    }}
+                  >
+                    <ExternalLink size={13} /> Abrir en Google Maps
+                  </a>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text3)', marginBottom: 8, fontWeight: 600 }}>Productos</div>
+              {detallePedido.items?.map((it, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span>{it.qty}× {it.nombre}{it.extras?.length > 0 && <small style={{ color: 'var(--text3)', marginLeft: 6 }}>+{it.extras.join(', ')}</small>}</span>
+                  <span style={{ fontWeight: 600 }}>{fmtPrice(it.precio * it.qty)}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 16, color: 'var(--brand)', marginTop: 10 }}>
+                <span>Total</span><span>{fmtPrice(detallePedido.total)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Modal: agregar pedido a ruta */}
       {addingToRutaId && (

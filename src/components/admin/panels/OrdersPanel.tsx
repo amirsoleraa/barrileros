@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Eye, Trash2, ChevronRight, ChevronLeft, Clock, RotateCcw, Archive } from 'lucide-react';
+import { Eye, Trash2, ChevronRight, ChevronLeft, Clock, RotateCcw, Archive, ExternalLink } from 'lucide-react';
 import { updateDoc, deleteDoc, doc, addDoc, collection, serverTimestamp, writeBatch, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAdminStore } from '@/stores/useAdminStore';
@@ -398,15 +398,50 @@ export function OrdersPanel() {
               <div style={{ fontSize: 15 }}><strong>{detailPedido.cliente?.nombre}</strong></div>
               <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 2 }}>{detailPedido.cliente?.tel}</div>
               <div style={{ fontSize: 13, color: 'var(--text2)' }}>{detailPedido.cliente?.correo}</div>
-              <div style={{ fontSize: 13, color: 'var(--text2)' }}>
-                {detailPedido.cliente?.dir}
-                {detailPedido.cliente?.barrio ? ` — ${detailPedido.cliente.barrio}` : ''}
-                {detailPedido.cliente?.comp   ? `, ${detailPedido.cliente.comp}`   : ''}
-              </div>
+              {!detailPedido.location && (
+                <div style={{ fontSize: 13, color: 'var(--text2)' }}>
+                  {detailPedido.cliente?.dir}
+                  {detailPedido.cliente?.barrio ? ` — ${detailPedido.cliente.barrio}` : ''}
+                  {detailPedido.cliente?.comp   ? `, ${detailPedido.cliente.comp}`   : ''}
+                </div>
+              )}
               {detailPedido.cliente?.recibe && (
                 <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>Recibe: {detailPedido.cliente.recibe}</div>
               )}
             </div>
+
+            {detailPedido.location && (
+              <div style={{ marginBottom: 16, background: 'var(--bg)', borderRadius: 12, padding: '12px 14px' }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text3)', marginBottom: 8, fontWeight: 600 }}>Ubicación GPS</div>
+                {detailPedido.location.barrio && (
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>🏘 {detailPedido.location.barrio}</div>
+                )}
+                {detailPedido.location.notes && (
+                  <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 2 }}>📝 {detailPedido.location.notes}</div>
+                )}
+                {detailPedido.location.address && (
+                  <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>{detailPedido.location.address}</div>
+                )}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {detailPedido.location.distance_km > 0 && (
+                    <span style={{ fontSize: 12, color: 'var(--text2)' }}>📏 {detailPedido.location.distance_km} km</span>
+                  )}
+                  <a
+                    href={`https://www.google.com/maps?q=${detailPedido.location.lat},${detailPedido.location.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      fontSize: 12, fontWeight: 600, color: 'var(--brand)',
+                      textDecoration: 'none', padding: '5px 10px',
+                      borderRadius: 8, border: '1px solid var(--brand)',
+                    }}
+                  >
+                    <ExternalLink size={12} /> Ver en Google Maps
+                  </a>
+                </div>
+              </div>
+            )}
 
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text3)', marginBottom: 8, fontWeight: 600 }}>Productos</div>
