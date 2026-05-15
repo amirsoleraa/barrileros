@@ -3,8 +3,8 @@ import { DeliveryPanel } from './DeliveryPanel';
 import { TrackingPanel } from './TrackingPanel';
 
 const TABS = [
-  { key: 'domicilio',   label: 'Domicilio' },
   { key: 'seguimiento', label: 'Seguimiento' },
+  { key: 'domicilio',   label: 'Domicilio' },
 ] as const;
 
 type Tab = typeof TABS[number]['key'];
@@ -20,7 +20,7 @@ function tabStyle(active: boolean): React.CSSProperties {
 }
 
 export function LogisticaPanel() {
-  const [tab, setTab] = useState<Tab>('domicilio');
+  const [tab, setTab] = useState<Tab>('seguimiento');
   return (
     <div>
       <div style={{ display: 'flex', gap: 2, marginBottom: 20, background: 'var(--bg2)', padding: 4, borderRadius: 10, border: '1px solid var(--border)', width: 'fit-content' }}>
@@ -30,8 +30,8 @@ export function LogisticaPanel() {
           </button>
         ))}
       </div>
-      {tab === 'domicilio'   && <DeliveryPanel />}
       {tab === 'seguimiento' && <TrackingPanel />}
+      {tab === 'domicilio'   && <DeliveryPanel />}
     </div>
   );
 }

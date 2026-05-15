@@ -102,6 +102,7 @@ export interface Pedido {
   createdAt?: { seconds: number; nanoseconds: number };
   rutaNombre?: string;
   repartidorNombre?: string;
+  notaPendiente?: string;
 }
 
 export interface RutaEntrega {

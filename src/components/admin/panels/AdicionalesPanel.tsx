@@ -94,51 +94,42 @@ export function AdicionalesPanel() {
       {list.length === 0 ? (
         <div className="empty-s">No hay adicionales. Crea el primero.</div>
       ) : (
-        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'var(--bg2)' }}>
-                {['Nombre', 'Precio cliente', 'Costo', 'Ganancia', 'Estado', ''].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text2)', fontWeight: 600, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '.04em' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {list.map(a => {
-                const g = a.precio - a.costo;
-                const p = a.precio > 0 ? Math.round(g / a.precio * 100) : 0;
-                return (
-                  <tr key={a.id} style={{ borderTop: '1px solid var(--border)', opacity: a.activo ? 1 : 0.5 }}>
-                    <td style={{ padding: '12px 14px', fontSize: 14, fontWeight: 600 }}>{a.nombre}</td>
-                    <td style={{ padding: '12px 14px', fontSize: 14, color: 'var(--brand)', fontWeight: 600 }}>{fmtPrice(a.precio)}</td>
-                    <td style={{ padding: '12px 14px', fontSize: 14 }}>{fmtPrice(a.costo)}</td>
-                    <td style={{ padding: '12px 14px', fontSize: 13, color: g >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                      {fmtPrice(g)} <span style={{ opacity: .7 }}>({p}%)</span>
-                    </td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                        background: a.activo ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.1)',
-                        color: a.activo ? 'var(--success)' : 'var(--danger)',
-                      }}>
-                        {a.activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button className="ab ab-e" onClick={() => openEdit(a)} title="Editar">
-                          <Pencil size={12} /> Editar
-                        </button>
-                        <button className="ab ab-d" onClick={() => handleDelete(a.id)} title="Eliminar">
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {list.map(a => {
+            const g = a.precio - a.costo;
+            const p = a.precio > 0 ? Math.round(g / a.precio * 100) : 0;
+            return (
+              <div key={a.id} style={{
+                background: 'var(--surface)', border: '1px solid var(--border)',
+                borderLeft: `4px solid ${a.activo ? 'var(--brand)' : 'var(--border)'}`,
+                borderRadius: 12, padding: '12px 16px',
+                display: 'flex', alignItems: 'center', gap: 12,
+                opacity: a.activo ? 1 : 0.6,
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{a.nombre}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--brand)', fontWeight: 600 }}>{fmtPrice(a.precio)}</span>
+                    <span>Costo: {fmtPrice(a.costo)}</span>
+                    <span style={{ color: g >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                      Ganancia: {fmtPrice(g)} ({p}%)
+                    </span>
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, flexShrink: 0,
+                  background: a.activo ? 'var(--brand-light)' : 'var(--bg2)',
+                  color: a.activo ? 'var(--brand)' : 'var(--text3)',
+                }}>
+                  {a.activo ? 'Activo' : 'Inactivo'}
+                </span>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <button className="ab ab-e" onClick={() => openEdit(a)} title="Editar"><Pencil size={12} /> Editar</button>
+                  <button className="ab ab-d" onClick={() => handleDelete(a.id)} title="Eliminar"><Trash2 size={12} /></button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

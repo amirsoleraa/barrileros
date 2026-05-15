@@ -176,6 +176,7 @@ export function ConfigPanel() {
           <div className="f-field">
             <label>PIN del historial</label>
             <input
+              type="password"
               value={historialPin}
               onChange={e => setHistorialPin(e.target.value)}
               placeholder="Ej: 1234"

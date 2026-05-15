@@ -74,39 +74,35 @@ export function CategoriesPanel() {
         </button>
       </div>
 
-      <div className="admin-card">
-        {cats.length === 0 ? (
-          <div className="empty-s">No hay categorías aún.</div>
-        ) : (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Color</th>
-                <th>Nombre</th>
-                <th>Productos</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cats.map(c => (
-                <tr key={c.id}>
-                  <td>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: c.color, border: '2px solid rgba(0,0,0,.08)' }} />
-                  </td>
-                  <td><strong>{c.nombre}</strong></td>
-                  <td>{prodCount(c.id)}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="ab ab-e" onClick={() => openEdit(c)}><Pencil size={12} /> Editar</button>
-                      <button className="ab ab-d" onClick={() => handleDelete(c.id)}><Trash2 size={12} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {cats.length === 0 ? (
+        <div className="empty-s">No hay categorías aún.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {cats.map(c => {
+            const count = prodCount(c.id);
+            return (
+              <div key={c.id} style={{
+                background: 'var(--surface)', border: '1px solid var(--border)',
+                borderLeft: `4px solid ${c.color}`,
+                borderRadius: 12, padding: '12px 16px',
+                display: 'flex', alignItems: 'center', gap: 12,
+              }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: c.color, flexShrink: 0, border: '2px solid rgba(0,0,0,.08)' }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{c.nombre}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                    {count} producto{count !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <button className="ab ab-e" onClick={() => openEdit(c)}><Pencil size={12} /> Editar</button>
+                  <button className="ab ab-d" onClick={() => handleDelete(c.id)}><Trash2 size={12} /></button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title={editId ? 'Editar categoría' : 'Nueva categoría'}>
         <div className="f-field">

@@ -349,9 +349,39 @@ a { text-decoration: none; color: inherit; }
 /* ── Products admin grid ── */
 .prods-admin-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 14px;
 }
+
+/* ── Admin product card ── */
+.pac {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: box-shadow .15s, transform .15s;
+}
+.pac:hover { box-shadow: 0 6px 20px rgba(0,0,0,.08); transform: translateY(-1px); }
+.pac-img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  background: var(--bg2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+.pac-img img { width: 100%; height: 100%; object-fit: cover; border-radius: 14px; }
+.pac-name   { font-weight: 700; font-size: 14px; line-height: 1.3; color: var(--text); }
+.pac-price  { font-weight: 700; font-size: 15px; color: var(--brand); }
+.pac-cat    { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 4px; }
+.pac-actions { display: flex; gap: 5px; margin-top: 4px; flex-wrap: wrap; }
 
 /* ── Color editor ── */
 .color-editor-grid { display: flex; flex-direction: column; gap: 10px; }

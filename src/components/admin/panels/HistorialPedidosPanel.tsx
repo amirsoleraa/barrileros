@@ -1,10 +1,94 @@
 import { useState, useEffect } from 'react';
-import { getDocs, collection, query, orderBy, updateDoc, doc } from 'firebase/firestore';
+import { onSnapshot, collection, query, orderBy, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { fmtPrice } from '@/lib/utils';
-import { ChevronDown, ChevronUp, Lock, Unlock, Edit2, Save, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lock, Unlock, Edit2, Save, X, FileText } from 'lucide-react';
 import type { HistorialDia, Pedido } from '@/types';
+
+function printFactura(p: Pedido, fechaLabel: string, nombreComercio: string) {
+  const items = (p.items ?? []).map(it => `
+    <tr>
+      <td>${it.nombre}${it.extras?.length ? ` <small>(+${it.extras.join(', ')})</small>` : ''}</td>
+      <td style="text-align:center">${it.qty}</td>
+      <td style="text-align:right">$${Math.round(it.precio * it.qty).toLocaleString('es-CO')}</td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Factura #${p.numero}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 32px; max-width: 420px; margin: 0 auto; }
+    h1  { font-size: 22px; font-weight: 800; margin-bottom: 2px; }
+    .sub { color: #666; font-size: 12px; margin-bottom: 20px; }
+    .divider { border: none; border-top: 1px solid #e5e7eb; margin: 14px 0; }
+    .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; margin-bottom: 8px; }
+    .info-row { font-size: 13px; margin-bottom: 3px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    th { font-size: 11px; color: #6b7280; font-weight: 600; text-align: left; padding: 4px 0; border-bottom: 1px solid #e5e7eb; }
+    td { padding: 7px 0; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+    td small { color: #9ca3af; font-size: 11px; }
+    .totals { margin-top: 6px; }
+    .totals tr td { border: none; padding: 3px 0; }
+    .total-row td { font-weight: 800; font-size: 17px; padding-top: 8px; border-top: 2px solid #111 !important; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+             background: ${p.estado === 'entregado' ? '#dcfce7' : '#fee2e2'};
+             color: ${p.estado === 'entregado' ? '#15803d' : '#dc2626'}; }
+    .print-btn { display: block; margin-bottom: 24px; padding: 9px 20px; background: #111; color: #fff;
+                 border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    @media print { .print-btn { display: none; } }
+  </style>
+</head>
+<body>
+  <button class="print-btn" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
+
+  <h1>${nombreComercio}</h1>
+  <div class="sub">Pedido #${p.numero} &nbsp;·&nbsp; ${fechaLabel}</div>
+
+  <hr class="divider">
+
+  <div class="section-title">Estado</div>
+  <div class="info-row"><span class="badge">${p.estado === 'entregado' ? 'Entregado' : 'Cancelado'}</span></div>
+
+  <hr class="divider">
+
+  <div class="section-title">Cliente</div>
+  <div class="info-row"><strong>${p.cliente?.nombre ?? ''}</strong></div>
+  ${p.cliente?.tel    ? `<div class="info-row">${p.cliente.tel}</div>` : ''}
+  ${p.cliente?.correo ? `<div class="info-row">${p.cliente.correo}</div>` : ''}
+  ${p.cliente?.dir    ? `<div class="info-row">${p.cliente.dir}${p.cliente.barrio ? ` — ${p.cliente.barrio}` : ''}${p.cliente.comp ? `, ${p.cliente.comp}` : ''}</div>` : ''}
+  ${p.cliente?.recibe ? `<div class="info-row" style="color:#666">Recibe: ${p.cliente.recibe}</div>` : ''}
+
+  <hr class="divider">
+
+  <div class="section-title">Productos</div>
+  <table>
+    <thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Precio</th></tr></thead>
+    <tbody>${items}</tbody>
+  </table>
+
+  <table class="totals" style="margin-top:12px">
+    ${p.subtotal !== p.total ? `<tr><td style="color:#666">Subtotal</td><td style="text-align:right">$${Math.round(p.subtotal).toLocaleString('es-CO')}</td></tr>` : ''}
+    ${p.domicilio > 0 ? `<tr><td style="color:#666">Domicilio</td><td style="text-align:right">$${Math.round(p.domicilio).toLocaleString('es-CO')}</td></tr>` : ''}
+    ${p.descuento > 0 ? `<tr><td style="color:#16a34a">Descuento</td><td style="text-align:right;color:#16a34a">-$${Math.round(p.descuento).toLocaleString('es-CO')}</td></tr>` : ''}
+    <tr class="total-row"><td>Total</td><td style="text-align:right">$${Math.round(p.total).toLocaleString('es-CO')}</td></tr>
+  </table>
+
+  ${p.rutaNombre || p.repartidorNombre ? `
+  <hr class="divider">
+  <div class="section-title">Entrega</div>
+  ${p.rutaNombre       ? `<div class="info-row">Ruta: <strong>${p.rutaNombre}</strong></div>` : ''}
+  ${p.repartidorNombre ? `<div class="info-row">Repartidor: <strong>${p.repartidorNombre}</strong></div>` : ''}
+  ` : ''}
+</body>
+</html>`;
+
+  const w = window.open('', '_blank');
+  if (w) { w.document.write(html); w.document.close(); }
+}
 
 export function HistorialPedidosPanel() {
   const { cfg, showToast } = useAppStore();
@@ -19,21 +103,19 @@ export function HistorialPedidosPanel() {
   const [editRepartidor, setEditRepartidor] = useState('');
   const [saving, setSaving]         = useState(false);
 
-  useEffect(() => { loadDias(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function loadDias() {
-    setLoading(true);
-    try {
-      const snap = await getDocs(query(collection(db, 'historial_pedidos'), orderBy('creadoEn', 'desc')));
+  useEffect(() => {
+    const q = query(collection(db, 'historial_pedidos'), orderBy('creadoEn', 'desc'));
+    const unsub = onSnapshot(q, snap => {
       const list: HistorialDia[] = [];
       snap.forEach(d => list.push({ id: d.id, ...d.data() } as HistorialDia));
       setDias(list);
-    } catch {
-      showToast('Error al cargar historial', 'error');
-    } finally {
       setLoading(false);
-    }
-  }
+    }, () => {
+      showToast('Error al cargar historial', 'error');
+      setLoading(false);
+    });
+    return unsub;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleUnlock() {
     const pin = cfg.historialPin ?? '';
@@ -73,11 +155,6 @@ export function HistorialPedidosPanel() {
       await updateDoc(doc(db, 'historial_pedidos', editingPedido.diaId), {
         pedidos: updatedPedidos, totalEntregados, totalCancelados, totalRecaudo,
       });
-      setDias(prev => prev.map(d =>
-        d.id === editingPedido.diaId
-          ? { ...d, pedidos: updatedPedidos, totalEntregados, totalCancelados, totalRecaudo }
-          : d
-      ));
       setEditingPedido(null);
       showToast('Cambios guardados', 'success');
     } catch {
@@ -93,13 +170,13 @@ export function HistorialPedidosPanel() {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      {/* Cabecera con botón de bloqueo */}
+      {/* Cabecera */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h3 style={{ fontWeight: 700, fontSize: 16, margin: 0 }}>Historial de pedidos</h3>
         {pinUnlocked ? (
           <button
             onClick={() => { setPinUnlocked(false); setEditingPedido(null); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1px solid var(--success)', background: '#f0fdf4', color: 'var(--success)', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1px solid var(--success)', background: 'var(--success-bg)', color: 'var(--success)', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
           >
             <Unlock size={13} /> Edición activa
           </button>
@@ -138,7 +215,11 @@ export function HistorialPedidosPanel() {
       )}
 
       {loading ? (
-        <div className="empty-s">Cargando historial...</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[1,2,3].map(i => (
+            <div key={i} style={{ height: 72, borderRadius: 12, background: 'var(--bg2)', animation: 'pulse 1.4s ease-in-out infinite', opacity: 0.6 }} />
+          ))}
+        </div>
       ) : dias.length === 0 ? (
         <div className="empty-s" style={{ flexDirection: 'column', gap: 8 }}>
           <div>No hay historial aún.</div>
@@ -160,9 +241,9 @@ export function HistorialPedidosPanel() {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 15 }}>{dia.fechaLabel}</div>
                     <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                      <span style={{ color: '#15803D', fontWeight: 600 }}>{dia.totalEntregados} entregados</span>
+                      <span style={{ color: 'var(--success)', fontWeight: 600 }}>{dia.totalEntregados} entregados</span>
                       {dia.totalCancelados > 0 && (
-                        <span style={{ color: '#DC2626', fontWeight: 600 }}>{dia.totalCancelados} cancelados</span>
+                        <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{dia.totalCancelados} cancelados</span>
                       )}
                       <span style={{ fontWeight: 700, color: 'var(--brand)' }}>{fmtPrice(dia.totalRecaudo)} recaudado</span>
                     </div>
@@ -214,22 +295,24 @@ export function HistorialPedidosPanel() {
                           ) : (
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
                                   <span style={{ fontWeight: 700, fontSize: 13, fontFamily: 'monospace', color: 'var(--brand)' }}>
                                     #{p.numero}
                                   </span>
                                   <span style={{
-                                    fontSize: 11, fontWeight: 600, borderRadius: 6, padding: '1px 7px',
-                                    background: p.estado === 'entregado' ? '#dcfce7' : '#fee2e2',
-                                    color:      p.estado === 'entregado' ? '#15803d' : '#dc2626',
+                                    fontSize: 11, fontWeight: 600, borderRadius: 6, padding: '2px 8px',
+                                    background: p.estado === 'entregado' ? 'var(--success-bg)' : 'var(--danger-bg)',
+                                    color:      p.estado === 'entregado' ? 'var(--success)'    : 'var(--danger)',
                                   }}>
                                     {p.estado === 'entregado' ? 'Entregado' : 'Cancelado'}
                                   </span>
                                 </div>
                                 <div style={{ fontSize: 14, fontWeight: 600 }}>{p.cliente?.nombre}</div>
-                                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 1 }}>
-                                  {[p.cliente?.barrio, p.cliente?.dir].filter(Boolean).join(' · ')}
-                                </div>
+                                {(p.cliente?.tel || p.cliente?.barrio || p.cliente?.dir) && (
+                                  <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                                    {[p.cliente?.tel, p.cliente?.barrio, p.cliente?.dir].filter(Boolean).join(' · ')}
+                                  </div>
+                                )}
                                 {(p.rutaNombre || p.repartidorNombre) && (
                                   <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
                                     {p.rutaNombre && <span>Ruta: <strong>{p.rutaNombre}</strong></span>}
@@ -237,10 +320,17 @@ export function HistorialPedidosPanel() {
                                   </div>
                                 )}
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                                 <div style={{ textAlign: 'right' }}>
                                   <div style={{ fontWeight: 700, fontSize: 14 }}>{fmtPrice(p.total)}</div>
                                 </div>
+                                <button
+                                  onClick={() => printFactura(p, dia.fechaLabel, cfg.nombreComercio)}
+                                  style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)' }}
+                                  title="Ver factura"
+                                >
+                                  <FileText size={13} />
+                                </button>
                                 {pinUnlocked && (
                                   <button
                                     onClick={() => startEdit(dia.id, p)}

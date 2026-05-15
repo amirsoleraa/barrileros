@@ -56,7 +56,15 @@ export function OrdersPanel() {
         return p.numero.toLowerCase().includes(q) ||
           (p.cliente?.nombre ?? '').toLowerCase().includes(q);
       })
-      .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
+      .sort((a, b) => {
+        // Pendientes del día anterior van primero en "Preparando"
+        if (col === 'preparando') {
+          const aP = a.notaPendiente ? 1 : 0;
+          const bP = b.notaPendiente ? 1 : 0;
+          if (aP !== bP) return bP - aP;
+        }
+        return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
+      });
   }
 
   async function moveToState(pedidoId: string, estado: PedidoTab) {
@@ -74,15 +82,44 @@ export function OrdersPanel() {
 
   async function handleCerrarDia() {
     const finalizados = allPedidos.filter(p => p.estado === 'entregado' || p.estado === 'cancelado');
-    if (finalizados.length === 0) { showToast('No hay pedidos finalizados para archivar', 'error'); return; }
+    const enCamino    = allPedidos.filter(p => p.estado === 'camino');
+    if (finalizados.length === 0 && enCamino.length === 0) {
+      showToast('No hay pedidos finalizados para archivar', 'error'); return;
+    }
+    if (finalizados.length === 0) {
+      showToast('No hay pedidos entregados/cancelados. Los pedidos en camino se devolverán a Preparando.', 'info');
+    }
+
     const entregados = finalizados.filter(p => p.estado === 'entregado');
     const cancelados = finalizados.filter(p => p.estado === 'cancelado');
+    const enCaminoMsg = enCamino.length > 0
+      ? `\n• ${enCamino.length} en camino → vuelven a Preparando (pendientes)`
+      : '';
+
     if (!window.confirm(
-      `¿Cerrar el día?\n\nSe archivarán:\n• ${entregados.length} entregado${entregados.length !== 1 ? 's' : ''}\n• ${cancelados.length} cancelado${cancelados.length !== 1 ? 's' : ''}\n\nEl panel quedará en 0. Los datos se guardan en Historial.`
+      `¿Cerrar el día?\n\nSe archivarán:\n• ${entregados.length} entregado${entregados.length !== 1 ? 's' : ''}\n• ${cancelados.length} cancelado${cancelados.length !== 1 ? 's' : ''}${enCaminoMsg}\n\nEl panel quedará limpio. Los datos se guardan en Historial.`
     )) return;
 
     setCerrando(true);
     try {
+      // Pedidos "en camino" no entregados → vuelven a Preparando con nota
+      if (enCamino.length > 0) {
+        const fechaHoy = new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+        const batchCamino = writeBatch(db);
+        enCamino.forEach(p => {
+          batchCamino.update(doc(db, 'pedidos', p.id), {
+            estado: 'preparando',
+            notaPendiente: `Pendiente del ${fechaHoy}`,
+          });
+        });
+        await batchCamino.commit();
+      }
+
+      if (finalizados.length === 0) {
+        showToast(`${enCamino.length} pedido${enCamino.length !== 1 ? 's' : ''} devuelto${enCamino.length !== 1 ? 's' : ''} a Preparando.`, 'success');
+        return;
+      }
+
       // Enrich with ruta info from completed rutas
       const rutasMap: Record<string, { nombre: string; repartidor?: string }> = {};
       try {
@@ -122,7 +159,9 @@ export function OrdersPanel() {
         await batch.commit();
       }
 
-      showToast(`Día cerrado. ${finalizados.length} pedidos archivados.`, 'success');
+      const msgs = [`${finalizados.length} pedidos archivados`];
+      if (enCamino.length > 0) msgs.push(`${enCamino.length} devueltos a Preparando`);
+      showToast(`Día cerrado. ${msgs.join(', ')}.`, 'success');
     } catch (e) {
       showToast('Error al cerrar el día', 'error');
       console.error(e);
@@ -146,7 +185,12 @@ export function OrdersPanel() {
     const prev = PREV_STATE[p.estado];
     if (mobile) {
       return (
-        <div key={p.id} className="order-card">
+        <div key={p.id} className="order-card" style={{ borderLeft: p.notaPendiente ? '3px solid #F59E0B' : undefined }}>
+          {p.notaPendiente && (
+            <div style={{ fontSize: 12, color: '#92400E', background: '#FEF3C7', borderRadius: 8, padding: '5px 10px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>⚠</span> {p.notaPendiente}
+            </div>
+          )}
           <div className="order-card-top">
             <span className="order-card-num">#{p.numero}</span>
             <span className="order-card-time"><Clock size={11} />{timeAgo(p.createdAt?.seconds)}</span>
@@ -205,8 +249,13 @@ export function OrdersPanel() {
         draggable
         onDragStart={() => onDragStart(p.id)}
         onDragEnd={onDragEnd}
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', cursor: 'grab', userSelect: 'none', boxShadow: '0 1px 4px rgba(0,0,0,.05)' }}
+        style={{ background: 'var(--surface)', border: `1px solid ${p.notaPendiente ? '#F59E0B' : 'var(--border)'}`, borderRadius: 10, padding: '10px 12px', cursor: 'grab', userSelect: 'none', boxShadow: '0 1px 4px rgba(0,0,0,.05)' }}
       >
+        {p.notaPendiente && (
+          <div style={{ fontSize: 11, color: '#92400E', background: '#FEF3C7', borderRadius: 6, padding: '3px 8px', marginBottom: 6 }}>
+            ⚠ {p.notaPendiente}
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <span style={{ fontWeight: 700, fontSize: 13, fontFamily: 'monospace', color: 'var(--brand)' }}>#{p.numero}</span>
           <span style={{ fontSize: 11, color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: 3 }}>
