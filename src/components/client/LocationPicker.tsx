@@ -8,7 +8,6 @@ import { fmtPrice } from '@/lib/utils';
 import type { DeliverySettings, LocationData } from '@/types';
 import styles from './LocationPicker.module.css';
 
-// Coordenadas por defecto: Cartagena centro
 const DEFAULT_CENTER = { lat: 10.3910, lng: -75.4794 };
 
 interface Props {
@@ -20,24 +19,22 @@ function LocationPickerInner({ onChange, deliverySettings }: {
   onChange: Props['onChange'];
   deliverySettings: DeliverySettings | null;
 }) {
-  const mapRef    = useRef<HTMLDivElement>(null);
-  const inputRef  = useRef<HTMLInputElement>(null);
-  const markerRef = useRef<any>(null);
-  const mapInst   = useRef<any>(null);
-  const tokenRef  = useRef<any>(null);
+  const mapRef   = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const mapInst  = useRef<any>(null);
+  const tokenRef = useRef<any>(null);
 
-  const [lat,      setLat]      = useState<number | null>(null);
-  const [lng,      setLng]      = useState<number | null>(null);
-  const [address,  setAddress]  = useState('');
-  const [notes,    setNotes]    = useState('');
-  const [geoError, setGeoError] = useState('');
+  const [lat,        setLat]        = useState<number | null>(null);
+  const [lng,        setLng]        = useState<number | null>(null);
+  const [address,    setAddress]    = useState('');
+  const [notes,      setNotes]      = useState('');
+  const [geoError,   setGeoError]   = useState('');
   const [geoLoading, setGeoLoading] = useState(false);
 
-  // Ref para onChange estable (evita stale closure sin re-montar el mapa)
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  // ── Calcula y notifica hacia afuera cada vez que cambia posición, notas o settings
+  // Notifica hacia afuera cada vez que cambia posición, notas o settings
   useEffect(() => {
     if (lat === null || lng === null) return;
     let distance_km = 0;
@@ -50,58 +47,35 @@ function LocationPickerInner({ onChange, deliverySettings }: {
     onChangeRef.current({ lat, lng, address, notes, distance_km, delivery_fee });
   }, [lat, lng, address, notes, deliverySettings]);
 
-  // Actualiza marker + estado desde cualquier latLng de Google Maps
-  const applyLatLng = useCallback((latLng: any, newAddress?: string) => {
+  const applyCenter = useCallback((latLng: any) => {
     const newLat = typeof latLng.lat === 'function' ? latLng.lat() : latLng.lat;
     const newLng = typeof latLng.lng === 'function' ? latLng.lng() : latLng.lng;
     setLat(newLat);
     setLng(newLng);
-    if (newAddress !== undefined) setAddress(newAddress);
-    markerRef.current?.setPosition({ lat: newLat, lng: newLng });
   }, []);
 
-  // ── Inicializa mapa y autocomplete (solo al montar)
+  // Inicializa mapa y autocomplete (solo al montar)
   useEffect(() => {
     if (!mapRef.current || !inputRef.current) return;
 
     const gm = (window as any).google.maps;
 
     const map = new gm.Map(mapRef.current, {
-      center:          DEFAULT_CENTER,
-      zoom:            13,
+      center:           DEFAULT_CENTER,
+      zoom:             13,
       disableDefaultUI: true,
-      zoomControl:     true,
-      clickableIcons:  false,
+      zoomControl:      true,
+      clickableIcons:   false,
+      gestureHandling:  'greedy', // un dedo en móvil, scroll en pc
     });
     mapInst.current = map;
 
-    // Marcador naranja
-    const pinSvg = encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42">
-        <path d="M16 0C7.16 0 0 7.16 0 16c0 12 16 26 16 26S32 28 32 16C32 7.16 24.84 0 16 0z" fill="#FF6229"/>
-        <circle cx="16" cy="16" r="6" fill="#fff"/>
-      </svg>`
-    );
-    const marker = new gm.Marker({
-      position: DEFAULT_CENTER,
-      map,
-      draggable: true,
-      icon: {
-        url:       'data:image/svg+xml,' + pinSvg,
-        scaledSize: new gm.Size(32, 42),
-        anchor:     new gm.Point(16, 42),
-      },
-    });
-    markerRef.current = marker;
-
-    // Click en mapa mueve el pin
-    map.addListener('click', (e: any) => {
-      applyLatLng(e.latLng);
-    });
-
-    // Arrastrar marker
-    marker.addListener('dragend', (e: any) => {
-      applyLatLng(e.latLng);
+    // Pin fijo: lee el centro cuando el mapa termina de moverse
+    // Salta el primer idle (render inicial) para no marcar coordenadas sin que el usuario haya interactuado
+    let firstIdle = true;
+    map.addListener('idle', () => {
+      if (firstIdle) { firstIdle = false; return; }
+      applyCenter(map.getCenter());
     });
 
     // Autocomplete con session token
@@ -115,22 +89,20 @@ function LocationPickerInner({ onChange, deliverySettings }: {
     ac.addListener('place_changed', () => {
       const place = ac.getPlace();
       if (!place.geometry?.location) return;
-      const addr = place.formatted_address ?? '';
+      setAddress(place.formatted_address ?? '');
       map.setCenter(place.geometry.location);
       map.setZoom(16);
-      applyLatLng(place.geometry.location, addr);
-      // Renueva session token
+      // idle se dispara después y registra las coordenadas
       tokenRef.current = new gm.places.AutocompleteSessionToken();
     });
 
     return () => {
       gm.event.clearInstanceListeners(map);
-      gm.event.clearInstanceListeners(marker);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Geolocalización
+  // Geolocalización
   function handleGeolocate() {
     setGeoError('');
     if (!navigator.geolocation) {
@@ -142,10 +114,9 @@ function LocationPickerInner({ onChange, deliverySettings }: {
       pos => {
         const { latitude, longitude } = pos.coords;
         const gm = (window as any).google.maps;
-        const latLng = new gm.LatLng(latitude, longitude);
-        mapInst.current?.setCenter(latLng);
+        mapInst.current?.setCenter(new gm.LatLng(latitude, longitude));
         mapInst.current?.setZoom(16);
-        applyLatLng(latLng);
+        // idle se dispara después y registra las coordenadas
         setGeoLoading(false);
       },
       err => {
@@ -161,8 +132,8 @@ function LocationPickerInner({ onChange, deliverySettings }: {
     );
   }
 
-  // ── Cálculo para el resumen visual
-  const distance_km  = (lat !== null && lng !== null && deliverySettings?.origin_lat)
+  // Cálculo para el resumen visual
+  const distance_km = (lat !== null && lng !== null && deliverySettings?.origin_lat)
     ? Math.round(haversineKm(lat, lng, deliverySettings.origin_lat, deliverySettings.origin_lng) * 10) / 10
     : null;
   const delivery_fee = (distance_km !== null && deliverySettings)
@@ -183,8 +154,16 @@ function LocationPickerInner({ onChange, deliverySettings }: {
         />
       </div>
 
-      {/* Mapa */}
-      <div ref={mapRef} className={styles.mapContainer} />
+      {/* Mapa con pin fijo en el centro */}
+      <div className={styles.mapWrap}>
+        <div ref={mapRef} className={styles.mapContainer} />
+        <div className={styles.centerPin}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42">
+            <path d="M16 0C7.16 0 0 7.16 0 16c0 12 16 26 16 26S32 28 32 16C32 7.16 24.84 0 16 0z" fill="#FF6229"/>
+            <circle cx="16" cy="16" r="6" fill="#fff"/>
+          </svg>
+        </div>
+      </div>
 
       {/* Geolocalización */}
       <div>
@@ -223,7 +202,7 @@ function LocationPickerInner({ onChange, deliverySettings }: {
           <span className={styles.feeLabel}>Domicilio</span>
           {distance_km !== null
             ? <span className={styles.feeDist}>{distance_km} km desde nuestro centro</span>
-            : <span className={styles.feeDist}>Mueve el pin para calcular</span>
+            : <span className={styles.feeDist}>Mueve el mapa para calcular</span>
           }
         </div>
         {delivery_fee !== null
@@ -244,14 +223,12 @@ export function LocationPicker({ onChange }: Props) {
   const [deliverySettings, setDeliverySettings] = useState<DeliverySettings | null>(null);
   const [settingsLoading,  setSettingsLoading]  = useState(true);
 
-  // Carga Google Maps
   useEffect(() => {
     loadGoogleMaps()
       .then(() => setMapsLoaded(true))
       .catch(e  => setMapsError(e.message ?? 'Error cargando Google Maps'));
   }, []);
 
-  // Carga configuración de tarifas
   useEffect(() => {
     getDoc(doc(db, 'config', 'delivery_settings'))
       .then(snap => { if (snap.exists()) setDeliverySettings(snap.data() as DeliverySettings); })
