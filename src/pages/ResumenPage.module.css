@@ -2,7 +2,7 @@
 
 .header {
   height: 56px;
-  background: rgba(13,11,9,.9);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
@@ -138,10 +138,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--surface);
   padding: 12px 14px 28px;
-  box-shadow: 0 -6px 24px rgba(0,0,0,.35);
-  border-top: 1px solid var(--border);
 }
 
 @media (min-width: 640px) {
