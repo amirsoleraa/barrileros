@@ -6,12 +6,7 @@ import { ProductDetail } from '@/components/client/ProductDetail';
 import { SearchOverlay } from '@/components/client/SearchOverlay';
 import { GotoCartButton } from '@/components/client/GotoCartButton';
 import { PromoBanner } from '@/components/client/PromoBanner';
-import { useFirebaseInit } from '@/hooks/useFirebaseInit';
-import { useTheme } from '@/hooks/useTheme';
-
 export function StorefrontPage() {
-  useFirebaseInit();
-  useTheme();
 
   // Apply dark theme to root element for client pages
   useEffect(() => {

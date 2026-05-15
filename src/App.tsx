@@ -7,6 +7,8 @@ import { AdminLoginPage } from '@/pages/admin/AdminLoginPage';
 import { CartPanel }      from '@/components/client/CartPanel';
 import { Toast }          from '@/components/ui/Toast';
 import { LoadingScreen }  from '@/components/ui/LoadingScreen';
+import { useFirebaseInit } from '@/hooks/useFirebaseInit';
+import { useTheme }        from '@/hooks/useTheme';
 
 // Admin panels
 import { OrdersPanel }    from '@/components/admin/panels/OrdersPanel';
@@ -20,6 +22,8 @@ import { ConfigPanel }    from '@/components/admin/panels/ConfigPanel';
 
 // Layout del cliente — incluye CartPanel, Toast y LoadingScreen globales
 function ClientLayout() {
+  useFirebaseInit();
+  useTheme();
   return (
     <>
       <Outlet />
