@@ -29,7 +29,7 @@ service cloud.firestore {
     // main y colores: lectura pública (nombre del comercio, logo, tema)
     // adminReady: solo admin (documento de bootstrap)
     match /config/{docId} {
-      allow read:  if docId == 'main' || docId == 'colores' || isAdmin();
+      allow read:  if docId == 'main' || docId == 'colores' || docId == 'delivery_settings' || isAdmin();
       allow write: if isAdmin()
                    || (docId == 'adminReady'
                        && !exists(/databases/$(database)/documents/config/adminReady));
