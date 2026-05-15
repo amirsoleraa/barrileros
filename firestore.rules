@@ -77,6 +77,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── ADICIONALES — lectura pública, escritura solo admin ──
+    match /adicionales/{adicionalId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
     // ── PUBLICIDADES — lectura pública, escritura solo admin ──
     match /publicidades/{pubId} {
       allow read:  if true;
