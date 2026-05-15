@@ -184,7 +184,8 @@ export function DeliveryPanel() {
       }
 
       showToast('Configuración de domicilio guardada');
-    } catch {
+    } catch (err) {
+      console.error('Error al guardar configuración de domicilio:', err);
       showToast('Error al guardar');
     } finally {
       setSaving(false);
