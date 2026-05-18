@@ -89,6 +89,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── BARRIOS — lectura pública (formulario cliente), escritura solo admin ──
+    match /barrios/{barrioId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // ── DOMICILIARIOS — solo admin ──
+    match /domiciliarios/{domId} {
+      allow read, write: if isAdmin();
+    }
+
     // ── RUTAS DE ENTREGA — solo admin ──
     match /rutas/{rutaId} {
       allow read, write: if isAdmin();
