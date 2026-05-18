@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { CouponsPanel }    from './CouponsPanel';
-import { PublicidadPanel } from './PublicidadPanel';
+import { CouponsPanel }     from './CouponsPanel';
+import { PublicidadPanel }  from './PublicidadPanel';
+import { PromocionesPanel } from './PromocionesPanel';
 
 const TABS = [
-  { key: 'descuentos',   label: 'Descuentos' },
+  { key: 'descuentos',   label: 'Cupones' },
+  { key: 'promociones',  label: 'Promociones' },
   { key: 'publicidades', label: 'Publicidades' },
 ] as const;
 
@@ -23,7 +25,7 @@ export function MarketingPanel() {
   const [tab, setTab] = useState<Tab>('descuentos');
   return (
     <div>
-      <div style={{ display: 'flex', gap: 2, marginBottom: 20, background: 'var(--bg2)', padding: 4, borderRadius: 10, border: '1px solid var(--border)', width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: 2, marginBottom: 20, background: 'var(--bg2)', padding: 4, borderRadius: 10, border: '1px solid var(--border)', width: 'fit-content', flexWrap: 'wrap' }}>
         {TABS.map(t => (
           <button key={t.key} style={tabStyle(tab === t.key)} onClick={() => setTab(t.key)}>
             {t.label}
@@ -31,6 +33,7 @@ export function MarketingPanel() {
         ))}
       </div>
       {tab === 'descuentos'   && <CouponsPanel />}
+      {tab === 'promociones'  && <PromocionesPanel />}
       {tab === 'publicidades' && <PublicidadPanel />}
     </div>
   );

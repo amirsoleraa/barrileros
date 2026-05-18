@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Ticket, CheckCircle, MessageCircle, User } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, MapPin, Ticket, CheckCircle, MessageCircle, User, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LocationPicker } from '@/components/client/LocationPicker';
 import { sendOrderConfirmation } from '@/lib/email';
 import { fmtPrice, generarNumeroPedido, isValidEmail, isValidPhone } from '@/lib/utils';
+import { evaluatePromos } from '@/lib/promos';
 import type { DatosEnvio, Pedido, LocationData } from '@/types';
 import styles from './ResumenPage.module.css';
 
@@ -26,7 +27,7 @@ interface DatosForm {
 export function ResumenPage() {
   const navigate = useNavigate();
   const { cart, datosEnvio, cuponAplicado, setCuponAplicado, setDatosEnvio, setLastPedido, reset } = useCartStore();
-  const { cfg, cupones, barrios, showToast } = useAppStore();
+  const { cfg, cupones, barrios, promociones, showToast } = useAppStore();
 
   useEffect(() => {
     document.documentElement.dataset.theme = 'dark';
@@ -36,6 +37,19 @@ export function ResumenPage() {
   const esPorKm = cfg.domicilioActivo && cfg.domicilioTipo === 'por_km';
 
   const [datosOpen,    setDatosOpen]    = useState(false);
+  const [barrioSearch, setBarrioSearch] = useState('');
+  const [barrioOpen,   setBarrioOpen]   = useState(false);
+  const barrioRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (barrioRef.current && !barrioRef.current.contains(e.target as Node)) {
+        setBarrioOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
   const [confirmOpen,  setConfirmOpen]  = useState(false);
   const [sending,      setSending]      = useState(false);
   const [cuponCode,    setCuponCode]    = useState('');
@@ -44,11 +58,15 @@ export function ResumenPage() {
   const [locationData, setLocationData] = useState<LocationData | null>(null);
 
   const subtotal  = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const domicilio = cfg.domicilioActivo
+  const domicilioBase = cfg.domicilioActivo
     ? cfg.domicilioTipo === 'gratis'  ? 0
     : cfg.domicilioTipo === 'por_km'  ? (locationData?.delivery_fee ?? 0)
     : cfg.domicilioValor
     : 0;
+
+  const promoResult = evaluatePromos(promociones, cart, domicilioBase);
+  const domicilio   = Math.max(0, domicilioBase - promoResult.descuentoDomicilio);
+
   const descuento = cuponAplicado
     ? Math.min(
         cuponAplicado.tipo === 'porcentaje'
@@ -57,12 +75,13 @@ export function ResumenPage() {
         subtotal
       )
     : 0;
-  const total = subtotal + domicilio - descuento;
+  const total = subtotal + domicilio - descuento - promoResult.descuentoProductos;
 
-  const { register, handleSubmit, formState: { errors } } = useForm<DatosForm>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<DatosForm>({
     defaultValues: datosEnvio ?? {},
     shouldUnregister: true,
   });
+  const watchedBarrio = watch('barrio');
 
   const cf = cfg.camposFormulario ?? {};
   const mostrar = {
@@ -160,12 +179,13 @@ export function ResumenPage() {
       items,
       subtotal,
       domicilio,
-      descuento,
+      descuento: descuento + promoResult.descuentoProductos,
       total,
       cupon: cuponAplicado ? cuponAplicado.codigo : null,
       mensajeConfirmacion: cfg.mensajeConfirmacion || '',
       location: locationData ?? null,
       createdAt: serverTimestamp() as unknown as Pedido['createdAt'],
+      ...(promoResult.promosAplicadas.length > 0 && { promosAplicadas: promoResult.promosAplicadas }),
     };
 
     try {
@@ -308,6 +328,29 @@ export function ResumenPage() {
           </div>
         </div>
 
+        {/* Promos activas */}
+        {promoResult.promosAplicadas.length > 0 && (
+          <div className={styles.card} style={{ borderColor: 'var(--success)' }}>
+            <div className={styles.cardHdr}>
+              <h3 style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                🎉 Promociones aplicadas
+              </h3>
+            </div>
+            <div className={styles.cardBody}>
+              {promoResult.promosAplicadas.map((p, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', color: 'var(--success)' }}>
+                  <span>{p.nombre}</span>
+                  <span style={{ fontWeight: 600 }}>
+                    {p.descuentoProducto ? `-${fmtPrice(p.descuentoProducto)}` :
+                     p.descuentoDomicilio ? `Domicilio -${fmtPrice(p.descuentoDomicilio)}` :
+                     p.cuponGenerado ? `Cupón: ${p.cuponGenerado}` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Totales */}
         <div className={styles.card}>
           <div className={styles.cardBody}>
@@ -323,14 +366,22 @@ export function ResumenPage() {
                     ? 'Gratis'
                     : esPorKm && !locationData
                       ? <span style={{ color: 'var(--text3)', fontSize: 12 }}>Selecciona dirección</span>
-                      : fmtPrice(domicilio)
+                      : domicilio === 0 && domicilioBase > 0
+                        ? <span style={{ color: 'var(--success)' }}>Gratis 🎉</span>
+                        : fmtPrice(domicilio)
                   }
                 </span>
               </div>
             )}
+            {promoResult.descuentoProductos > 0 && (
+              <div className={styles.resRow} style={{ color: 'var(--success)' }}>
+                <span>Descuento promos</span>
+                <span>-{fmtPrice(promoResult.descuentoProductos)}</span>
+              </div>
+            )}
             {descuento > 0 && (
               <div className={styles.resRow} style={{ color: 'var(--success)' }}>
-                <span>Descuento</span>
+                <span>Cupón</span>
                 <span>-{fmtPrice(descuento)}</span>
               </div>
             )}
@@ -367,7 +418,7 @@ export function ResumenPage() {
           {mostrar.tel && (
             <div className="f-field">
               <label>Teléfono *</label>
-              <input {...register('tel', { required: 'Obligatorio', validate: v => isValidPhone(v || '') || 'Teléfono inválido (ej: 3001234567)' })} placeholder="3001234567" />
+              <input {...register('tel', { required: 'Obligatorio', validate: v => isValidPhone(v || '') || 'Teléfono inválido (ej: 3001234567)' })} placeholder="3001234567" maxLength={10} />
               {errors.tel && <span className="f-err">{errors.tel.message}</span>}
             </div>
           )}
@@ -379,25 +430,77 @@ export function ResumenPage() {
               {errors.dir && <span className="f-err">{errors.dir.message}</span>}
             </div>
           )}
-          {mostrar.barrio && (
-            <div className="f-field">
-              <label>Barrio</label>
-              {Object.values(barrios).filter(b => b.activo).length > 0 ? (
-                <select {...register('barrio')}>
-                  <option value="">Selecciona tu barrio</option>
-                  {Object.values(barrios)
-                    .filter(b => b.activo)
-                    .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.nombre.localeCompare(b.nombre))
-                    .map(b => (
-                      <option key={b.id} value={b.nombre}>{b.nombre}</option>
-                    ))
-                  }
-                </select>
-              ) : (
-                <input {...register('barrio')} placeholder="Nombre del barrio" />
-              )}
-            </div>
-          )}
+          {mostrar.barrio && (() => {
+            const barrioList = Object.values(barrios)
+              .filter(b => b.activo)
+              .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.nombre.localeCompare(b.nombre));
+            return (
+              <div className="f-field">
+                <label>Barrio</label>
+                {barrioList.length > 0 ? (
+                  <div ref={barrioRef} style={{ position: 'relative' }}>
+                    <div
+                      onClick={() => { setBarrioOpen(v => !v); setBarrioSearch(''); }}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '10px 12px', borderRadius: 8,
+                        border: '1px solid var(--border)', background: 'var(--surface)',
+                        cursor: 'pointer', fontSize: 14, color: 'var(--text)',
+                      }}
+                    >
+                      <span style={{ color: watchedBarrio ? 'var(--text)' : 'var(--text3)' }}>
+                        {watchedBarrio || 'Selecciona tu barrio'}
+                      </span>
+                      <ChevronDown size={14} color="var(--text3)" />
+                    </div>
+                    {barrioOpen && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                        background: 'var(--surface)', border: '1px solid var(--border)',
+                        borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.12)',
+                        marginTop: 4, overflow: 'hidden',
+                      }}>
+                        <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
+                          <input
+                            autoFocus
+                            value={barrioSearch}
+                            onChange={e => setBarrioSearch(e.target.value)}
+                            placeholder="Buscar barrio..."
+                            style={{ width: '100%', border: 'none', outline: 'none', fontSize: 14, background: 'transparent', color: 'var(--text)' }}
+                          />
+                        </div>
+                        <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                          {barrioList
+                            .filter(b => b.nombre.toLowerCase().includes(barrioSearch.toLowerCase()))
+                            .map(b => (
+                              <div
+                                key={b.id}
+                                onClick={() => {
+                                  setValue('barrio', b.nombre, { shouldDirty: true });
+                                  setBarrioOpen(false);
+                                }}
+                                style={{
+                                  padding: '10px 14px', cursor: 'pointer', fontSize: 14,
+                                  background: watchedBarrio === b.nombre ? 'var(--brand-light)' : 'transparent',
+                                  color: watchedBarrio === b.nombre ? 'var(--brand)' : 'var(--text)',
+                                  fontWeight: watchedBarrio === b.nombre ? 600 : 400,
+                                }}
+                              >
+                                {b.nombre}
+                              </div>
+                            ))
+                          }
+                        </div>
+                      </div>
+                    )}
+                    <input type="hidden" {...register('barrio')} />
+                  </div>
+                ) : (
+                  <input {...register('barrio')} placeholder="Nombre del barrio" />
+                )}
+              </div>
+            );
+          })()}
           {mostrar.comp && (
             <div className="f-field">
               <label>Apartamento / Torre / Referencia</label>

@@ -2,19 +2,24 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── HELPER: verifica si el usuario autenticado tiene rol admin ──
-    // El campo "role" se asigna desde la consola Firebase o desde una
-    // Cloud Function al crear el usuario. Nunca desde el cliente.
+    // ── HELPERS ──────────────────────────────────────────────────────────────
     function isAdmin() {
       return request.auth != null
           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // ── USUARIOS — cada uno lee/escribe solo su propio doc ──
-    // El campo "role" SOLO puede ser escrito por admins existentes.
+    function isDomiciliario() {
+      return request.auth != null
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'domiciliario';
+    }
+
+    function myDomiciliarioId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.domiciliarioId;
+    }
+
+    // ── USUARIOS ─────────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read:  if request.auth != null && request.auth.uid == userId;
-      // Bootstrap: permite rol 'admin' solo si aún no existe config/adminReady
       allow create: if request.auth != null && request.auth.uid == userId
                     && (!('role' in request.resource.data)
                         || (request.resource.data.role == 'admin'
@@ -25,9 +30,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ── CONFIGURACIÓN ──
-    // main y colores: lectura pública (nombre del comercio, logo, tema)
-    // adminReady: solo admin (documento de bootstrap)
+    // ── CONFIGURACIÓN ────────────────────────────────────────────────────────
     match /config/{docId} {
       allow read:  if docId == 'main' || docId == 'colores' || docId == 'delivery_settings' || isAdmin();
       allow write: if isAdmin()
@@ -35,82 +38,103 @@ service cloud.firestore {
                        && !exists(/databases/$(database)/documents/config/adminReady));
     }
 
-    // ── CATEGORÍAS — lectura pública, escritura solo admin ──
+    // ── CATEGORÍAS ───────────────────────────────────────────────────────────
     match /categorias/{catId} {
       allow read:  if true;
       allow write: if isAdmin();
     }
 
-    // ── PRODUCTOS — lectura pública, escritura solo admin ──
+    // ── PRODUCTOS ────────────────────────────────────────────────────────────
     match /productos/{prodId} {
       allow read:  if true;
       allow write: if isAdmin();
     }
 
-    // ── PEDIDOS ──
-    // Crear: cualquiera puede hacer un pedido (cliente sin login)
-    // Leer/actualizar/eliminar: solo admin
+    // ── PEDIDOS ──────────────────────────────────────────────────────────────
     match /pedidos/{pedidoId} {
       allow create: if true;
-      allow read, update, delete: if isAdmin();
+      allow read:   if isAdmin() || isDomiciliario();
+      allow update: if isAdmin()
+                    || (isDomiciliario()
+                        && resource.data.domiciliarioId == myDomiciliarioId()
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'rutaNombre', 'repartidorNombre']));
+      allow delete: if isAdmin();
     }
 
-    // ── CUPONES ──
-    // Lectura pública (validar código en checkout sin exponer config interna)
-    // Crear/eliminar: solo admin
-    // Update: SOLO admin — se eliminó "if true" que permitía alterar descuentos
-    // El incremento de usos ahora se hace desde una Cloud Function o con
-    // una regla de campo específica (ver README → Cupones seguros).
+    // ── CUPONES ──────────────────────────────────────────────────────────────
     match /cupones/{cuponId} {
-      allow read:          if true;
+      allow read:           if true;
       allow create, delete: if isAdmin();
-      allow update:        if isAdmin()
-                           || (request.auth == null
-                               && request.resource.data.diff(resource.data).affectedKeys()
-                                  .hasOnly(['usos'])
-                               && request.resource.data.usos == resource.data.usos + 1);
+      allow update:         if isAdmin()
+                            || (request.auth == null
+                                && request.resource.data.diff(resource.data).affectedKeys()
+                                   .hasOnly(['usos'])
+                                && request.resource.data.usos == resource.data.usos + 1);
     }
 
-    // ── NOVEDADES — lectura pública, escritura solo admin ──
+    // ── NOVEDADES ────────────────────────────────────────────────────────────
     match /novedades/{novId} {
       allow read:  if true;
       allow write: if isAdmin();
     }
 
-    // ── ADICIONALES — lectura pública, escritura solo admin ──
+    // ── ADICIONALES ──────────────────────────────────────────────────────────
     match /adicionales/{adicionalId} {
       allow read:  if true;
       allow write: if isAdmin();
     }
 
-    // ── PUBLICIDADES — lectura pública, escritura solo admin ──
+    // ── PUBLICIDADES ─────────────────────────────────────────────────────────
     match /publicidades/{pubId} {
       allow read:  if true;
       allow write: if isAdmin();
     }
 
-    // ── BARRIOS — lectura pública (formulario cliente), escritura solo admin ──
+    // ── BARRIOS ──────────────────────────────────────────────────────────────
     match /barrios/{barrioId} {
       allow read:  if true;
       allow write: if isAdmin();
     }
 
-    // ── DOMICILIARIOS — solo admin ──
+    // ── DOMICILIARIOS ────────────────────────────────────────────────────────
     match /domiciliarios/{domId} {
-      allow read, write: if isAdmin();
+      allow read:  if isAdmin() || isDomiciliario();
+      allow write: if isAdmin();
     }
 
-    // ── RUTAS DE ENTREGA — solo admin ──
+    // ── RUTAS DE ENTREGA ─────────────────────────────────────────────────────
     match /rutas/{rutaId} {
-      allow read, write: if isAdmin();
+      allow read:   if isAdmin() || isDomiciliario();
+      allow create: if isAdmin()
+                    || (isDomiciliario()
+                        && request.resource.data.domiciliarioId == myDomiciliarioId());
+      allow update: if isAdmin()
+                    || (isDomiciliario()
+                        && resource.data.domiciliarioId == myDomiciliarioId());
+      allow delete: if isAdmin();
     }
 
-    // ── HISTORIAL DE PEDIDOS — solo admin ──
+    // ── HISTORIAL DE PEDIDOS ─────────────────────────────────────────────────
     match /historial_pedidos/{diaId} {
-      allow read, write: if isAdmin();
+      allow read:  if isAdmin() || isDomiciliario();
+      allow write: if isAdmin();
     }
 
-    // ── BLOQUEAR TODO LO DEMÁS ──
+    // ── NOTIFICACIONES ───────────────────────────────────────────────────────
+    match /notificaciones/{domId}/items/{notifId} {
+      allow read, update: if isAdmin()
+                          || (isDomiciliario() && myDomiciliarioId() == domId);
+      allow create:       if isAdmin() || isDomiciliario();
+      allow delete:       if isAdmin();
+    }
+
+    // ── PROMOCIONES ──────────────────────────────────────────────────────────
+    match /promociones/{promoId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // ── BLOQUEAR TODO LO DEMÁS ───────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }

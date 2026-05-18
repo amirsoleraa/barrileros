@@ -4,6 +4,8 @@ import { ResumenPage }    from '@/pages/ResumenPage';
 import { FacturaPage }    from '@/pages/FacturaPage';
 import { AdminPage }      from '@/pages/admin/AdminPage';
 import { AdminLoginPage } from '@/pages/admin/AdminLoginPage';
+import { DomiciliarioLoginPage }  from '@/pages/domiciliario/DomiciliarioLoginPage';
+import { DomiciliarioPortalPage } from '@/pages/domiciliario/DomiciliarioPortalPage';
 import { CartPanel }      from '@/components/client/CartPanel';
 import { Toast }          from '@/components/ui/Toast';
 import { LoadingScreen }  from '@/components/ui/LoadingScreen';
@@ -62,6 +64,10 @@ export default function App() {
           <Route path="historial" element={<HistorialPanel />} />
           <Route path="config"    element={<ConfigPanel />} />
         </Route>
+
+        {/* Portal domiciliarios */}
+        <Route path="/domiciliario/login" element={<DomiciliarioLoginPage />} />
+        <Route path="/domiciliario"       element={<DomiciliarioPortalPage />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -3,10 +3,10 @@ import { onSnapshot, doc, collection } from 'firebase/firestore';
 import { db, firebaseReady } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { applyThemeColors } from '@/lib/utils';
-import type { AppConfig, Producto, Categoria, Cupon, Novedad, Publicidad, Adicional, Barrio, Domiciliario } from '@/types';
+import type { AppConfig, Producto, Categoria, Cupon, Novedad, Publicidad, Adicional, Barrio, Domiciliario, Promocion } from '@/types';
 
 export function useFirebaseInit() {
-  const { setCfg, setProductos, setCategorias, setCupones, setNovedades, setPublicidades, setAdicionales, setBarrios, setDomiciliarios, setLoading } = useAppStore();
+  const { setCfg, setProductos, setCategorias, setCupones, setNovedades, setPublicidades, setAdicionales, setBarrios, setDomiciliarios, setPromociones, setLoading } = useAppStore();
 
   useEffect(() => {
     if (!firebaseReady) {
@@ -152,6 +152,19 @@ export function useFirebaseInit() {
           const ds: Record<string, Domiciliario> = {};
           snap.forEach(d => { ds[d.id] = { id: d.id, ...d.data() } as Domiciliario; });
           setDomiciliarios(ds);
+        },
+        () => {}
+      )
+    );
+
+    // Promociones
+    unsubs.push(
+      onSnapshot(collection(db, 'promociones'),
+        snap => {
+          const ps: Promocion[] = [];
+          snap.forEach(d => ps.push({ id: d.id, ...d.data() } as Promocion));
+          ps.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+          setPromociones(ps.filter(p => p.activa));
         },
         () => {}
       )

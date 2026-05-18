@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import {
   collection, addDoc, getDocs, updateDoc, deleteDoc,
-  doc, serverTimestamp, query, where,
+  doc, serverTimestamp, query, where, setDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAdminStore } from '@/stores/useAdminStore';
@@ -246,17 +246,17 @@ function RouteTimeline({ ruta, pedidos, onReorder, onDeliverStop, onCancelStop, 
 
 export function TrackingPanel() {
   const { pedidos } = useAdminStore();
-  const { showToast } = useAppStore();
+  const { showToast, domiciliarios } = useAppStore();
   const confirm = useConfirm();
 
   const enCamino = Object.values(pedidos)
     .filter(p => p.estado === 'camino')
     .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
 
-  const [selected, setSelected]           = useState<Set<string>>(new Set());
-  const [nombreRuta, setNombreRuta]       = useState('');
-  const [repartidor, setRepartidor]       = useState('');
-  const [creatingRuta, setCreatingRuta]   = useState(false);
+  const [selected, setSelected]             = useState<Set<string>>(new Set());
+  const [nombreRuta, setNombreRuta]         = useState('');
+  const [domiciliarioId, setDomiciliarioId] = useState('');
+  const [creatingRuta, setCreatingRuta]     = useState(false);
   const [rutas, setRutas]                 = useState<RutaEntrega[]>([]);
   const [loadingRutas, setLoadingRutas]   = useState(true);
   const [expanded, setExpanded]           = useState<Set<string>>(new Set());
@@ -294,18 +294,30 @@ export function TrackingPanel() {
     if (!nombreRuta.trim())  { showToast('Escribe un nombre para la ruta', 'error'); return; }
     setCreatingRuta(true);
     try {
+      const dom = domiciliarioId ? domiciliarios[domiciliarioId] : null;
       const payload = {
-        nombre: nombreRuta.trim(),
-        repartidor: repartidor.trim(),
-        pedidoIds: [...selected],
-        estado: 'activa' as const,
-        createdAt: serverTimestamp(),
+        nombre:         nombreRuta.trim(),
+        repartidor:     dom?.nombre ?? '',
+        domiciliarioId: domiciliarioId || '',
+        pedidoIds:      [...selected],
+        estado:         'activa' as const,
+        createdAt:      serverTimestamp(),
       };
       const ref = await addDoc(collection(db, 'rutas'), payload);
       setRutas(prev => [{ id: ref.id, ...payload, createdAt: undefined } as RutaEntrega, ...prev]);
-      // Auto-expand la nueva ruta
       setExpanded(prev => new Set([...prev, ref.id]));
-      setNombreRuta(''); setRepartidor(''); clearSelection();
+      // Notify domiciliario of new route assignment
+      if (dom?.id) {
+        const notif = {
+          tipo: 'asignacion_ruta',
+          mensaje: `Te asignaron la ruta "${nombreRuta.trim()}" con ${selected.size} parada(s).`,
+          leida: false,
+          rutaId: ref.id,
+          createdAt: serverTimestamp(),
+        };
+        await setDoc(doc(collection(db, 'notificaciones', dom.id, 'items')), notif);
+      }
+      setNombreRuta(''); setDomiciliarioId(''); clearSelection();
       showToast('Ruta creada', 'success');
     } catch {
       showToast('Error al crear la ruta', 'error');
@@ -320,11 +332,14 @@ export function TrackingPanel() {
   }
 
   async function handleDeliverStop(rutaId: string, pedidoId: string) {
+    const ok = await confirm({ title: 'Confirmar entrega', message: '¿Confirmar que este pedido fue entregado?', confirmLabel: 'Sí, entregado' });
+    if (!ok) return;
     const ruta = rutas.find(r => r.id === rutaId);
     await updateDoc(doc(db, 'pedidos', pedidoId), {
       estado: 'entregado',
-      rutaNombre:       ruta?.nombre     ?? '',
-      repartidorNombre: ruta?.repartidor ?? '',
+      rutaNombre:          ruta?.nombre          ?? '',
+      repartidorNombre:    ruta?.repartidor       ?? '',
+      domiciliarioId:      ruta?.domiciliarioId   ?? '',
     });
     showToast('Pedido marcado como entregado', 'success');
   }
@@ -381,7 +396,8 @@ export function TrackingPanel() {
           updateDoc(doc(db, 'pedidos', pid), {
             estado: 'entregado',
             rutaNombre:       ruta.nombre,
-            repartidorNombre: ruta.repartidor ?? '',
+            repartidorNombre: ruta.repartidor     ?? '',
+            domiciliarioId:   ruta.domiciliarioId ?? '',
           }).catch(() => {})
         ),
       ]);
@@ -515,9 +531,22 @@ export function TrackingPanel() {
             </div>
             <div className="f-field" style={{ margin: 0 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <User size={12} /> Repartidor (opcional)
+                <User size={12} /> Domiciliario (opcional)
               </label>
-              <input value={repartidor} onChange={e => setRepartidor(e.target.value)} placeholder="Nombre del repartidor" />
+              <select
+                value={domiciliarioId}
+                onChange={e => setDomiciliarioId(e.target.value)}
+                style={{ fontFamily: 'inherit' }}
+              >
+                <option value="">Sin asignar</option>
+                {Object.values(domiciliarios)
+                  .filter(d => d.activo)
+                  .sort((a, b) => a.nombre.localeCompare(b.nombre))
+                  .map(d => (
+                    <option key={d.id} value={d.id}>{d.nombre}</option>
+                  ))
+                }
+              </select>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 4 }}>
               <button className="btn-s" onClick={clearSelection}>Cancelar</button>

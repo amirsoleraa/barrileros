@@ -122,9 +122,11 @@ export interface Pedido {
   createdAt?: { seconds: number; nanoseconds: number };
   rutaNombre?: string;
   repartidorNombre?: string;
+  domiciliarioId?: string;
   notaPendiente?: string;
   esManual?: boolean;
   notas?: string;
+  promosAplicadas?: PromoAplicada[];
 }
 
 export interface RutaEntrega {
@@ -152,6 +154,9 @@ export interface Domiciliario {
   tel?: string;
   activo: boolean;
   pagoBase?: number;
+  usuario?: string;
+  password?: string;
+  uid?: string;
 }
 
 export interface HistorialDia {
@@ -204,3 +209,41 @@ export interface ThemeColors {
 }
 
 export type PedidoTab = 'activos' | 'preparando' | 'camino' | 'entregado' | 'cancelado';
+
+export interface Notificacion {
+  id: string;
+  tipo: 'asignacion_ruta' | 'reasignacion' | 'nuevo_pedido';
+  mensaje: string;
+  leida: boolean;
+  rutaId?: string;
+  pedidoId?: string;
+  createdAt?: { seconds: number; nanoseconds: number };
+}
+
+export type TipoPromo = 'compra_lleva' | 'compra_descuento' | 'domicilio_descuento' | 'compra_cupon';
+
+export interface Promocion {
+  id: string;
+  nombre: string;
+  tipo: TipoPromo;
+  activa: boolean;
+  descripcion?: string;
+  productoAId?: string;
+  cantidadA?: number;
+  productoBId?: string;
+  cantidadB?: number;
+  descuentoBPct?: number;
+  domicilioPct?: number;
+  domicilioGratis?: boolean;
+  cuponPct?: number;
+  createdAt?: { seconds: number; nanoseconds: number };
+}
+
+export interface PromoAplicada {
+  promoId: string;
+  nombre: string;
+  tipo: TipoPromo;
+  descuentoProducto?: number;
+  descuentoDomicilio?: number;
+  cuponGenerado?: string;
+}
