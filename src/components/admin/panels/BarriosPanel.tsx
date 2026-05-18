@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Download } from 'lucide-react';
 import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -43,6 +43,32 @@ export function BarriosPanel() {
   const [saving, setSaving]   = useState(false);
   const [importing, setImporting] = useState(false);
   const [search, setSearch]   = useState('');
+
+  // Auto-import on first load if collection is empty
+  useEffect(() => {
+    if (Object.keys(barrios).length === 0) {
+      autoImport();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function autoImport() {
+    setImporting(true);
+    try {
+      const batch = writeBatch(db);
+      const newBarrios: Record<string, Barrio> = {};
+      BARRIOS_DEFAULT.forEach((nombre, i) => {
+        const ref = doc(collection(db, 'barrios'));
+        batch.set(ref, { nombre, activo: true, orden: i });
+        newBarrios[ref.id] = { id: ref.id, nombre, activo: true, orden: i };
+      });
+      await batch.commit();
+      setBarrios(newBarrios);
+    } catch {
+      // silent — user can still use the button
+    } finally {
+      setImporting(false);
+    }
+  }
 
   const list = Object.values(barrios)
     .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.nombre.localeCompare(b.nombre));

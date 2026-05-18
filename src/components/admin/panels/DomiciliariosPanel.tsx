@@ -41,10 +41,13 @@ export function DomiciliariosPanel() {
     if (!form.nombre.trim()) { showToast('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
-      const data: Omit<Domiciliario, 'id'> = {
+      const pagoBase = parseFloat(form.pagoBase) || 0;
+      const tel = form.tel.trim();
+      // Firestore rejects undefined — use empty string / 0 for optional fields
+      const data = {
         nombre: form.nombre.trim(),
-        tel: form.tel.trim() || undefined,
-        pagoBase: parseFloat(form.pagoBase) || undefined,
+        tel,
+        pagoBase,
         activo: form.activo,
       };
       if (editId) {
@@ -57,7 +60,8 @@ export function DomiciliariosPanel() {
         showToast('Domiciliario creado', 'success');
       }
       setIsOpen(false);
-    } catch {
+    } catch (e) {
+      console.error(e);
       showToast('Error al guardar', 'error');
     } finally {
       setSaving(false);

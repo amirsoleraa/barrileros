@@ -7,8 +7,6 @@ import { fmtPrice } from '@/lib/utils';
 import { User, Package, ChevronDown, ChevronUp, CheckCircle, Trash2, X, Calendar, Bike } from 'lucide-react';
 import type { RutaEntrega, Pedido } from '@/types';
 
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
 function fmtFecha(ts?: { seconds: number }): string {
   if (!ts) return '';
   return new Date(ts.seconds * 1000).toLocaleDateString('es-CO', {
@@ -35,8 +33,8 @@ export function HistorialRutasPanel() {
   const [deleting, setDeleting]     = useState(false);
 
   // Filters
-  const [filterYear,  setFilterYear]  = useState<string>('');
-  const [filterMonth, setFilterMonth] = useState<string>('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo,   setDateTo]   = useState('');
 
   useEffect(() => {
     const q = query(collection(db, 'rutas'), where('estado', '==', 'completada'));
@@ -56,36 +54,15 @@ export function HistorialRutasPanel() {
     return unsub;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Extract available years and months
-  const { years, monthsByYear } = useMemo(() => {
-    const ySet = new Set<string>();
-    const mByY: Record<string, Set<string>> = {};
-    rutas.forEach(r => {
-      const iso = fechaISO(r.completadaEn ?? r.createdAt);
-      if (iso === '0000-00-00') return;
-      const [y, m] = iso.split('-');
-      ySet.add(y);
-      if (!mByY[y]) mByY[y] = new Set();
-      mByY[y].add(m);
-    });
-    return {
-      years: Array.from(ySet).sort((a, b) => Number(b) - Number(a)),
-      monthsByYear: mByY,
-    };
-  }, [rutas]);
-
-  const availableMonths = filterYear ? Array.from(monthsByYear[filterYear] ?? []).sort() : [];
-
   const filtered = useMemo(() => {
     return rutas.filter(r => {
       const iso = fechaISO(r.completadaEn ?? r.createdAt);
       if (iso === '0000-00-00') return true;
-      const [y, m] = iso.split('-');
-      if (filterYear && y !== filterYear) return false;
-      if (filterMonth && m !== filterMonth) return false;
+      if (dateFrom && iso < dateFrom) return false;
+      if (dateTo   && iso > dateTo)   return false;
       return true;
     });
-  }, [rutas, filterYear, filterMonth]);
+  }, [rutas, dateFrom, dateTo]);
 
   // Group by date label
   const grouped = useMemo(() => {
@@ -185,27 +162,22 @@ export function HistorialRutasPanel() {
       {rutas.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
           <Calendar size={14} color="var(--text3)" />
-          <select
-            value={filterYear}
-            onChange={e => { setFilterYear(e.target.value); setFilterMonth(''); }}
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={e => setDateFrom(e.target.value)}
             style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer' }}
-          >
-            <option value="">Todos los años</option>
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          {filterYear && availableMonths.length > 1 && (
-            <select
-              value={filterMonth}
-              onChange={e => setFilterMonth(e.target.value)}
-              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer' }}
-            >
-              <option value="">Todos los meses</option>
-              {availableMonths.map(m => <option key={m} value={m}>{MESES[parseInt(m) - 1]}</option>)}
-            </select>
-          )}
-          {(filterYear || filterMonth) && (
+          />
+          <span style={{ fontSize: 13, color: 'var(--text3)' }}>—</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer' }}
+          />
+          {(dateFrom || dateTo) && (
             <button
-              onClick={() => { setFilterYear(''); setFilterMonth(''); }}
+              onClick={() => { setDateFrom(''); setDateTo(''); }}
               style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--text3)', fontFamily: 'inherit' }}
             >
               Limpiar

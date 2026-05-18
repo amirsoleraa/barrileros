@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Package, DollarSign, TrendingUp, Bike, MapPin } from 'lucide-react';
+import { Package, DollarSign, TrendingUp, Bike, MapPin, Calendar, X } from 'lucide-react';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAdminStore } from '@/stores/useAdminStore';
@@ -25,9 +25,13 @@ function startOf(period: Period): Date {
 
 export function DashboardPanel() {
   const { pedidos } = useAdminStore();
-  const [period, setPeriod] = useState<Period>('hoy');
+  const [period, setPeriod]     = useState<Period>('hoy');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo,   setDateTo]   = useState('');
   const [historial, setHistorial] = useState<HistorialDia[]>([]);
   const [loadingHist, setLoadingHist] = useState(true);
+
+  const hasCustomRange = !!(dateFrom || dateTo);
 
   // Load historial once for longer period analysis
   useEffect(() => {
@@ -45,24 +49,32 @@ export function DashboardPanel() {
   const inTransit = allActive.filter(p => p.estado === 'camino').length;
   const newOrders = allActive.filter(p => p.estado === 'activos').length;
 
-  // All historical pedidos for the period
+  // All historical pedidos for the selected period / custom range
   const periodPedidos = useMemo(() => {
-    const start = startOf(period);
+    let start: Date;
+    let end: Date | null = null;
+
+    if (hasCustomRange) {
+      start = dateFrom ? new Date(dateFrom + 'T00:00:00') : new Date(0);
+      end   = dateTo   ? new Date(dateTo   + 'T23:59:59') : null;
+    } else {
+      start = startOf(period);
+    }
+
     const fromHist: Pedido[] = [];
     historial.forEach(dia => {
       if (dia.creadoEn) {
         const d = new Date(dia.creadoEn.seconds * 1000);
-        if (d >= start) fromHist.push(...(dia.pedidos ?? []));
+        if (d >= start && (!end || d <= end)) fromHist.push(...(dia.pedidos ?? []));
       }
     });
-    // For "hoy" also include active pedidos
-    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
     const activeInPeriod = allActive.filter(p => {
       if (!p.createdAt) return false;
-      return new Date(p.createdAt.seconds * 1000) >= start;
+      const d = new Date(p.createdAt.seconds * 1000);
+      return d >= start && (!end || d <= end);
     });
     return [...fromHist, ...activeInPeriod];
-  }, [period, historial, allActive]);
+  }, [period, historial, allActive, hasCustomRange, dateFrom, dateTo]);
 
   const stats = useMemo(() => {
     const entregados = periodPedidos.filter(p => p.estado === 'entregado');
@@ -139,23 +151,50 @@ export function DashboardPanel() {
 
   return (
     <div>
-      {/* Period tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'var(--bg2)', padding: 4, borderRadius: 10, border: '1px solid var(--border)', width: 'fit-content' }}>
-        {periodTabs.map(p => (
-          <button
-            key={p}
-            onClick={() => setPeriod(p)}
-            style={{
-              padding: '7px 18px', borderRadius: 8, border: 'none', cursor: 'pointer',
-              fontSize: 13, fontWeight: 600, fontFamily: 'inherit', transition: 'all .15s',
-              background: period === p ? 'var(--surface)' : 'transparent',
-              color: period === p ? 'var(--text)' : 'var(--text2)',
-              boxShadow: period === p ? '0 1px 4px rgba(0,0,0,.1)' : 'none',
-            }}
-          >
-            {PERIOD_LABELS[p]}
-          </button>
-        ))}
+      {/* Period tabs + date range */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 4, background: 'var(--bg2)', padding: 4, borderRadius: 10, border: '1px solid var(--border)', opacity: hasCustomRange ? 0.4 : 1 }}>
+          {periodTabs.map(p => (
+            <button
+              key={p}
+              onClick={() => { setPeriod(p); setDateFrom(''); setDateTo(''); }}
+              style={{
+                padding: '7px 18px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                fontSize: 13, fontWeight: 600, fontFamily: 'inherit', transition: 'all .15s',
+                background: period === p && !hasCustomRange ? 'var(--surface)' : 'transparent',
+                color: period === p && !hasCustomRange ? 'var(--text)' : 'var(--text2)',
+                boxShadow: period === p && !hasCustomRange ? '0 1px 4px rgba(0,0,0,.1)' : 'none',
+              }}
+            >
+              {PERIOD_LABELS[p]}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <Calendar size={14} color="var(--text3)" />
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={e => setDateFrom(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${hasCustomRange ? 'var(--brand)' : 'var(--border)'}`, fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: 13, color: 'var(--text3)' }}>—</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${hasCustomRange ? 'var(--brand)' : 'var(--border)'}`, fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer' }}
+          />
+          {hasCustomRange && (
+            <button
+              onClick={() => { setDateFrom(''); setDateTo(''); }}
+              style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontFamily: 'inherit' }}
+              title="Limpiar rango"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats grid */}
@@ -163,12 +202,12 @@ export function DashboardPanel() {
         <div className="stat-card">
           <Package size={24} color="var(--brand)" />
           <div className="stat-value">{stats.pedidos}</div>
-          <div className="stat-label">Pedidos ({PERIOD_LABELS[period].toLowerCase()})</div>
+          <div className="stat-label">Pedidos ({hasCustomRange ? 'rango' : PERIOD_LABELS[period].toLowerCase()})</div>
         </div>
         <div className="stat-card">
           <DollarSign size={24} color="var(--success)" />
           <div className="stat-value">{fmtPrice(stats.revenue)}</div>
-          <div className="stat-label">Ingresos ({PERIOD_LABELS[period].toLowerCase()})</div>
+          <div className="stat-label">Ingresos ({hasCustomRange ? 'rango' : PERIOD_LABELS[period].toLowerCase()})</div>
         </div>
         <div className="stat-card">
           <TrendingUp size={24} color="var(--brand)" />
