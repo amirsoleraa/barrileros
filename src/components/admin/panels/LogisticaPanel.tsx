@@ -3,12 +3,14 @@ import { DeliveryPanel }      from './DeliveryPanel';
 import { TrackingPanel }      from './TrackingPanel';
 import { BarriosPanel }       from './BarriosPanel';
 import { DomiciliariosPanel } from './DomiciliariosPanel';
+import { HistorialRutasPanel } from './HistorialRutasPanel';
 
 const TABS = [
-  { key: 'seguimiento',   label: 'Seguimiento' },
-  { key: 'domicilio',     label: 'Domicilio' },
-  { key: 'barrios',       label: 'Barrios' },
-  { key: 'domiciliarios', label: 'Domiciliarios' },
+  { key: 'seguimiento',    label: 'Seguimiento' },
+  { key: 'domicilio',      label: 'Domicilio' },
+  { key: 'barrios',        label: 'Barrios' },
+  { key: 'domiciliarios',  label: 'Domiciliarios' },
+  { key: 'historial_rutas', label: 'Hist. Rutas' },
 ] as const;
 
 type Tab = typeof TABS[number]['key'];
@@ -34,10 +36,11 @@ export function LogisticaPanel() {
           </button>
         ))}
       </div>
-      {tab === 'seguimiento'   && <TrackingPanel />}
-      {tab === 'domicilio'     && <DeliveryPanel />}
-      {tab === 'barrios'       && <BarriosPanel />}
-      {tab === 'domiciliarios' && <DomiciliariosPanel />}
+      {tab === 'seguimiento'    && <TrackingPanel />}
+      {tab === 'domicilio'      && <DeliveryPanel />}
+      {tab === 'barrios'        && <BarriosPanel />}
+      {tab === 'domiciliarios'  && <DomiciliariosPanel />}
+      {tab === 'historial_rutas' && <HistorialRutasPanel />}
     </div>
   );
 }

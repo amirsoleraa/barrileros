@@ -197,6 +197,24 @@ export function ResumenPage() {
         if (cup) updateDoc(doc(db, 'cupones', cup.id), { usos: (cup.usos || 0) + 1 }).catch(() => {});
       }
 
+      for (const code of promoResult.cuponesGenerados) {
+        const promoApl = promoResult.promosAplicadas.find(pa => pa.cuponGenerado === code);
+        addDoc(collection(db, 'cupones'), {
+          codigo: code,
+          tipo: 'porcentaje',
+          valor: promoApl?.cuponPct ?? 10,
+          activo: true,
+          usos: 0,
+          limite: 1,
+          clienteNombre: datosEnvio!.nombre,
+          clienteTel: datosEnvio!.tel ?? '',
+          pedidoNumero: numero,
+          promoNombre: promoApl?.nombre ?? '',
+          origen: 'promo',
+          createdAt: serverTimestamp(),
+        }).catch(() => {});
+      }
+
       setLastPedido(fullPedido as Pedido);
       sendOrderConfirmation(fullPedido as Pedido, cfg.nombreComercio).catch(() => {});
 
@@ -340,16 +358,19 @@ export function ResumenPage() {
               {promoResult.promosAplicadas.map((p, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', color: 'var(--success)', gap: 8 }}>
                   <span>{p.nombre}</span>
-                  <span style={{ fontWeight: 600, flexShrink: 0 }}>
-                    {p.tipo === 'compra_lleva' && p.productoBNombre
-                      ? `🎁 ${p.cantidadBReal ?? 1}× ${p.productoBNombre} gratis`
-                      : p.descuentoProducto
-                        ? `-${fmtPrice(p.descuentoProducto)}`
-                        : p.descuentoDomicilio
-                          ? `Domicilio -${fmtPrice(p.descuentoDomicilio)}`
-                          : p.cuponGenerado
-                            ? `Cupón: ${p.cuponGenerado}`
-                            : ''}
+                  <span style={{ fontWeight: 600, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {p.tipo === 'compra_lleva' && p.productoBNombre ? (
+                      <>
+                        {(() => { const prod = p.productoBId ? productos[p.productoBId] : null; return prod?.imgUrl ? <img src={prod.imgUrl} alt={prod.nombre} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} /> : null; })()}
+                        🎁 {p.cantidadBReal ?? 1}× {p.productoBNombre} gratis
+                      </>
+                    ) : p.descuentoProducto
+                      ? `-${fmtPrice(p.descuentoProducto)}`
+                      : p.descuentoDomicilio
+                        ? `Domicilio -${fmtPrice(p.descuentoDomicilio)}`
+                        : p.cuponGenerado
+                          ? `Cupón: ${p.cuponGenerado}`
+                          : ''}
                   </span>
                 </div>
               ))}

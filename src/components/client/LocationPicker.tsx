@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { MapPin, Navigation, Loader, CheckCircle, Map, X } from 'lucide-react';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -27,20 +27,30 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm }: {
   const mapInst  = useRef<any>(null);
   const tokenRef = useRef<any>(null);
 
-  const [lat,        setLat]        = useState<number | null>(null);
-  const [lng,        setLng]        = useState<number | null>(null);
-  const [address,    setAddress]    = useState('');
-  const [barrio,     setBarrio]     = useState('');
-  const [notes,      setNotes]      = useState('');
-  const [geoError,   setGeoError]   = useState('');
-  const [geoLoading, setGeoLoading] = useState(false);
+  const [lat,          setLat]          = useState<number | null>(null);
+  const [lng,          setLng]          = useState<number | null>(null);
+  const [address,      setAddress]      = useState('');
+  const [barrio,       setBarrio]       = useState('');
+  const [notes,        setNotes]        = useState('');
+  const [geoError,     setGeoError]     = useState('');
+  const [geoLoading,   setGeoLoading]   = useState(false);
+  const [barrioOpen,   setBarrioOpen]   = useState(false);
+  const [barrioSearch, setBarrioSearch] = useState('');
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  const barriosList = Object.values(barrios)
-    .filter(b => b.activo)
-    .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.nombre.localeCompare(b.nombre));
+  const barriosList = useMemo(() => {
+    const seen = new Set<string>();
+    return Object.values(barrios)
+      .filter(b => b.activo && !seen.has(b.nombre) && seen.add(b.nombre))
+      .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.nombre.localeCompare(b.nombre));
+  }, [barrios]);
+
+  const filteredBarrios = useMemo(() =>
+    barriosList.filter(b => b.nombre.toLowerCase().includes(barrioSearch.toLowerCase())),
+    [barriosList, barrioSearch]
+  );
 
   // Notifica hacia afuera cada vez que cambia posición, notas o settings
   useEffect(() => {
@@ -191,17 +201,41 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm }: {
           Barrio <span style={{ color: 'var(--danger, #dc2626)' }}>*</span>
         </div>
         {barriosList.length > 0 ? (
-          <select
-            className={styles.notesInput}
-            style={{ resize: 'none', padding: '11px 13px', appearance: 'auto' }}
-            value={barrio}
-            onChange={e => setBarrio(e.target.value)}
-          >
-            <option value="">Selecciona tu barrio…</option>
-            {barriosList.map(b => (
-              <option key={b.id} value={b.nombre}>{b.nombre}</option>
-            ))}
-          </select>
+          <div>
+            {!barrioOpen ? (
+              <div
+                onClick={() => { setBarrioOpen(true); setBarrioSearch(''); }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 13px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', fontSize: 14 }}
+              >
+                <span style={{ color: barrio ? 'var(--text)' : 'var(--text3)' }}>{barrio || 'Selecciona tu barrio…'}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+            ) : (
+              <>
+                <input
+                  autoFocus
+                  value={barrioSearch}
+                  onChange={e => setBarrioSearch(e.target.value)}
+                  placeholder="Buscar barrio…"
+                  style={{ width: '100%', padding: '11px 13px', boxSizing: 'border-box', border: '1px solid var(--brand)', borderRadius: '8px 8px 0 0', background: 'var(--surface)', color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+                />
+                <div style={{ maxHeight: 130, overflowY: 'auto', border: '1px solid var(--brand)', borderTop: 'none', borderRadius: '0 0 8px 8px', background: 'var(--surface)' }}>
+                  {filteredBarrios.map(b => (
+                    <div
+                      key={b.id}
+                      onClick={() => { setBarrio(b.nombre); setBarrioOpen(false); }}
+                      style={{ padding: '10px 13px', cursor: 'pointer', fontSize: 14, borderBottom: '1px solid var(--border)', background: barrio === b.nombre ? 'var(--brand-light)' : 'transparent', color: barrio === b.nombre ? 'var(--brand)' : 'var(--text)', fontWeight: barrio === b.nombre ? 600 : 400 }}
+                    >
+                      {b.nombre}
+                    </div>
+                  ))}
+                  {filteredBarrios.length === 0 && (
+                    <div style={{ padding: '10px 13px', color: 'var(--text3)', fontSize: 13 }}>Sin resultados</div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         ) : (
           <input
             className={styles.notesInput}

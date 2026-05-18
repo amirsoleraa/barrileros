@@ -57,6 +57,7 @@ export function evaluatePromos(
         tipo: promo.tipo,
         descuentoProducto: discountAmt,
         productoBNombre: itemB.name,
+        productoBId: prodBId ?? undefined,
         cantidadBReal,
       });
     }
@@ -119,6 +120,7 @@ export function evaluatePromos(
         nombre: promo.nombre,
         tipo: promo.tipo,
         cuponGenerado: code,
+        cuponPct: promo.cuponPct ?? 0,
       });
     }
   }

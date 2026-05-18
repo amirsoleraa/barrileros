@@ -247,5 +247,7 @@ export interface PromoAplicada {
   descuentoDomicilio?: number;
   cuponGenerado?: string;
   productoBNombre?: string;
+  productoBId?: string;
   cantidadBReal?: number;
+  cuponPct?: number;
 }

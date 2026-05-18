@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import {
   MapPin, Plus, Trash2, CheckCircle, User, Package,
   ChevronDown, ChevronUp, ArrowUp, ArrowDown, Flag,
-  XCircle, RotateCcw, ExternalLink, History,
+  XCircle, RotateCcw, ExternalLink,
 } from 'lucide-react';
-import { HistorialRutasPanel } from './HistorialRutasPanel';
 import {
   collection, addDoc, getDocs, updateDoc, deleteDoc,
   doc, serverTimestamp, query, where, setDoc,
@@ -246,7 +245,7 @@ function RouteTimeline({ ruta, pedidos, onReorder, onDeliverStop, onCancelStop, 
 // ── panel principal ────────────────────────────────────────────────────────────
 
 export function TrackingPanel() {
-  const { pedidos } = useAdminStore();
+  const { pedidos, updatePedido } = useAdminStore();
   const { showToast, domiciliarios } = useAppStore();
   const confirm = useConfirm();
 
@@ -342,6 +341,7 @@ export function TrackingPanel() {
       repartidorNombre:    ruta?.repartidor       ?? '',
       domiciliarioId:      ruta?.domiciliarioId   ?? '',
     });
+    updatePedido(pedidoId, { estado: 'entregado', rutaNombre: ruta?.nombre ?? '', repartidorNombre: ruta?.repartidor ?? '' });
     showToast('Pedido marcado como entregado', 'success');
   }
 
@@ -689,22 +689,16 @@ export function TrackingPanel() {
         )}
       </Modal>
 
-      {/* ── Historial de rutas ── */}
-      <div style={{ marginTop: 12 }}>
-        <h3 style={{ fontWeight: 700, fontSize: 16, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <History size={16} color="var(--brand)" />
-          Historial de rutas
-        </h3>
-        <HistorialRutasPanel />
-      </div>
-
       {/* Modal: agregar pedido a ruta */}
       {addingToRutaId && (
         <Modal isOpen onClose={() => setAddingToRutaId(null)} title="Agregar pedido a la ruta" maxWidth={460}>
           {(() => {
             const rutaForAdd = rutas.find(r => r.id === addingToRutaId);
+            const allActive  = (Object.values(pedidos) as Pedido[])
+              .filter(p => ['activos', 'preparando', 'camino'].includes(p.estado))
+              .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
             const unassigned = rutaForAdd
-              ? enCamino.filter(p => !rutaForAdd.pedidoIds.includes(p.id))
+              ? allActive.filter(p => !rutaForAdd.pedidoIds.includes(p.id))
               : [];
             if (unassigned.length === 0) return (
               <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text3)' }}>

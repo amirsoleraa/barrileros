@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { onSnapshot, collection, query, orderBy, updateDoc, doc } from 'firebase/firestore';
+import { onSnapshot, collection, query, orderBy, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { fmtPrice } from '@/lib/utils';
-import { ChevronDown, ChevronUp, Lock, Unlock, Edit2, Save, X, FileText, Calendar } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lock, Unlock, Edit2, Save, X, FileText, Calendar, Trash2 } from 'lucide-react';
 import type { HistorialDia, Pedido } from '@/types';
 
 function printFactura(p: Pedido, fechaLabel: string, nombreComercio: string) {
@@ -299,7 +299,18 @@ export function HistorialPedidosPanel() {
                       <span style={{ fontWeight: 700, color: 'var(--brand)' }}>{fmtPrice(dia.totalRecaudo)} recaudado</span>
                     </div>
                   </div>
-                  {isExp ? <ChevronUp size={16} color="var(--text3)" /> : <ChevronDown size={16} color="var(--text3)" />}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {pinUnlocked && (
+                      <button
+                        onClick={e => { e.stopPropagation(); deleteDoc(doc(db, 'historial_pedidos', dia.id)).then(() => showToast('Día eliminado', 'success')).catch(() => showToast('Error al eliminar', 'error')); }}
+                        style={{ width: 28, height: 28, borderRadius: 7, border: 'none', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Eliminar este día del historial"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                    {isExp ? <ChevronUp size={16} color="var(--text3)" /> : <ChevronDown size={16} color="var(--text3)" />}
+                  </div>
                 </div>
 
                 {isExp && (

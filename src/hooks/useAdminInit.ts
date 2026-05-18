@@ -8,10 +8,10 @@ import { db, firebaseReady } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { applyThemeColors } from '@/lib/utils';
-import type { AppConfig, Producto, Categoria, Cupon, Novedad, Pedido, Adicional } from '@/types';
+import type { AppConfig, Producto, Categoria, Cupon, Novedad, Pedido, Adicional, Barrio, Domiciliario, Promocion } from '@/types';
 
 export function useAdminInit() {
-  const { setCfg, setProductos, setCategorias, setCupones, setNovedades, setAdicionales, showToast } = useAppStore();
+  const { setCfg, setProductos, setCategorias, setCupones, setNovedades, setAdicionales, setBarrios, setDomiciliarios, setPromociones, showToast } = useAppStore();
   const { setPedidos } = useAdminStore();
   const [ready, setReady] = useState(false);
 
@@ -58,6 +58,30 @@ export function useAdminInit() {
           const ads: Record<string, Adicional> = {};
           adSnap.forEach(d => { ads[d.id] = { id: d.id, ...d.data() } as Adicional; });
           setAdicionales(ads);
+        } catch (_) {}
+
+        // Barrios
+        try {
+          const bSnap = await getDocs(collection(db, 'barrios'));
+          const bs: Record<string, Barrio> = {};
+          bSnap.forEach(d => { bs[d.id] = { id: d.id, ...d.data() } as Barrio; });
+          setBarrios(bs);
+        } catch (_) {}
+
+        // Domiciliarios
+        try {
+          const dSnap = await getDocs(collection(db, 'domiciliarios'));
+          const ds: Record<string, Domiciliario> = {};
+          for (const d of dSnap.docs) { ds[d.id] = { id: d.id, ...d.data() } as Domiciliario; }
+          setDomiciliarios(ds);
+        } catch (_) {}
+
+        // Promociones
+        try {
+          const pSnap = await getDocs(collection(db, 'promociones'));
+          const ps: Promocion[] = [];
+          for (const d of pSnap.docs) { ps.push({ id: d.id, ...d.data() } as Promocion); }
+          setPromociones(ps.filter(p => p.activa));
         } catch (_) {}
       } catch (e) {
         console.error('Error al inicializar admin:', e);
