@@ -64,6 +64,7 @@ export function DomiciliariosPanel() {
     try {
       const pagoBase = parseFloat(form.pagoBase) || 0;
       const tel = form.tel.trim();
+      const existingUid = domiciliarios[editId!]?.uid;
       const data: Omit<Domiciliario, 'id'> = {
         nombre: form.nombre.trim(),
         tel,
@@ -71,7 +72,7 @@ export function DomiciliariosPanel() {
         activo: form.activo,
         usuario: form.usuario.trim() || (domiciliarios[editId!]?.usuario ?? ''),
         password: form.password || (domiciliarios[editId!]?.password ?? ''),
-        uid: domiciliarios[editId!]?.uid,
+        ...(existingUid ? { uid: existingUid } : {}),
       };
 
       if (editId) {

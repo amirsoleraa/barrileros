@@ -681,6 +681,18 @@ export function TrackingPanel() {
                   <span style={{ fontWeight: 600 }}>{fmtPrice(it.precio * it.qty)}</span>
                 </div>
               ))}
+              {detallePedido.promosAplicadas?.map((p, i) => (
+                <div key={`promo-${i}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '5px 0', borderBottom: '1px solid var(--border)', color: 'var(--success)' }}>
+                  <span>
+                    {p.tipo === 'compra_lleva' && p.productoBNombre
+                      ? `+ ${p.cantidadBReal ?? 1}× ${p.productoBNombre} (gratis)`
+                      : p.nombre}
+                  </span>
+                  <span style={{ fontWeight: 600 }}>
+                    {p.isVirtualGift ? 'Promo' : p.descuentoProducto ? `-${fmtPrice(p.descuentoProducto)}` : ''}
+                  </span>
+                </div>
+              ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 16, color: 'var(--brand)', marginTop: 10 }}>
                 <span>Total</span><span>{fmtPrice(detallePedido.total)}</span>
               </div>

@@ -585,6 +585,18 @@ export function OrdersPanel() {
                   <span style={{ fontWeight: 600 }}>{fmtPrice(item.precio * item.qty)}</span>
                 </div>
               ))}
+              {detailPedido.promosAplicadas?.map((p, i) => (
+                <div key={`promo-${i}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0', borderBottom: '1px solid var(--border)', color: 'var(--success)' }}>
+                  <span>
+                    {p.tipo === 'compra_lleva' && p.productoBNombre
+                      ? `+ ${p.cantidadBReal ?? 1}× ${p.productoBNombre} (gratis)`
+                      : p.nombre}
+                  </span>
+                  <span style={{ fontWeight: 600 }}>
+                    {p.isVirtualGift ? 'Promo' : p.descuentoProducto ? `-${fmtPrice(p.descuentoProducto)}` : ''}
+                  </span>
+                </div>
+              ))}
             </div>
 
             <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>

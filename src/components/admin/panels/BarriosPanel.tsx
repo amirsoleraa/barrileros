@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, Download, GitMerge } from 'lucide-react';
 import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
@@ -125,6 +125,29 @@ export function BarriosPanel() {
     setBarrios({ ...barrios, [b.id]: { ...b, activo: !b.activo } });
   }
 
+  async function deduplicar() {
+    const grupos: Record<string, typeof list> = {};
+    list.forEach(b => {
+      const key = b.nombre.trim().toLowerCase();
+      if (!grupos[key]) grupos[key] = [];
+      grupos[key].push(b);
+    });
+    const duplicados = Object.values(grupos).filter(g => g.length > 1);
+    if (duplicados.length === 0) { showToast('No hay duplicados', 'info'); return; }
+    const toDelete: string[] = [];
+    duplicados.forEach(g => {
+      const sorted = [...g].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+      sorted.slice(1).forEach(b => toDelete.push(b.id));
+    });
+    const batch = writeBatch(db);
+    toDelete.forEach(id => batch.delete(doc(db, 'barrios', id)));
+    await batch.commit();
+    const next = { ...barrios };
+    toDelete.forEach(id => delete next[id]);
+    setBarrios(next);
+    showToast(`${toDelete.length} duplicados eliminados`, 'success');
+  }
+
   async function importDefaults() {
     if (list.length > 0) {
       const ok = await confirm({
@@ -169,7 +192,10 @@ export function BarriosPanel() {
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn-s" onClick={deduplicar} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }} title="Eliminar barrios con nombre repetido">
+            <GitMerge size={14} /> Limpiar dup.
+          </button>
           <button className="btn-s" onClick={importDefaults} disabled={importing} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
             <Download size={14} />
             {importing ? 'Importando...' : 'Barrios de Cartagena'}

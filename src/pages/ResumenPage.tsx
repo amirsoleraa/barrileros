@@ -358,11 +358,11 @@ export function ResumenPage() {
               {promoResult.promosAplicadas.map((p, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', color: 'var(--success)', gap: 8 }}>
                   <span>{p.nombre}</span>
-                  <span style={{ fontWeight: 600, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontWeight: 600, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                     {p.tipo === 'compra_lleva' && p.productoBNombre ? (
                       <>
-                        {(() => { const prod = p.productoBId ? productos[p.productoBId] : null; return prod?.imgUrl ? <img src={prod.imgUrl} alt={prod.nombre} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} /> : null; })()}
-                        🎁 {p.cantidadBReal ?? 1}× {p.productoBNombre} gratis
+                        {(() => { const prod = p.productoBId ? productos[p.productoBId] : null; return prod?.imgUrl ? <img src={prod.imgUrl} alt={prod.nombre} style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} /> : null; })()}
+                        {p.cantidadBReal ?? 1}× {p.productoBNombre} gratis
                       </>
                     ) : p.descuentoProducto
                       ? `-${fmtPrice(p.descuentoProducto)}`
@@ -406,6 +406,12 @@ export function ResumenPage() {
                 <span>-{fmtPrice(promoResult.descuentoProductos)}</span>
               </div>
             )}
+            {promoResult.promosAplicadas.filter(p => p.isVirtualGift).map((p, i) => (
+              <div key={i} className={styles.resRow} style={{ color: 'var(--success)', fontSize: 13 }}>
+                <span>Promo: {p.cantidadBReal ?? 1}× {p.productoBNombre}</span>
+                <span>Gratis</span>
+              </div>
+            ))}
             {descuento > 0 && (
               <div className={styles.resRow} style={{ color: 'var(--success)' }}>
                 <span>Cupón</span>

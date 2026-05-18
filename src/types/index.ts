@@ -250,4 +250,5 @@ export interface PromoAplicada {
   productoBId?: string;
   cantidadBReal?: number;
   cuponPct?: number;
+  isVirtualGift?: boolean;
 }

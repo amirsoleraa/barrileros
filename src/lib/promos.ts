@@ -48,9 +48,10 @@ export function evaluatePromos(
 
       if (!itemB) continue;
 
+      const isVirtualGift = !cartItemB && !!catalogB;
       const cantidadBReal = Math.min(cantB, itemB.qty);
-      const discountAmt = itemB.price * cantidadBReal;
-      result.descuentoProductos += discountAmt;
+      const discountAmt = isVirtualGift ? 0 : itemB.price * cantidadBReal;
+      if (!isVirtualGift) result.descuentoProductos += discountAmt;
       result.promosAplicadas.push({
         promoId: promo.id,
         nombre: promo.nombre,
@@ -59,6 +60,7 @@ export function evaluatePromos(
         productoBNombre: itemB.name,
         productoBId: prodBId ?? undefined,
         cantidadBReal,
+        isVirtualGift,
       });
     }
 
