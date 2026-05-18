@@ -45,13 +45,16 @@ export function evaluatePromos(
 
       if (!itemB) continue;
 
-      const discountAmt = Math.min(itemB.price * cantB, itemB.price * itemB.qty);
+      const cantidadBReal = Math.min(cantB, itemB.qty);
+      const discountAmt = itemB.price * cantidadBReal;
       result.descuentoProductos += discountAmt;
       result.promosAplicadas.push({
         promoId: promo.id,
         nombre: promo.nombre,
         tipo: promo.tipo,
         descuentoProducto: discountAmt,
+        productoBNombre: itemB.name,
+        cantidadBReal,
       });
     }
 

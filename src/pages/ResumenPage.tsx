@@ -338,12 +338,18 @@ export function ResumenPage() {
             </div>
             <div className={styles.cardBody}>
               {promoResult.promosAplicadas.map((p, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', color: 'var(--success)' }}>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', color: 'var(--success)', gap: 8 }}>
                   <span>{p.nombre}</span>
-                  <span style={{ fontWeight: 600 }}>
-                    {p.descuentoProducto ? `-${fmtPrice(p.descuentoProducto)}` :
-                     p.descuentoDomicilio ? `Domicilio -${fmtPrice(p.descuentoDomicilio)}` :
-                     p.cuponGenerado ? `Cupón: ${p.cuponGenerado}` : ''}
+                  <span style={{ fontWeight: 600, flexShrink: 0 }}>
+                    {p.tipo === 'compra_lleva' && p.productoBNombre
+                      ? `🎁 ${p.cantidadBReal ?? 1}× ${p.productoBNombre} gratis`
+                      : p.descuentoProducto
+                        ? `-${fmtPrice(p.descuentoProducto)}`
+                        : p.descuentoDomicilio
+                          ? `Domicilio -${fmtPrice(p.descuentoDomicilio)}`
+                          : p.cuponGenerado
+                            ? `Cupón: ${p.cuponGenerado}`
+                            : ''}
                   </span>
                 </div>
               ))}
@@ -434,64 +440,70 @@ export function ResumenPage() {
             const barrioList = Object.values(barrios)
               .filter(b => b.activo)
               .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.nombre.localeCompare(b.nombre));
+            const filteredBarrios = barrioList.filter(b =>
+              b.nombre.toLowerCase().includes(barrioSearch.toLowerCase())
+            );
             return (
               <div className="f-field">
                 <label>Barrio</label>
                 {barrioList.length > 0 ? (
-                  <div ref={barrioRef} style={{ position: 'relative' }}>
-                    <div
-                      onClick={() => { setBarrioOpen(v => !v); setBarrioSearch(''); }}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '10px 12px', borderRadius: 8,
-                        border: '1px solid var(--border)', background: 'var(--surface)',
-                        cursor: 'pointer', fontSize: 14, color: 'var(--text)',
-                      }}
-                    >
-                      <span style={{ color: watchedBarrio ? 'var(--text)' : 'var(--text3)' }}>
-                        {watchedBarrio || 'Selecciona tu barrio'}
-                      </span>
-                      <ChevronDown size={14} color="var(--text3)" />
-                    </div>
-                    {barrioOpen && (
-                      <div style={{
-                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                        background: 'var(--surface)', border: '1px solid var(--border)',
-                        borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.12)',
-                        marginTop: 4, overflow: 'hidden',
-                      }}>
-                        <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
-                          <input
-                            autoFocus
-                            value={barrioSearch}
-                            onChange={e => setBarrioSearch(e.target.value)}
-                            placeholder="Buscar barrio..."
-                            style={{ width: '100%', border: 'none', outline: 'none', fontSize: 14, background: 'transparent', color: 'var(--text)' }}
-                          />
-                        </div>
-                        <div style={{ maxHeight: 220, overflowY: 'auto' }}>
-                          {barrioList
-                            .filter(b => b.nombre.toLowerCase().includes(barrioSearch.toLowerCase()))
-                            .map(b => (
-                              <div
-                                key={b.id}
-                                onClick={() => {
-                                  setValue('barrio', b.nombre, { shouldDirty: true });
-                                  setBarrioOpen(false);
-                                }}
-                                style={{
-                                  padding: '10px 14px', cursor: 'pointer', fontSize: 14,
-                                  background: watchedBarrio === b.nombre ? 'var(--brand-light)' : 'transparent',
-                                  color: watchedBarrio === b.nombre ? 'var(--brand)' : 'var(--text)',
-                                  fontWeight: watchedBarrio === b.nombre ? 600 : 400,
-                                }}
-                              >
-                                {b.nombre}
-                              </div>
-                            ))
-                          }
-                        </div>
+                  <div ref={barrioRef}>
+                    {!barrioOpen ? (
+                      <div
+                        onClick={() => { setBarrioOpen(true); setBarrioSearch(''); }}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '10px 12px', borderRadius: 8,
+                          border: '1px solid var(--border)', background: 'var(--surface)',
+                          cursor: 'pointer', fontSize: 14,
+                        }}
+                      >
+                        <span style={{ color: watchedBarrio ? 'var(--text)' : 'var(--text3)' }}>
+                          {watchedBarrio || 'Selecciona tu barrio'}
+                        </span>
+                        <ChevronDown size={14} color="var(--text3)" />
                       </div>
+                    ) : (
+                      <>
+                        <input
+                          autoFocus
+                          value={barrioSearch}
+                          onChange={e => setBarrioSearch(e.target.value)}
+                          placeholder="Buscar barrio..."
+                          style={{
+                            width: '100%', padding: '10px 12px', boxSizing: 'border-box',
+                            border: '1px solid var(--brand)', borderRadius: '8px 8px 0 0',
+                            background: 'var(--surface)', color: 'var(--text)',
+                            fontSize: 14, fontFamily: 'inherit', outline: 'none',
+                          }}
+                        />
+                        <div style={{
+                          maxHeight: 200, overflowY: 'auto',
+                          border: '1px solid var(--brand)', borderTop: 'none',
+                          borderRadius: '0 0 8px 8px', background: 'var(--surface)',
+                        }}>
+                          {filteredBarrios.map(b => (
+                            <div
+                              key={b.id}
+                              onClick={() => { setValue('barrio', b.nombre, { shouldDirty: true }); setBarrioOpen(false); }}
+                              style={{
+                                padding: '10px 14px', cursor: 'pointer', fontSize: 14,
+                                borderBottom: '1px solid var(--border)',
+                                background: watchedBarrio === b.nombre ? 'var(--brand-light)' : 'transparent',
+                                color: watchedBarrio === b.nombre ? 'var(--brand)' : 'var(--text)',
+                                fontWeight: watchedBarrio === b.nombre ? 600 : 400,
+                              }}
+                            >
+                              {b.nombre}
+                            </div>
+                          ))}
+                          {filteredBarrios.length === 0 && (
+                            <div style={{ padding: '12px 14px', color: 'var(--text3)', fontSize: 13 }}>
+                              Sin resultados
+                            </div>
+                          )}
+                        </div>
+                      </>
                     )}
                     <input type="hidden" {...register('barrio')} />
                   </div>

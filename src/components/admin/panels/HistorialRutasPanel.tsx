@@ -92,27 +92,32 @@ export function HistorialRutasPanel() {
   const summary = useMemo(() => {
     const totalRutas = filtered.length;
     let totalRecaudo = 0;
-    const domEarnings: Record<string, { nombre: string; rutas: number; recaudo: number; pago: number }> = {};
+    let totalDomicilios = 0;
+    const domEarnings: Record<string, { nombre: string; rutas: number; recaudo: number; domicilios: number; pago: number }> = {};
 
     filtered.forEach(r => {
       const snapshot = (r.pedidosSnapshot ?? []) as Pedido[];
-      const recaudo = snapshot.filter(p => p.estado === 'entregado').reduce((s, p) => s + p.total, 0);
-      totalRecaudo += recaudo;
+      const entregados = snapshot.filter(p => p.estado === 'entregado');
+      const recaudo    = entregados.reduce((s, p) => s + p.total, 0);
+      const domicilios = entregados.reduce((s, p) => s + (p.domicilio ?? 0), 0);
+      totalRecaudo   += recaudo;
+      totalDomicilios += domicilios;
 
       const domNombre = r.repartidor;
       if (domNombre) {
         if (!domEarnings[domNombre]) {
           const dom = Object.values(domiciliarios).find(d => d.nombre === domNombre);
-          domEarnings[domNombre] = { nombre: domNombre, rutas: 0, recaudo: 0, pago: dom?.pagoBase ?? 0 };
+          domEarnings[domNombre] = { nombre: domNombre, rutas: 0, recaudo: 0, domicilios: 0, pago: dom?.pagoBase ?? 0 };
         }
         domEarnings[domNombre].rutas++;
-        domEarnings[domNombre].recaudo += recaudo;
+        domEarnings[domNombre].recaudo   += recaudo;
+        domEarnings[domNombre].domicilios += domicilios;
         const dom = Object.values(domiciliarios).find(d => d.nombre === domNombre);
         domEarnings[domNombre].pago = (dom?.pagoBase ?? 0) * domEarnings[domNombre].rutas;
       }
     });
 
-    return { totalRutas, totalRecaudo, domEarnings: Object.values(domEarnings) };
+    return { totalRutas, totalRecaudo, totalDomicilios, domEarnings: Object.values(domEarnings) };
   }, [filtered, domiciliarios]);
 
   function toggleExpand(id: string) {
@@ -191,20 +196,21 @@ export function HistorialRutasPanel() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
           <div style={{ display: 'flex', gap: 14, padding: '10px 14px', background: 'var(--bg2)', borderRadius: 10, border: '1px solid var(--border)', flexWrap: 'wrap', fontSize: 13 }}>
             <span style={{ color: 'var(--text3)' }}>{summary.totalRutas} ruta{summary.totalRutas !== 1 ? 's' : ''}</span>
+            <span style={{ fontWeight: 700, color: 'var(--success)' }}>{fmtPrice(summary.totalDomicilios)} en domicilios</span>
             <span style={{ fontWeight: 700, color: 'var(--brand)' }}>{fmtPrice(summary.totalRecaudo)} recaudado</span>
           </div>
           {summary.domEarnings.length > 0 && (
             <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
-                Resumen domiciliarios
+                Ganancias por domiciliario
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {summary.domEarnings.map(de => (
-                  <div key={de.nombre} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                  <div key={de.nombre} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, flexWrap: 'wrap' }}>
                     <Bike size={14} color="var(--brand)" />
                     <span style={{ fontWeight: 600, flex: 1 }}>{de.nombre}</span>
                     <span style={{ color: 'var(--text3)' }}>{de.rutas} ruta{de.rutas !== 1 ? 's' : ''}</span>
-                    <span style={{ color: 'var(--success)', fontWeight: 600 }}>{fmtPrice(de.recaudo)} recaudado</span>
+                    <span style={{ color: 'var(--success)', fontWeight: 700 }}>{fmtPrice(de.domicilios)} dom.</span>
                     {de.pago > 0 && (
                       <span style={{ color: 'var(--brand)', fontWeight: 700 }}>Pago: {fmtPrice(de.pago)}</span>
                     )}
@@ -368,6 +374,11 @@ export function HistorialRutasPanel() {
                                 </div>
                                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                   <div style={{ fontWeight: 700, fontSize: 14 }}>{fmtPrice(p.total)}</div>
+                                  {(p.domicilio ?? 0) > 0 && (
+                                    <div style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600, marginTop: 2 }}>
+                                      Dom: {fmtPrice(p.domicilio)}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             ))

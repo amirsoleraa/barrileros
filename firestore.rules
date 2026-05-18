@@ -19,11 +19,12 @@ service cloud.firestore {
 
     // ── USUARIOS ─────────────────────────────────────────────────────────────
     match /users/{userId} {
-      allow read:  if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId
-                    && (!('role' in request.resource.data)
-                        || (request.resource.data.role == 'admin'
-                            && !exists(/databases/$(database)/documents/config/adminReady)));
+      allow read:  if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow create: if (request.auth != null && request.auth.uid == userId
+                        && (!('role' in request.resource.data)
+                            || (request.resource.data.role == 'admin'
+                                && !exists(/databases/$(database)/documents/config/adminReady))))
+                    || isAdmin();
       allow update: if (request.auth != null && request.auth.uid == userId
                     && !('role' in request.resource.data))
                     || isAdmin();

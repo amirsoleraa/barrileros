@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import {
   MapPin, Plus, Trash2, CheckCircle, User, Package,
   ChevronDown, ChevronUp, ArrowUp, ArrowDown, Flag,
-  XCircle, RotateCcw, ExternalLink,
+  XCircle, RotateCcw, ExternalLink, History,
 } from 'lucide-react';
+import { HistorialRutasPanel } from './HistorialRutasPanel';
 import {
   collection, addDoc, getDocs, updateDoc, deleteDoc,
   doc, serverTimestamp, query, where, setDoc,
@@ -687,6 +688,15 @@ export function TrackingPanel() {
           </div>
         )}
       </Modal>
+
+      {/* ── Historial de rutas ── */}
+      <div style={{ marginTop: 12 }}>
+        <h3 style={{ fontWeight: 700, fontSize: 16, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <History size={16} color="var(--brand)" />
+          Historial de rutas
+        </h3>
+        <HistorialRutasPanel />
+      </div>
 
       {/* Modal: agregar pedido a ruta */}
       {addingToRutaId && (

@@ -86,15 +86,15 @@ export function PromocionesPanel() {
     const nomB  = prodB?.nombre ?? 'el producto B';
     switch (form.tipo) {
       case 'compra_lleva':
-        return `Compra ${form.cantidadA} ${nomA} y lleva ${form.cantidadB} ${nomB} gratis`;
+        return `Compra ${form.cantidadA} o más ${nomA} y lleva ${form.cantidadB} ${nomB} gratis`;
       case 'compra_descuento':
-        return `Compra ${form.cantidadA} ${nomA} y ${nomB} con ${form.descuentoBPct}% de descuento`;
+        return `Compra ${form.cantidadA} o más ${nomA} y ${nomB} con ${form.descuentoBPct}% de descuento`;
       case 'domicilio_descuento':
         return form.domicilioGratis
           ? 'Compra por la app y domicilio gratis'
           : `Compra por la app y ${form.domicilioPct}% de descuento en domicilio`;
       case 'compra_cupon':
-        return `Compra ${form.cantidadA} ${nomA} y gana un cupón de ${form.cuponPct}% de descuento`;
+        return `Compra ${form.cantidadA} o más ${nomA} y gana un cupón de ${form.cuponPct}% de descuento`;
     }
   }
 
@@ -232,8 +232,9 @@ export function PromocionesPanel() {
                   </select>
                 </div>
                 <div className="f-field" style={{ margin: 0 }}>
-                  <label>Cantidad A</label>
+                  <label>Cantidad mínima A</label>
                   <input type="number" min="1" value={form.cantidadA ?? 1} onChange={e => setForm(f => ({ ...f, cantidadA: parseInt(e.target.value) || 1 }))} />
+                  <span style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Se activa con {form.cantidadA ?? 1} o más</span>
                 </div>
               </div>
             </>
