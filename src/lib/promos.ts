@@ -1,4 +1,4 @@
-import type { CartItem } from '@/types';
+import type { CartItem, Producto } from '@/types';
 import type { Promocion, PromoAplicada } from '@/types';
 
 export interface PromoResult {
@@ -16,6 +16,7 @@ export function evaluatePromos(
   promos: Promocion[],
   cart: CartItem[],
   domicilio: number,
+  products: Record<string, Producto> = {},
 ): PromoResult {
   const result: PromoResult = {
     promosAplicadas: [],
@@ -39,9 +40,11 @@ export function evaluatePromos(
 
       if (!itemA) continue;
 
-      const itemB = prodBId
-        ? cart.find(i => i.id === prodBId)
-        : itemA;
+      const cartItemB = prodBId ? cart.find(i => i.id === prodBId) : itemA;
+      const catalogB  = prodBId && !cartItemB ? products[prodBId] : undefined;
+      const itemB = cartItemB ?? (catalogB
+        ? { id: catalogB.id, name: catalogB.nombre, price: catalogB.precio, qty: cantB }
+        : undefined);
 
       if (!itemB) continue;
 

@@ -27,7 +27,7 @@ interface DatosForm {
 export function ResumenPage() {
   const navigate = useNavigate();
   const { cart, datosEnvio, cuponAplicado, setCuponAplicado, setDatosEnvio, setLastPedido, reset } = useCartStore();
-  const { cfg, cupones, barrios, promociones, showToast } = useAppStore();
+  const { cfg, cupones, barrios, promociones, productos, showToast } = useAppStore();
 
   useEffect(() => {
     document.documentElement.dataset.theme = 'dark';
@@ -64,7 +64,7 @@ export function ResumenPage() {
     : cfg.domicilioValor
     : 0;
 
-  const promoResult = evaluatePromos(promociones, cart, domicilioBase);
+  const promoResult = evaluatePromos(promociones, cart, domicilioBase, productos);
   const domicilio   = Math.max(0, domicilioBase - promoResult.descuentoDomicilio);
 
   const descuento = cuponAplicado
