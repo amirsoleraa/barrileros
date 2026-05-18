@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { onSnapshot, collection, query, orderBy, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { fmtPrice } from '@/lib/utils';
-import { ChevronDown, ChevronUp, Lock, Unlock, Edit2, Save, X, FileText } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lock, Unlock, Edit2, Save, X, FileText, Calendar } from 'lucide-react';
 import type { HistorialDia, Pedido } from '@/types';
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 function printFactura(p: Pedido, fechaLabel: string, nombreComercio: string) {
   const items = (p.items ?? []).map(it => `
@@ -44,39 +46,30 @@ function printFactura(p: Pedido, fechaLabel: string, nombreComercio: string) {
 </head>
 <body>
   <button class="print-btn" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
-
   <h1>${nombreComercio}</h1>
   <div class="sub">Pedido #${p.numero} &nbsp;·&nbsp; ${fechaLabel}</div>
-
   <hr class="divider">
-
   <div class="section-title">Estado</div>
   <div class="info-row"><span class="badge">${p.estado === 'entregado' ? 'Entregado' : 'Cancelado'}</span></div>
-
   <hr class="divider">
-
   <div class="section-title">Cliente</div>
   <div class="info-row"><strong>${p.cliente?.nombre ?? ''}</strong></div>
   ${p.cliente?.tel    ? `<div class="info-row">${p.cliente.tel}</div>` : ''}
   ${p.cliente?.correo ? `<div class="info-row">${p.cliente.correo}</div>` : ''}
   ${p.cliente?.dir    ? `<div class="info-row">${p.cliente.dir}${p.cliente.barrio ? ` — ${p.cliente.barrio}` : ''}${p.cliente.comp ? `, ${p.cliente.comp}` : ''}</div>` : ''}
   ${p.cliente?.recibe ? `<div class="info-row" style="color:#666">Recibe: ${p.cliente.recibe}</div>` : ''}
-
   <hr class="divider">
-
   <div class="section-title">Productos</div>
   <table>
     <thead><tr><th>Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Precio</th></tr></thead>
     <tbody>${items}</tbody>
   </table>
-
   <table class="totals" style="margin-top:12px">
     ${p.subtotal !== p.total ? `<tr><td style="color:#666">Subtotal</td><td style="text-align:right">$${Math.round(p.subtotal).toLocaleString('es-CO')}</td></tr>` : ''}
     ${p.domicilio > 0 ? `<tr><td style="color:#666">Domicilio</td><td style="text-align:right">$${Math.round(p.domicilio).toLocaleString('es-CO')}</td></tr>` : ''}
     ${p.descuento > 0 ? `<tr><td style="color:#16a34a">Descuento</td><td style="text-align:right;color:#16a34a">-$${Math.round(p.descuento).toLocaleString('es-CO')}</td></tr>` : ''}
     <tr class="total-row"><td>Total</td><td style="text-align:right">$${Math.round(p.total).toLocaleString('es-CO')}</td></tr>
   </table>
-
   ${p.rutaNombre || p.repartidorNombre ? `
   <hr class="divider">
   <div class="section-title">Entrega</div>
@@ -103,6 +96,10 @@ export function HistorialPedidosPanel() {
   const [editRepartidor, setEditRepartidor] = useState('');
   const [saving, setSaving]         = useState(false);
 
+  // Filters
+  const [filterYear,  setFilterYear]  = useState<string>('');
+  const [filterMonth, setFilterMonth] = useState<string>('');
+
   useEffect(() => {
     const q = query(collection(db, 'historial_pedidos'), orderBy('creadoEn', 'desc'));
     const unsub = onSnapshot(q, snap => {
@@ -116,6 +113,44 @@ export function HistorialPedidosPanel() {
     });
     return unsub;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Extract available years and months
+  const { years, monthsByYear } = useMemo(() => {
+    const ySet = new Set<string>();
+    const mByY: Record<string, Set<string>> = {};
+    dias.forEach(d => {
+      if (!d.fecha) return;
+      const [y, m] = d.fecha.split('-');
+      ySet.add(y);
+      if (!mByY[y]) mByY[y] = new Set();
+      mByY[y].add(m);
+    });
+    return {
+      years: Array.from(ySet).sort((a, b) => Number(b) - Number(a)),
+      monthsByYear: mByY,
+    };
+  }, [dias]);
+
+  const availableMonths = filterYear ? Array.from(monthsByYear[filterYear] ?? []).sort() : [];
+
+  // Filtered and possibly grouped dias
+  const filtered = useMemo(() => {
+    return dias.filter(d => {
+      if (!d.fecha) return true;
+      const [y, m] = d.fecha.split('-');
+      if (filterYear && y !== filterYear) return false;
+      if (filterMonth && m !== filterMonth) return false;
+      return true;
+    });
+  }, [dias, filterYear, filterMonth]);
+
+  // Summary for filtered period
+  const summary = useMemo(() => ({
+    dias: filtered.length,
+    entregados: filtered.reduce((s, d) => s + d.totalEntregados, 0),
+    cancelados: filtered.reduce((s, d) => s + d.totalCancelados, 0),
+    recaudo: filtered.reduce((s, d) => s + d.totalRecaudo, 0),
+  }), [filtered]);
 
   function handleUnlock() {
     const pin = cfg.historialPin ?? '';
@@ -151,7 +186,6 @@ export function HistorialPedidosPanel() {
       const totalEntregados = updatedPedidos.filter(p => p.estado === 'entregado').length;
       const totalCancelados = updatedPedidos.filter(p => p.estado === 'cancelado').length;
       const totalRecaudo    = updatedPedidos.filter(p => p.estado === 'entregado').reduce((s, p) => s + p.total, 0);
-
       await updateDoc(doc(db, 'historial_pedidos', editingPedido.diaId), {
         pedidos: updatedPedidos, totalEntregados, totalCancelados, totalRecaudo,
       });
@@ -171,7 +205,7 @@ export function HistorialPedidosPanel() {
   return (
     <div style={{ maxWidth: 720 }}>
       {/* Cabecera */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <h3 style={{ fontWeight: 700, fontSize: 16, margin: 0 }}>Historial de pedidos</h3>
         {pinUnlocked ? (
           <button
@@ -189,6 +223,49 @@ export function HistorialPedidosPanel() {
           </button>
         )}
       </div>
+
+      {/* Filters */}
+      {dias.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Calendar size={14} color="var(--text3)" />
+          <select
+            value={filterYear}
+            onChange={e => { setFilterYear(e.target.value); setFilterMonth(''); }}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer' }}
+          >
+            <option value="">Todos los años</option>
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          {filterYear && availableMonths.length > 1 && (
+            <select
+              value={filterMonth}
+              onChange={e => setFilterMonth(e.target.value)}
+              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer' }}
+            >
+              <option value="">Todos los meses</option>
+              {availableMonths.map(m => <option key={m} value={m}>{MESES[parseInt(m) - 1]}</option>)}
+            </select>
+          )}
+          {(filterYear || filterMonth) && (
+            <button
+              onClick={() => { setFilterYear(''); setFilterMonth(''); }}
+              style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--text3)', fontFamily: 'inherit' }}
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Summary bar */}
+      {filtered.length > 0 && (
+        <div style={{ display: 'flex', gap: 14, marginBottom: 14, padding: '10px 14px', background: 'var(--bg2)', borderRadius: 10, border: '1px solid var(--border)', flexWrap: 'wrap', fontSize: 13 }}>
+          <span style={{ color: 'var(--text3)' }}>{summary.dias} día{summary.dias !== 1 ? 's' : ''}</span>
+          <span style={{ color: 'var(--success)', fontWeight: 600 }}>{summary.entregados} entregados</span>
+          {summary.cancelados > 0 && <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{summary.cancelados} cancelados</span>}
+          <span style={{ fontWeight: 700, color: 'var(--brand)' }}>{fmtPrice(summary.recaudo)} recaudado</span>
+        </div>
+      )}
 
       {/* PIN input */}
       {showPinInput && !pinUnlocked && (
@@ -227,13 +304,14 @@ export function HistorialPedidosPanel() {
             Usa <strong>Cerrar día</strong> en el panel de Pedidos para archivar los pedidos finalizados.
           </div>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-s">Sin registros para el período seleccionado.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {dias.map(dia => {
+          {filtered.map(dia => {
             const isExp = expanded.has(dia.id);
             return (
               <div key={dia.id} className="admin-card">
-                {/* Cabecera del día */}
                 <div
                   style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
                   onClick={() => toggleExpand(dia.id)}
@@ -251,7 +329,6 @@ export function HistorialPedidosPanel() {
                   {isExp ? <ChevronUp size={16} color="var(--text3)" /> : <ChevronDown size={16} color="var(--text3)" />}
                 </div>
 
-                {/* Lista de pedidos del día */}
                 {isExp && (
                   <div style={{ borderTop: '1px solid var(--border)' }}>
                     {dia.pedidos.map((p, idx) => {
@@ -306,6 +383,11 @@ export function HistorialPedidosPanel() {
                                   }}>
                                     {p.estado === 'entregado' ? 'Entregado' : 'Cancelado'}
                                   </span>
+                                  {p.esManual && (
+                                    <span style={{ fontSize: 11, fontWeight: 600, borderRadius: 6, padding: '2px 8px', background: 'var(--brand-light)', color: 'var(--brand)' }}>
+                                      Manual
+                                    </span>
+                                  )}
                                 </div>
                                 <div style={{ fontSize: 14, fontWeight: 600 }}>{p.cliente?.nombre}</div>
                                 {(p.cliente?.tel || p.cliente?.barrio || p.cliente?.dir) && (

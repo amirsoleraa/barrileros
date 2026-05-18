@@ -5,6 +5,7 @@ import { db } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
 import { Toggle } from '@/components/ui/Toggle';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { fmtPrice } from '@/lib/utils';
 import type { Cupon } from '@/types';
 
@@ -20,6 +21,7 @@ const DEFAULT_FORM: CuponForm = { codigo: '', tipo: 'porcentaje', valor: '', lim
 
 export function CouponsPanel() {
   const { cupones, showToast, setCupones } = useAppStore();
+  const confirm = useConfirm();
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<CuponForm>(DEFAULT_FORM);
@@ -75,7 +77,8 @@ export function CouponsPanel() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm('¿Eliminar este cupón?')) return;
+    const ok = await confirm({ title: 'Eliminar cupón', message: '¿Eliminar este cupón?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
     await deleteDoc(doc(db, 'cupones', id));
     const next = { ...cupones };
     delete next[id];

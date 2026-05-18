@@ -3,10 +3,10 @@ import { onSnapshot, doc, collection } from 'firebase/firestore';
 import { db, firebaseReady } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { applyThemeColors } from '@/lib/utils';
-import type { AppConfig, Producto, Categoria, Cupon, Novedad, Publicidad, Adicional } from '@/types';
+import type { AppConfig, Producto, Categoria, Cupon, Novedad, Publicidad, Adicional, Barrio, Domiciliario } from '@/types';
 
 export function useFirebaseInit() {
-  const { setCfg, setProductos, setCategorias, setCupones, setNovedades, setPublicidades, setAdicionales, setLoading } = useAppStore();
+  const { setCfg, setProductos, setCategorias, setCupones, setNovedades, setPublicidades, setAdicionales, setBarrios, setDomiciliarios, setLoading } = useAppStore();
 
   useEffect(() => {
     if (!firebaseReady) {
@@ -128,6 +128,30 @@ export function useFirebaseInit() {
           snap.forEach(d => pubs.push({ id: d.id, ...d.data() } as Publicidad));
           pubs.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
           setPublicidades(pubs.filter(p => p.activa));
+        },
+        () => {}
+      )
+    );
+
+    // Barrios
+    unsubs.push(
+      onSnapshot(collection(db, 'barrios'),
+        snap => {
+          const bs: Record<string, Barrio> = {};
+          snap.forEach(d => { bs[d.id] = { id: d.id, ...d.data() } as Barrio; });
+          setBarrios(bs);
+        },
+        () => {}
+      )
+    );
+
+    // Domiciliarios
+    unsubs.push(
+      onSnapshot(collection(db, 'domiciliarios'),
+        snap => {
+          const ds: Record<string, Domiciliario> = {};
+          snap.forEach(d => { ds[d.id] = { id: d.id, ...d.data() } as Domiciliario; });
+          setDomiciliarios(ds);
         },
         () => {}
       )

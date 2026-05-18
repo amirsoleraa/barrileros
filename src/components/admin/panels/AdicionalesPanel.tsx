@@ -5,6 +5,7 @@ import { db } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
 import { Toggle } from '@/components/ui/Toggle';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { fmtPrice } from '@/lib/utils';
 import type { Adicional } from '@/types';
 
@@ -21,6 +22,7 @@ const DEFAULT_FORM: AdicionalForm = {
 
 export function AdicionalesPanel() {
   const { adicionales, setAdicionales, showToast } = useAppStore();
+  const confirm = useConfirm();
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<AdicionalForm>(DEFAULT_FORM);
@@ -69,7 +71,8 @@ export function AdicionalesPanel() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm('¿Eliminar este adicional?')) return;
+    const ok = await confirm({ title: 'Eliminar adicional', message: '¿Eliminar este adicional?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
     await deleteDoc(doc(db, 'adicionales', id));
     const next = { ...adicionales };
     delete next[id];

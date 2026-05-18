@@ -123,17 +123,35 @@ export interface Pedido {
   rutaNombre?: string;
   repartidorNombre?: string;
   notaPendiente?: string;
+  esManual?: boolean;
+  notas?: string;
 }
 
 export interface RutaEntrega {
   id: string;
   nombre: string;
   repartidor?: string;
+  domiciliarioId?: string;
   pedidoIds: string[];
   estado: 'activa' | 'completada';
   createdAt?: { seconds: number; nanoseconds: number };
   completadaEn?: { seconds: number; nanoseconds: number };
   pedidosSnapshot?: Pedido[];
+}
+
+export interface Barrio {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  orden?: number;
+}
+
+export interface Domiciliario {
+  id: string;
+  nombre: string;
+  tel?: string;
+  activo: boolean;
+  pagoBase?: number;
 }
 
 export interface HistorialDia {

@@ -6,6 +6,7 @@ import { uploadImage } from '@/lib/cloudinary';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { Modal } from '@/components/ui/Modal';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { TagInput } from '@/components/ui/TagInput';
 import { Toggle } from '@/components/ui/Toggle';
 import { fmtPrice } from '@/lib/utils';
@@ -30,6 +31,7 @@ const DEFAULT_FORM: ProdForm = {
 export function ProductsPanel() {
   const { productos, categorias, adicionales, showToast, setProductos } = useAppStore();
   const { productosFiltro, setProductosFiltro, tmpIngrTags, setTmpIngrTags } = useAdminStore();
+  const confirm = useConfirm();
 
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -132,7 +134,8 @@ export function ProductsPanel() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm('¿Eliminar este producto?')) return;
+    const ok = await confirm({ title: 'Eliminar producto', message: '¿Eliminar este producto?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
     await deleteDoc(doc(db, 'productos', id));
     const next = { ...productos };
     delete next[id];

@@ -1,11 +1,12 @@
 import { useState, useRef } from 'react';
-import { Eye, Trash2, ChevronRight, ChevronLeft, Clock, RotateCcw, Archive, ExternalLink } from 'lucide-react';
+import { Eye, Trash2, ChevronRight, ChevronLeft, Clock, RotateCcw, Archive, ExternalLink, Plus, PenLine } from 'lucide-react';
 import { updateDoc, deleteDoc, doc, addDoc, collection, serverTimestamp, writeBatch, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
-import { fmtPrice, ESTADO_INFO } from '@/lib/utils';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { fmtPrice, ESTADO_INFO, generarNumeroPedido } from '@/lib/utils';
 import type { Pedido, PedidoTab, RutaEntrega } from '@/types';
 
 const COLS: { key: PedidoTab; label: string; color: string }[] = [
@@ -32,13 +33,37 @@ function timeAgo(seconds?: number) {
   return `${Math.floor(diff / 86400)} d`;
 }
 
+interface ManualItem { nombre: string; precio: string; qty: string; }
+
+interface ManualForm {
+  clienteNombre: string;
+  clienteTel: string;
+  clienteDir: string;
+  clienteBarrio: string;
+  notas: string;
+  domicilio: string;
+  items: ManualItem[];
+}
+
+const DEFAULT_MANUAL: ManualForm = {
+  clienteNombre: '', clienteTel: '', clienteDir: '', clienteBarrio: '',
+  notas: '', domicilio: '0',
+  items: [{ nombre: '', precio: '', qty: '1' }],
+};
+
 export function OrdersPanel() {
   const { pedidos, pedidosFiltro, setPedidosFiltro } = useAdminStore();
-  const { showToast } = useAppStore();
+  const { showToast, barrios } = useAppStore();
+  const confirm = useConfirm();
   const [detailPedido, setDetailPedido] = useState<Pedido | null>(null);
   const [deleting, setDeleting]         = useState<string | null>(null);
   const [activeCol, setActiveCol]       = useState<PedidoTab>('activos');
   const [cerrando, setCerrando]         = useState(false);
+
+  // Manual order
+  const [manualOpen, setManualOpen]   = useState(false);
+  const [manualForm, setManualForm]   = useState<ManualForm>(DEFAULT_MANUAL);
+  const [savingManual, setSavingManual] = useState(false);
 
   // kanban desktop drag
   const dragId  = useRef<string | null>(null);
@@ -46,6 +71,10 @@ export function OrdersPanel() {
 
   const allPedidos = Object.values(pedidos);
   const activosCount = allPedidos.filter(p => p.estado === 'activos').length;
+
+  const barriosList = Object.values(barrios)
+    .filter(b => b.activo)
+    .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.nombre.localeCompare(b.nombre));
 
   function byCol(col: PedidoTab) {
     return allPedidos
@@ -57,7 +86,6 @@ export function OrdersPanel() {
           (p.cliente?.nombre ?? '').toLowerCase().includes(q);
       })
       .sort((a, b) => {
-        // Pendientes del día anterior van primero en "Preparando"
         if (col === 'preparando') {
           const aP = a.notaPendiente ? 1 : 0;
           const bP = b.notaPendiente ? 1 : 0;
@@ -73,7 +101,8 @@ export function OrdersPanel() {
   }
 
   async function handleDelete(pedidoId: string) {
-    if (!window.confirm('¿Eliminar este pedido?')) return;
+    const ok = await confirm({ title: 'Eliminar pedido', message: '¿Eliminar este pedido?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
     setDeleting(pedidoId);
     await deleteDoc(doc(db, 'pedidos', pedidoId));
     setDeleting(null);
@@ -86,9 +115,6 @@ export function OrdersPanel() {
     if (finalizados.length === 0 && enCamino.length === 0) {
       showToast('No hay pedidos finalizados para archivar', 'error'); return;
     }
-    if (finalizados.length === 0) {
-      showToast('No hay pedidos entregados/cancelados. Los pedidos en camino se devolverán a Preparando.', 'info');
-    }
 
     const entregados = finalizados.filter(p => p.estado === 'entregado');
     const cancelados = finalizados.filter(p => p.estado === 'cancelado');
@@ -96,13 +122,16 @@ export function OrdersPanel() {
       ? `\n• ${enCamino.length} en camino → vuelven a Preparando (pendientes)`
       : '';
 
-    if (!window.confirm(
-      `¿Cerrar el día?\n\nSe archivarán:\n• ${entregados.length} entregado${entregados.length !== 1 ? 's' : ''}\n• ${cancelados.length} cancelado${cancelados.length !== 1 ? 's' : ''}${enCaminoMsg}\n\nEl panel quedará limpio. Los datos se guardan en Historial.`
-    )) return;
+    const ok = await confirm({
+      title: 'Cerrar día',
+      message: `Se archivarán:\n• ${entregados.length} entregado${entregados.length !== 1 ? 's' : ''}\n• ${cancelados.length} cancelado${cancelados.length !== 1 ? 's' : ''}${enCaminoMsg}\n\nEl panel quedará limpio. Los datos se guardan en Historial.`,
+      confirmLabel: 'Cerrar día',
+      danger: false,
+    });
+    if (!ok) return;
 
     setCerrando(true);
     try {
-      // Pedidos "en camino" no entregados → vuelven a Preparando con nota
       if (enCamino.length > 0) {
         const fechaHoy = new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
         const batchCamino = writeBatch(db);
@@ -120,7 +149,6 @@ export function OrdersPanel() {
         return;
       }
 
-      // Enrich with ruta info from completed rutas
       const rutasMap: Record<string, { nombre: string; repartidor?: string }> = {};
       try {
         const snap = await getDocs(query(collection(db, 'rutas'), where('estado', '==', 'completada')));
@@ -152,7 +180,6 @@ export function OrdersPanel() {
         creadoEn: serverTimestamp(),
       });
 
-      // Hard-delete in batches of 499
       for (let i = 0; i < finalizados.length; i += 499) {
         const batch = writeBatch(db);
         finalizados.slice(i, i + 499).forEach(p => batch.delete(doc(db, 'pedidos', p.id)));
@@ -167,6 +194,74 @@ export function OrdersPanel() {
       console.error(e);
     } finally {
       setCerrando(false);
+    }
+  }
+
+  // Manual order helpers
+  function addManualItem() {
+    setManualForm(f => ({ ...f, items: [...f.items, { nombre: '', precio: '', qty: '1' }] }));
+  }
+  function removeManualItem(idx: number) {
+    setManualForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
+  }
+  function setManualItem(idx: number, field: keyof ManualItem, value: string) {
+    setManualForm(f => ({
+      ...f,
+      items: f.items.map((it, i) => i === idx ? { ...it, [field]: value } : it),
+    }));
+  }
+
+  async function handleCreateManual() {
+    if (!manualForm.clienteNombre.trim()) { showToast('El nombre del cliente es obligatorio'); return; }
+    if (manualForm.items.some(it => !it.nombre.trim())) { showToast('Todos los productos deben tener nombre'); return; }
+
+    setSavingManual(true);
+    try {
+      const items = manualForm.items
+        .filter(it => it.nombre.trim())
+        .map((it, i) => ({
+          id: `manual-${i}`,
+          nombre: it.nombre.trim(),
+          precio: parseFloat(it.precio) || 0,
+          qty: parseInt(it.qty) || 1,
+          extras: [],
+        }));
+
+      const subtotal = items.reduce((s, it) => s + it.precio * it.qty, 0);
+      const domicilio = parseFloat(manualForm.domicilio) || 0;
+      const total = subtotal + domicilio;
+
+      const pedido: Omit<Pedido, 'id'> = {
+        numero: generarNumeroPedido(),
+        estado: 'activos',
+        cliente: {
+          nombre: manualForm.clienteNombre.trim(),
+          tel: manualForm.clienteTel.trim() || undefined,
+          dir: manualForm.clienteDir.trim() || undefined,
+          barrio: manualForm.clienteBarrio || undefined,
+        },
+        items,
+        subtotal,
+        domicilio,
+        descuento: 0,
+        total,
+        cupon: null,
+        mensajeConfirmacion: '',
+        location: null,
+        esManual: true,
+        notas: manualForm.notas.trim() || undefined,
+        createdAt: serverTimestamp() as unknown as Pedido['createdAt'],
+      };
+
+      await addDoc(collection(db, 'pedidos'), pedido);
+      showToast('Pedido manual creado', 'success');
+      setManualOpen(false);
+      setManualForm(DEFAULT_MANUAL);
+    } catch (e) {
+      showToast('Error al crear el pedido', 'error');
+      console.error(e);
+    } finally {
+      setSavingManual(false);
     }
   }
 
@@ -192,7 +287,14 @@ export function OrdersPanel() {
             </div>
           )}
           <div className="order-card-top">
-            <span className="order-card-num">#{p.numero}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="order-card-num">#{p.numero}</span>
+              {p.esManual && (
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 10, background: 'var(--brand-light)', color: 'var(--brand)' }}>
+                  Manual
+                </span>
+              )}
+            </div>
             <span className="order-card-time"><Clock size={11} />{timeAgo(p.createdAt?.seconds)}</span>
           </div>
 
@@ -242,7 +344,6 @@ export function OrdersPanel() {
       );
     }
 
-    // desktop card (kanban)
     return (
       <div
         key={p.id}
@@ -257,7 +358,14 @@ export function OrdersPanel() {
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-          <span style={{ fontWeight: 700, fontSize: 13, fontFamily: 'monospace', color: 'var(--brand)' }}>#{p.numero}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontWeight: 700, fontSize: 13, fontFamily: 'monospace', color: 'var(--brand)' }}>#{p.numero}</span>
+            {p.esManual && (
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 10, background: 'var(--brand-light)', color: 'var(--brand)' }}>
+                Manual
+              </span>
+            )}
+          </div>
           <span style={{ fontSize: 11, color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: 3 }}>
             <Clock size={10} />{timeAgo(p.createdAt?.seconds)}
           </span>
@@ -284,13 +392,17 @@ export function OrdersPanel() {
     );
   }
 
+  // Manual order subtotal preview
+  const manualSubtotal = manualForm.items.reduce((s, it) => s + (parseFloat(it.precio) || 0) * (parseInt(it.qty) || 1), 0);
+  const manualTotal = manualSubtotal + (parseFloat(manualForm.domicilio) || 0);
+
   return (
     <div>
-      {/* Search */}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14 }}>
+      {/* Search + actions */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
         <input
           className="s-input"
-          style={{ flex: 1 }}
+          style={{ flex: 1, minWidth: 160 }}
           placeholder="Buscar por número o cliente..."
           value={pedidosFiltro}
           onChange={e => setPedidosFiltro(e.target.value)}
@@ -300,6 +412,18 @@ export function OrdersPanel() {
             {activosCount} nuevo{activosCount > 1 ? 's' : ''}
           </span>
         )}
+        <button
+          onClick={() => { setManualForm(DEFAULT_MANUAL); setManualOpen(true); }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 13px', borderRadius: 20,
+            border: '1px solid var(--brand)', background: 'var(--brand-light)',
+            color: 'var(--brand)', cursor: 'pointer', fontSize: 13,
+            fontWeight: 600, fontFamily: 'inherit', whiteSpace: 'nowrap',
+          }}
+        >
+          <PenLine size={13} /> Pedido manual
+        </button>
         {allPedidos.some(p => p.estado === 'entregado' || p.estado === 'cancelado') && (
           <button
             onClick={handleCerrarDia}
@@ -322,7 +446,6 @@ export function OrdersPanel() {
 
       {/* ════ MOBILE VIEW ════ */}
       <div className="kanban-mobile">
-        {/* Tab pills */}
         <div className="order-tabs">
           {COLS.map(col => {
             const count = byCol(col.key).length;
@@ -338,8 +461,6 @@ export function OrdersPanel() {
             );
           })}
         </div>
-
-        {/* Cards */}
         {byCol(activeCol).length === 0 ? (
           <div className="empty-s" style={{ marginTop: 32 }}>Sin pedidos en esta columna</div>
         ) : (
@@ -393,6 +514,11 @@ export function OrdersPanel() {
       <Modal isOpen={!!detailPedido} onClose={() => setDetailPedido(null)} title={`Pedido #${detailPedido?.numero}`} maxWidth={540}>
         {detailPedido && (
           <div>
+            {detailPedido.esManual && (
+              <div style={{ marginBottom: 12, padding: '6px 12px', borderRadius: 8, background: 'var(--brand-light)', fontSize: 13, color: 'var(--brand)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <PenLine size={13} /> Pedido manual
+              </div>
+            )}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text3)', marginBottom: 8, fontWeight: 600 }}>Cliente</div>
               <div style={{ fontSize: 15 }}><strong>{detailPedido.cliente?.nombre}</strong></div>
@@ -407,6 +533,11 @@ export function OrdersPanel() {
               )}
               {detailPedido.cliente?.recibe && (
                 <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>Recibe: {detailPedido.cliente.recibe}</div>
+              )}
+              {detailPedido.notas && (
+                <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 4, background: 'var(--bg2)', padding: '6px 10px', borderRadius: 8 }}>
+                  📝 {detailPedido.notas}
+                </div>
               )}
             </div>
 
@@ -491,6 +622,143 @@ export function OrdersPanel() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Modal: Pedido manual */}
+      <Modal isOpen={manualOpen} onClose={() => setManualOpen(false)} title="Nuevo pedido manual" maxWidth={520}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Cliente */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Cliente</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div className="f-field" style={{ marginBottom: 0 }}>
+                <label>Nombre *</label>
+                <input
+                  value={manualForm.clienteNombre}
+                  onChange={e => setManualForm(f => ({ ...f, clienteNombre: e.target.value }))}
+                  placeholder="Nombre completo"
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div className="f-field" style={{ marginBottom: 0 }}>
+                  <label>Teléfono</label>
+                  <input
+                    value={manualForm.clienteTel}
+                    onChange={e => setManualForm(f => ({ ...f, clienteTel: e.target.value }))}
+                    placeholder="3001234567"
+                  />
+                </div>
+                <div className="f-field" style={{ marginBottom: 0 }}>
+                  <label>Barrio</label>
+                  {barriosList.length > 0 ? (
+                    <select
+                      value={manualForm.clienteBarrio}
+                      onChange={e => setManualForm(f => ({ ...f, clienteBarrio: e.target.value }))}
+                    >
+                      <option value="">Seleccionar...</option>
+                      {barriosList.map(b => <option key={b.id} value={b.nombre}>{b.nombre}</option>)}
+                    </select>
+                  ) : (
+                    <input
+                      value={manualForm.clienteBarrio}
+                      onChange={e => setManualForm(f => ({ ...f, clienteBarrio: e.target.value }))}
+                      placeholder="Barrio"
+                    />
+                  )}
+                </div>
+              </div>
+              <div className="f-field" style={{ marginBottom: 0 }}>
+                <label>Dirección</label>
+                <input
+                  value={manualForm.clienteDir}
+                  onChange={e => setManualForm(f => ({ ...f, clienteDir: e.target.value }))}
+                  placeholder="Calle 45 # 23-10"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Productos */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Productos</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {manualForm.items.map((it, idx) => (
+                <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px auto', gap: 6, alignItems: 'center' }}>
+                  <input
+                    value={it.nombre}
+                    onChange={e => setManualItem(idx, 'nombre', e.target.value)}
+                    placeholder="Nombre del producto"
+                    style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)' }}
+                  />
+                  <input
+                    type="number" min="0"
+                    value={it.precio}
+                    onChange={e => setManualItem(idx, 'precio', e.target.value)}
+                    placeholder="Precio"
+                    style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)' }}
+                  />
+                  <input
+                    type="number" min="1"
+                    value={it.qty}
+                    onChange={e => setManualItem(idx, 'qty', e.target.value)}
+                    placeholder="Qty"
+                    style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)', textAlign: 'center' }}
+                  />
+                  {manualForm.items.length > 1 && (
+                    <button
+                      onClick={() => removeManualItem(idx)}
+                      style={{ width: 30, height: 34, borderRadius: 8, border: '1px solid var(--danger-bg)', background: 'var(--danger-bg)', cursor: 'pointer', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                onClick={addManualItem}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: '1px dashed var(--border)', background: 'transparent', cursor: 'pointer', fontSize: 13, color: 'var(--text3)', fontFamily: 'inherit', width: 'fit-content' }}
+              >
+                <Plus size={13} /> Agregar producto
+              </button>
+            </div>
+          </div>
+
+          {/* Notas y domicilio */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div className="f-field" style={{ marginBottom: 0 }}>
+              <label>Notas</label>
+              <input
+                value={manualForm.notas}
+                onChange={e => setManualForm(f => ({ ...f, notas: e.target.value }))}
+                placeholder="Observaciones..."
+              />
+            </div>
+            <div className="f-field" style={{ marginBottom: 0 }}>
+              <label>Domicilio (COP)</label>
+              <input
+                type="number" min="0"
+                value={manualForm.domicilio}
+                onChange={e => setManualForm(f => ({ ...f, domicilio: e.target.value }))}
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          {/* Total preview */}
+          {manualSubtotal > 0 && (
+            <div style={{ background: 'var(--bg2)', borderRadius: 10, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+              <span style={{ color: 'var(--text2)' }}>Subtotal: {fmtPrice(manualSubtotal)}</span>
+              <span style={{ fontWeight: 700, color: 'var(--brand)' }}>Total: {fmtPrice(manualTotal)}</span>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <button className="btn-s" onClick={() => setManualOpen(false)}>Cancelar</button>
+            <button className="btn-p" onClick={handleCreateManual} disabled={savingManual}>
+              {savingManual ? 'Creando...' : 'Crear pedido'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

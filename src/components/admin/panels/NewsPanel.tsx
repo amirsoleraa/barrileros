@@ -5,10 +5,12 @@ import { db, firebaseReady } from '@/lib/firebase';
 import { uploadImage } from '@/lib/cloudinary';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import type { Novedad } from '@/types';
 
 export function NewsPanel() {
   const { novedades, showToast, setNovedades } = useAppStore();
+  const confirm = useConfirm();
 
   const [isOpen, setIsOpen]         = useState(false);
   const [titulo, setTitulo]         = useState('');
@@ -65,7 +67,8 @@ export function NewsPanel() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm('¿Eliminar esta novedad?')) return;
+    const ok = await confirm({ title: 'Eliminar novedad', message: '¿Eliminar esta novedad?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
     if (!firebaseReady) return;
     await deleteDoc(doc(db, 'novedades', id));
     const next = { ...novedades };

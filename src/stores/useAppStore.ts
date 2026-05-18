@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════
 
 import { create } from 'zustand';
-import type { AppConfig, Producto, Categoria, Cupon, Novedad, Publicidad, Adicional } from '@/types';
+import type { AppConfig, Producto, Categoria, Cupon, Novedad, Publicidad, Adicional, Barrio, Domiciliario } from '@/types';
 
 const DEFAULT_CFG: AppConfig = {
   nombreComercio: 'Barrileros',
@@ -32,6 +32,8 @@ interface AppState {
   novedades: Record<string, Novedad>;
   publicidades: Publicidad[];
   adicionales: Record<string, Adicional>;
+  barrios: Record<string, Barrio>;
+  domiciliarios: Record<string, Domiciliario>;
   isLoading: boolean;
   toast: ToastState;
   setCfg: (data: Partial<AppConfig>) => void;
@@ -41,6 +43,8 @@ interface AppState {
   setNovedades: (data: Record<string, Novedad>) => void;
   setPublicidades: (data: Publicidad[]) => void;
   setAdicionales: (data: Record<string, Adicional>) => void;
+  setBarrios: (data: Record<string, Barrio>) => void;
+  setDomiciliarios: (data: Record<string, Domiciliario>) => void;
   setLoading: (v: boolean) => void;
   showToast: (message: string, type?: 'default' | 'success' | 'error' | 'info') => void;
 }
@@ -53,6 +57,8 @@ export const useAppStore = create<AppState>((set) => ({
   novedades: {},
   publicidades: [],
   adicionales: {},
+  barrios: {},
+  domiciliarios: {},
   isLoading: true,
   toast: { message: '', visible: false, type: 'default' as const },
 
@@ -63,6 +69,8 @@ export const useAppStore = create<AppState>((set) => ({
   setNovedades: (data) => set({ novedades: data }),
   setPublicidades: (data) => set({ publicidades: data }),
   setAdicionales: (data) => set({ adicionales: data }),
+  setBarrios: (data) => set({ barrios: data }),
+  setDomiciliarios: (data) => set({ domiciliarios: data }),
   setLoading: (v) => set({ isLoading: v }),
   showToast: (message, type = 'default') => {
     set({ toast: { message, visible: true, type } });

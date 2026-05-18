@@ -26,7 +26,7 @@ interface DatosForm {
 export function ResumenPage() {
   const navigate = useNavigate();
   const { cart, datosEnvio, cuponAplicado, setCuponAplicado, setDatosEnvio, setLastPedido, reset } = useCartStore();
-  const { cfg, cupones, showToast } = useAppStore();
+  const { cfg, cupones, barrios, showToast } = useAppStore();
 
   useEffect(() => {
     document.documentElement.dataset.theme = 'dark';
@@ -382,7 +382,20 @@ export function ResumenPage() {
           {mostrar.barrio && (
             <div className="f-field">
               <label>Barrio</label>
-              <input {...register('barrio')} placeholder="Nombre del barrio" />
+              {Object.values(barrios).filter(b => b.activo).length > 0 ? (
+                <select {...register('barrio')}>
+                  <option value="">Selecciona tu barrio</option>
+                  {Object.values(barrios)
+                    .filter(b => b.activo)
+                    .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.nombre.localeCompare(b.nombre))
+                    .map(b => (
+                      <option key={b.id} value={b.nombre}>{b.nombre}</option>
+                    ))
+                  }
+                </select>
+              ) : (
+                <input {...register('barrio')} placeholder="Nombre del barrio" />
+              )}
             </div>
           )}
           {mostrar.comp && (

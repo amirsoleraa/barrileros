@@ -8,10 +8,12 @@ import { db } from '@/lib/firebase';
 import { uploadImage } from '@/lib/cloudinary';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import type { Publicidad } from '@/types';
 
 export function PublicidadPanel() {
   const { showToast, publicidades, setPublicidades } = useAppStore();
+  const confirm = useConfirm();
 
   // lista local con TODAS (activas e inactivas) para gestión
   const [all, setAll] = useState<Publicidad[]>([]);
@@ -96,7 +98,8 @@ export function PublicidadPanel() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm('¿Eliminar esta publicidad?')) return;
+    const ok = await confirm({ title: 'Eliminar publicidad', message: '¿Eliminar esta publicidad?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
     await deleteDoc(doc(db, 'publicidades', id));
     syncStore(all.filter(p => p.id !== id));
     showToast('Publicidad eliminada');

@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { onSnapshot, collection, query, where, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { fmtPrice } from '@/lib/utils';
-import { User, Package, ChevronDown, ChevronUp, CheckCircle, Trash2, X } from 'lucide-react';
+import { User, Package, ChevronDown, ChevronUp, CheckCircle, Trash2, X, Calendar, Bike } from 'lucide-react';
 import type { RutaEntrega, Pedido } from '@/types';
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 function fmtFecha(ts?: { seconds: number }): string {
   if (!ts) return '';
@@ -14,16 +17,26 @@ function fmtFecha(ts?: { seconds: number }): string {
   });
 }
 
+function fechaISO(ts?: { seconds: number }): string {
+  if (!ts) return '0000-00-00';
+  return new Date(ts.seconds * 1000).toISOString().slice(0, 10);
+}
+
 export function HistorialRutasPanel() {
-  const { cfg, showToast } = useAppStore();
+  const { cfg, domiciliarios, showToast } = useAppStore();
+  const confirm = useConfirm();
   const [rutas, setRutas]       = useState<RutaEntrega[]>([]);
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   // Delete with PIN
-  const [deletingId, setDeletingId]     = useState<string | null>(null);
-  const [pinInput, setPinInput]         = useState('');
-  const [deleting, setDeleting]         = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pinInput, setPinInput]     = useState('');
+  const [deleting, setDeleting]     = useState(false);
+
+  // Filters
+  const [filterYear,  setFilterYear]  = useState<string>('');
+  const [filterMonth, setFilterMonth] = useState<string>('');
 
   useEffect(() => {
     const q = query(collection(db, 'rutas'), where('estado', '==', 'completada'));
@@ -43,16 +56,97 @@ export function HistorialRutasPanel() {
     return unsub;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Extract available years and months
+  const { years, monthsByYear } = useMemo(() => {
+    const ySet = new Set<string>();
+    const mByY: Record<string, Set<string>> = {};
+    rutas.forEach(r => {
+      const iso = fechaISO(r.completadaEn ?? r.createdAt);
+      if (iso === '0000-00-00') return;
+      const [y, m] = iso.split('-');
+      ySet.add(y);
+      if (!mByY[y]) mByY[y] = new Set();
+      mByY[y].add(m);
+    });
+    return {
+      years: Array.from(ySet).sort((a, b) => Number(b) - Number(a)),
+      monthsByYear: mByY,
+    };
+  }, [rutas]);
+
+  const availableMonths = filterYear ? Array.from(monthsByYear[filterYear] ?? []).sort() : [];
+
+  const filtered = useMemo(() => {
+    return rutas.filter(r => {
+      const iso = fechaISO(r.completadaEn ?? r.createdAt);
+      if (iso === '0000-00-00') return true;
+      const [y, m] = iso.split('-');
+      if (filterYear && y !== filterYear) return false;
+      if (filterMonth && m !== filterMonth) return false;
+      return true;
+    });
+  }, [rutas, filterYear, filterMonth]);
+
+  // Group by date label
+  const grouped = useMemo(() => {
+    const map: Record<string, { label: string; rutas: RutaEntrega[] }> = {};
+    filtered.forEach(r => {
+      const ts = r.completadaEn ?? r.createdAt;
+      if (!ts) {
+        const key = 'sin-fecha';
+        if (!map[key]) map[key] = { label: 'Sin fecha', rutas: [] };
+        map[key].rutas.push(r);
+        return;
+      }
+      const d = new Date(ts.seconds * 1000);
+      const key = d.toISOString().slice(0, 10);
+      if (!map[key]) {
+        map[key] = {
+          label: d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+          rutas: [],
+        };
+      }
+      map[key].rutas.push(r);
+    });
+    return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [filtered]);
+
+  // Summary
+  const summary = useMemo(() => {
+    const totalRutas = filtered.length;
+    let totalRecaudo = 0;
+    const domEarnings: Record<string, { nombre: string; rutas: number; recaudo: number; pago: number }> = {};
+
+    filtered.forEach(r => {
+      const snapshot = (r.pedidosSnapshot ?? []) as Pedido[];
+      const recaudo = snapshot.filter(p => p.estado === 'entregado').reduce((s, p) => s + p.total, 0);
+      totalRecaudo += recaudo;
+
+      const domNombre = r.repartidor;
+      if (domNombre) {
+        if (!domEarnings[domNombre]) {
+          const dom = Object.values(domiciliarios).find(d => d.nombre === domNombre);
+          domEarnings[domNombre] = { nombre: domNombre, rutas: 0, recaudo: 0, pago: dom?.pagoBase ?? 0 };
+        }
+        domEarnings[domNombre].rutas++;
+        domEarnings[domNombre].recaudo += recaudo;
+        const dom = Object.values(domiciliarios).find(d => d.nombre === domNombre);
+        domEarnings[domNombre].pago = (dom?.pagoBase ?? 0) * domEarnings[domNombre].rutas;
+      }
+    });
+
+    return { totalRutas, totalRecaudo, domEarnings: Object.values(domEarnings) };
+  }, [filtered, domiciliarios]);
+
   function toggleExpand(id: string) {
     setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
 
-  function startDelete(rutaId: string) {
+  async function startDelete(rutaId: string) {
     const pin = cfg.historialPin ?? '';
     if (!pin) {
-      if (window.confirm('¿Eliminar esta ruta del historial? Esta acción no se puede deshacer.')) {
-        confirmDelete(rutaId, '');
-      }
+      const ok = await confirm({ title: 'Eliminar ruta', message: '¿Eliminar esta ruta del historial? Esta acción no se puede deshacer.', danger: true, confirmLabel: 'Eliminar' });
+      if (ok) confirmDelete(rutaId, '');
       return;
     }
     setDeletingId(rutaId);
@@ -80,12 +174,75 @@ export function HistorialRutasPanel() {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <h3 style={{ fontWeight: 700, fontSize: 16, margin: 0 }}>Historial de rutas</h3>
         <span style={{ fontSize: 13, color: 'var(--text3)' }}>
           {rutas.length} ruta{rutas.length !== 1 ? 's' : ''}
         </span>
       </div>
+
+      {/* Filters */}
+      {rutas.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Calendar size={14} color="var(--text3)" />
+          <select
+            value={filterYear}
+            onChange={e => { setFilterYear(e.target.value); setFilterMonth(''); }}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer' }}
+          >
+            <option value="">Todos los años</option>
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          {filterYear && availableMonths.length > 1 && (
+            <select
+              value={filterMonth}
+              onChange={e => setFilterMonth(e.target.value)}
+              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer' }}
+            >
+              <option value="">Todos los meses</option>
+              {availableMonths.map(m => <option key={m} value={m}>{MESES[parseInt(m) - 1]}</option>)}
+            </select>
+          )}
+          {(filterYear || filterMonth) && (
+            <button
+              onClick={() => { setFilterYear(''); setFilterMonth(''); }}
+              style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--text3)', fontFamily: 'inherit' }}
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Summary */}
+      {filtered.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 14, padding: '10px 14px', background: 'var(--bg2)', borderRadius: 10, border: '1px solid var(--border)', flexWrap: 'wrap', fontSize: 13 }}>
+            <span style={{ color: 'var(--text3)' }}>{summary.totalRutas} ruta{summary.totalRutas !== 1 ? 's' : ''}</span>
+            <span style={{ fontWeight: 700, color: 'var(--brand)' }}>{fmtPrice(summary.totalRecaudo)} recaudado</span>
+          </div>
+          {summary.domEarnings.length > 0 && (
+            <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                Resumen domiciliarios
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {summary.domEarnings.map(de => (
+                  <div key={de.nombre} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                    <Bike size={14} color="var(--brand)" />
+                    <span style={{ fontWeight: 600, flex: 1 }}>{de.nombre}</span>
+                    <span style={{ color: 'var(--text3)' }}>{de.rutas} ruta{de.rutas !== 1 ? 's' : ''}</span>
+                    <span style={{ color: 'var(--success)', fontWeight: 600 }}>{fmtPrice(de.recaudo)} recaudado</span>
+                    {de.pago > 0 && (
+                      <span style={{ color: 'var(--brand)', fontWeight: 700 }}>Pago: {fmtPrice(de.pago)}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -98,149 +255,159 @@ export function HistorialRutasPanel() {
           <Package size={36} style={{ margin: '0 auto 10px', opacity: .4 }} />
           No hay rutas completadas aún
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-s">Sin rutas para el período seleccionado.</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {rutas.map(ruta => {
-            const isExp     = expanded.has(ruta.id);
-            const snapshot  = (ruta.pedidosSnapshot ?? []) as Pedido[];
-            const entregados  = snapshot.filter(p => p.estado === 'entregado').length;
-            const cancelados  = snapshot.filter(p => p.estado === 'cancelado').length;
-            const totalRecaudo = snapshot
-              .filter(p => p.estado === 'entregado')
-              .reduce((s, p) => s + p.total, 0);
-            const isPinDelete = deletingId === ruta.id;
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {grouped.map(([dateKey, group]) => (
+            <div key={dateKey}>
+              {/* Date group header */}
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8, paddingLeft: 4 }}>
+                {group.label}
+              </div>
 
-            return (
-              <div key={ruta.id} className="admin-card">
-                {/* Cabecera de la ruta */}
-                <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div
-                    style={{ flex: 1, cursor: 'pointer' }}
-                    onClick={() => toggleExpand(ruta.id)}
-                  >
-                    <div style={{ fontWeight: 700, fontSize: 15 }}>{ruta.nombre}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                      {ruta.repartidor && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <User size={11} /> {ruta.repartidor}
-                        </span>
-                      )}
-                      {snapshot.length > 0 && (
-                        <>
-                          <span style={{ color: 'var(--success)', fontWeight: 600 }}>{entregados} entregados</span>
-                          {cancelados > 0 && (
-                            <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{cancelados} cancelados</span>
-                          )}
-                          <span style={{ fontWeight: 700, color: 'var(--brand)' }}>{fmtPrice(totalRecaudo)}</span>
-                        </>
-                      )}
-                      {ruta.completadaEn && (
-                        <span>{fmtFecha(ruta.completadaEn)}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                    <button
-                      onClick={() => startDelete(ruta.id)}
-                      style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--danger-bg)', background: 'var(--danger-bg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)' }}
-                      title="Eliminar ruta"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                    <div style={{ cursor: 'pointer' }} onClick={() => toggleExpand(ruta.id)}>
-                      {isExp
-                        ? <ChevronUp size={16} color="var(--text3)" />
-                        : <ChevronDown size={16} color="var(--text3)" />
-                      }
-                    </div>
-                  </div>
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {group.rutas.map(ruta => {
+                  const isExp      = expanded.has(ruta.id);
+                  const snapshot   = (ruta.pedidosSnapshot ?? []) as Pedido[];
+                  const entregados = snapshot.filter(p => p.estado === 'entregado').length;
+                  const cancelados = snapshot.filter(p => p.estado === 'cancelado').length;
+                  const totalRecaudo = snapshot
+                    .filter(p => p.estado === 'entregado')
+                    .reduce((s, p) => s + p.total, 0);
+                  const isPinDelete = deletingId === ruta.id;
 
-                {/* PIN confirm inline */}
-                {isPinDelete && (
-                  <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', background: 'var(--danger-bg)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 600, flex: 1 }}>
-                      Ingresa el PIN para eliminar
-                    </span>
-                    <input
-                      type="password"
-                      placeholder="PIN"
-                      value={pinInput}
-                      onChange={e => setPinInput(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && confirmDelete(ruta.id, pinInput)}
-                      autoFocus
-                      style={{ width: 100, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)' }}
-                    />
-                    <button
-                      onClick={() => confirmDelete(ruta.id, pinInput)}
-                      disabled={deleting}
-                      style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
-                    >
-                      {deleting ? '...' : 'Eliminar'}
-                    </button>
-                    <button
-                      onClick={() => { setDeletingId(null); setPinInput(''); }}
-                      style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontFamily: 'inherit' }}
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
-                )}
-
-                {/* Paradas de la ruta */}
-                {isExp && (
-                  <div style={{ borderTop: '1px solid var(--border)' }}>
-                    {snapshot.length === 0 ? (
-                      <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
-                        Sin datos de pedidos en esta ruta
-                      </div>
-                    ) : (
-                      snapshot.map((p, idx) => (
-                        <div
-                          key={p.id ?? idx}
-                          style={{
-                            padding: '12px 16px',
-                            borderBottom: idx < snapshot.length - 1 ? '1px solid var(--border)' : 'none',
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10,
-                          }}
-                        >
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
-                              <span style={{ fontWeight: 700, fontSize: 13, fontFamily: 'monospace', color: 'var(--brand)' }}>
-                                #{p.numero}
+                  return (
+                    <div key={ruta.id} className="admin-card">
+                      {/* Cabecera de la ruta */}
+                      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => toggleExpand(ruta.id)}>
+                          <div style={{ fontWeight: 700, fontSize: 15 }}>{ruta.nombre}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                            {ruta.repartidor && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <User size={11} /> {ruta.repartidor}
                               </span>
-                              <span style={{
-                                fontSize: 11, fontWeight: 600, borderRadius: 6, padding: '2px 8px',
-                                background: p.estado === 'entregado' ? 'var(--success-bg)' : 'var(--danger-bg)',
-                                color:      p.estado === 'entregado' ? 'var(--success)'    : 'var(--danger)',
-                                display: 'flex', alignItems: 'center', gap: 3,
-                              }}>
-                                {p.estado === 'entregado' && <CheckCircle size={10} />}
-                                {p.estado === 'entregado' ? 'Entregado' : 'Cancelado'}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: 14, fontWeight: 600 }}>{p.cliente?.nombre}</div>
-                            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 1 }}>
-                              {[p.cliente?.tel, p.cliente?.barrio, p.cliente?.dir].filter(Boolean).join(' · ')}
-                            </div>
-                            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>
-                              {p.items?.slice(0, 2).map((it, i) => (
-                                <span key={i}>{i > 0 ? ' · ' : ''}{it.qty}× {it.nombre}</span>
-                              ))}
-                              {(p.items?.length ?? 0) > 2 && ` +${p.items!.length - 2}`}
-                            </div>
-                          </div>
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontWeight: 700, fontSize: 14 }}>{fmtPrice(p.total)}</div>
+                            )}
+                            {snapshot.length > 0 && (
+                              <>
+                                <span style={{ color: 'var(--success)', fontWeight: 600 }}>{entregados} entregados</span>
+                                {cancelados > 0 && (
+                                  <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{cancelados} cancelados</span>
+                                )}
+                                <span style={{ fontWeight: 700, color: 'var(--brand)' }}>{fmtPrice(totalRecaudo)}</span>
+                              </>
+                            )}
+                            {ruta.completadaEn && (
+                              <span>{fmtFecha(ruta.completadaEn)}</span>
+                            )}
                           </div>
                         </div>
-                      ))
-                    )}
-                  </div>
-                )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                          <button
+                            onClick={() => startDelete(ruta.id)}
+                            style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--danger-bg)', background: 'var(--danger-bg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)' }}
+                            title="Eliminar ruta"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                          <div style={{ cursor: 'pointer' }} onClick={() => toggleExpand(ruta.id)}>
+                            {isExp
+                              ? <ChevronUp size={16} color="var(--text3)" />
+                              : <ChevronDown size={16} color="var(--text3)" />
+                            }
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* PIN confirm inline */}
+                      {isPinDelete && (
+                        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', background: 'var(--danger-bg)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 600, flex: 1 }}>
+                            Ingresa el PIN para eliminar
+                          </span>
+                          <input
+                            type="password"
+                            placeholder="PIN"
+                            value={pinInput}
+                            onChange={e => setPinInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && confirmDelete(ruta.id, pinInput)}
+                            autoFocus
+                            style={{ width: 100, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)' }}
+                          />
+                          <button
+                            onClick={() => confirmDelete(ruta.id, pinInput)}
+                            disabled={deleting}
+                            style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
+                          >
+                            {deleting ? '...' : 'Eliminar'}
+                          </button>
+                          <button
+                            onClick={() => { setDeletingId(null); setPinInput(''); }}
+                            style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontFamily: 'inherit' }}
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Paradas de la ruta */}
+                      {isExp && (
+                        <div style={{ borderTop: '1px solid var(--border)' }}>
+                          {snapshot.length === 0 ? (
+                            <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
+                              Sin datos de pedidos en esta ruta
+                            </div>
+                          ) : (
+                            snapshot.map((p, idx) => (
+                              <div
+                                key={p.id ?? idx}
+                                style={{
+                                  padding: '12px 16px',
+                                  borderBottom: idx < snapshot.length - 1 ? '1px solid var(--border)' : 'none',
+                                  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10,
+                                }}
+                              >
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+                                    <span style={{ fontWeight: 700, fontSize: 13, fontFamily: 'monospace', color: 'var(--brand)' }}>
+                                      #{p.numero}
+                                    </span>
+                                    <span style={{
+                                      fontSize: 11, fontWeight: 600, borderRadius: 6, padding: '2px 8px',
+                                      background: p.estado === 'entregado' ? 'var(--success-bg)' : 'var(--danger-bg)',
+                                      color:      p.estado === 'entregado' ? 'var(--success)'    : 'var(--danger)',
+                                      display: 'flex', alignItems: 'center', gap: 3,
+                                    }}>
+                                      {p.estado === 'entregado' && <CheckCircle size={10} />}
+                                      {p.estado === 'entregado' ? 'Entregado' : 'Cancelado'}
+                                    </span>
+                                  </div>
+                                  <div style={{ fontSize: 14, fontWeight: 600 }}>{p.cliente?.nombre}</div>
+                                  <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 1 }}>
+                                    {[p.cliente?.tel, p.cliente?.barrio, p.cliente?.dir].filter(Boolean).join(' · ')}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>
+                                    {p.items?.slice(0, 2).map((it, i) => (
+                                      <span key={i}>{i > 0 ? ' · ' : ''}{it.qty}× {it.nombre}</span>
+                                    ))}
+                                    {(p.items?.length ?? 0) > 2 && ` +${p.items!.length - 2}`}
+                                  </div>
+                                </div>
+                                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                  <div style={{ fontWeight: 700, fontSize: 14 }}>{fmtPrice(p.total)}</div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
     </div>

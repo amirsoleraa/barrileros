@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MapPin, Navigation, Loader } from 'lucide-react';
+import { MapPin, Navigation, Loader, CheckCircle, Map, X } from 'lucide-react';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { loadGoogleMaps } from '@/lib/googleMaps';
 import { haversineKm, calcDeliveryFee } from '@/lib/haversine';
 import { fmtPrice } from '@/lib/utils';
+import { useAppStore } from '@/stores/useAppStore';
 import type { DeliverySettings, LocationData } from '@/types';
 import styles from './LocationPicker.module.css';
 
@@ -15,10 +16,12 @@ interface Props {
 }
 
 // ─── Inner: solo se monta cuando Maps ya está cargado ────────────────────────
-function LocationPickerInner({ onChange, deliverySettings }: {
+function LocationPickerInner({ onChange, deliverySettings, onConfirm }: {
   onChange: Props['onChange'];
   deliverySettings: DeliverySettings | null;
+  onConfirm: () => void;
 }) {
+  const { barrios } = useAppStore();
   const mapRef   = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mapInst  = useRef<any>(null);
@@ -34,6 +37,10 @@ function LocationPickerInner({ onChange, deliverySettings }: {
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+
+  const barriosList = Object.values(barrios)
+    .filter(b => b.activo)
+    .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0) || a.nombre.localeCompare(b.nombre));
 
   // Notifica hacia afuera cada vez que cambia posición, notas o settings
   useEffect(() => {
@@ -67,19 +74,16 @@ function LocationPickerInner({ onChange, deliverySettings }: {
       disableDefaultUI: true,
       zoomControl:      true,
       clickableIcons:   false,
-      gestureHandling:  'greedy', // un dedo en móvil, scroll en pc
+      gestureHandling:  'greedy',
     });
     mapInst.current = map;
 
-    // Pin fijo: lee el centro cuando el mapa termina de moverse
-    // Salta el primer idle (render inicial) para no marcar coordenadas sin que el usuario haya interactuado
     let firstIdle = true;
     map.addListener('idle', () => {
       if (firstIdle) { firstIdle = false; return; }
       applyCenter(map.getCenter());
     });
 
-    // Autocomplete con session token
     tokenRef.current = new gm.places.AutocompleteSessionToken();
     const ac = new gm.places.Autocomplete(inputRef.current!, {
       componentRestrictions: { country: 'co' },
@@ -93,7 +97,6 @@ function LocationPickerInner({ onChange, deliverySettings }: {
       setAddress(place.formatted_address ?? '');
       map.setCenter(place.geometry.location);
       map.setZoom(16);
-      // idle se dispara después y registra las coordenadas
       tokenRef.current = new gm.places.AutocompleteSessionToken();
     });
 
@@ -103,7 +106,6 @@ function LocationPickerInner({ onChange, deliverySettings }: {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Geolocalización
   function handleGeolocate() {
     setGeoError('');
     if (!navigator.geolocation) {
@@ -117,7 +119,6 @@ function LocationPickerInner({ onChange, deliverySettings }: {
         const gm = (window as any).google.maps;
         mapInst.current?.setCenter(new gm.LatLng(latitude, longitude));
         mapInst.current?.setZoom(16);
-        // idle se dispara después y registra las coordenadas
         setGeoLoading(false);
       },
       err => {
@@ -133,13 +134,14 @@ function LocationPickerInner({ onChange, deliverySettings }: {
     );
   }
 
-  // Cálculo para el resumen visual
   const distance_km = (lat !== null && lng !== null && deliverySettings?.origin_lat)
     ? Math.round(haversineKm(lat, lng, deliverySettings.origin_lat, deliverySettings.origin_lng) * 10) / 10
     : null;
   const delivery_fee = (distance_km !== null && deliverySettings)
     ? calcDeliveryFee(distance_km, deliverySettings.price_per_km, deliverySettings.min_delivery_fee)
     : null;
+
+  const canConfirm = lat !== null && lng !== null && barrio.trim() && notes.trim();
 
   return (
     <div className={styles.wrap}>
@@ -188,13 +190,27 @@ function LocationPickerInner({ onChange, deliverySettings }: {
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
           Barrio <span style={{ color: 'var(--danger, #dc2626)' }}>*</span>
         </div>
-        <input
-          className={styles.notesInput}
-          style={{ resize: 'none', padding: '11px 13px' }}
-          placeholder="Ej: El Prado, Manga, Bocagrande…"
-          value={barrio}
-          onChange={e => setBarrio(e.target.value)}
-        />
+        {barriosList.length > 0 ? (
+          <select
+            className={styles.notesInput}
+            style={{ resize: 'none', padding: '11px 13px', appearance: 'auto' }}
+            value={barrio}
+            onChange={e => setBarrio(e.target.value)}
+          >
+            <option value="">Selecciona tu barrio…</option>
+            {barriosList.map(b => (
+              <option key={b.id} value={b.nombre}>{b.nombre}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            className={styles.notesInput}
+            style={{ resize: 'none', padding: '11px 13px' }}
+            placeholder="Ej: El Prado, Manga, Bocagrande…"
+            value={barrio}
+            onChange={e => setBarrio(e.target.value)}
+          />
+        )}
       </div>
 
       {/* Indicaciones adicionales */}
@@ -227,6 +243,25 @@ function LocationPickerInner({ onChange, deliverySettings }: {
             : <span className={styles.feeUnconfigured}>Tarifa no disponible aún</span>
         }
       </div>
+
+      {/* Botón confirmar ubicación */}
+      <button
+        type="button"
+        onClick={onConfirm}
+        disabled={!canConfirm}
+        style={{
+          width: '100%', padding: '13px 16px', borderRadius: 12,
+          border: 'none', cursor: canConfirm ? 'pointer' : 'not-allowed',
+          background: canConfirm ? 'var(--brand)' : 'var(--bg2)',
+          color: canConfirm ? '#fff' : 'var(--text3)',
+          fontWeight: 700, fontSize: 15, fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          transition: 'background .15s, color .15s',
+        }}
+      >
+        <CheckCircle size={16} />
+        Confirmar ubicación
+      </button>
     </div>
   );
 }
@@ -237,6 +272,9 @@ export function LocationPicker({ onChange }: Props) {
   const [mapsError,        setMapsError]        = useState('');
   const [deliverySettings, setDeliverySettings] = useState<DeliverySettings | null>(null);
   const [settingsLoading,  setSettingsLoading]  = useState(true);
+  const [modalOpen,        setModalOpen]        = useState(false);
+  const [confirmed,        setConfirmed]        = useState<LocationData | null>(null);
+  const [pending,          setPending]          = useState<LocationData | null>(null);
 
   useEffect(() => {
     loadGoogleMaps()
@@ -251,25 +289,134 @@ export function LocationPicker({ onChange }: Props) {
       .finally(() => setSettingsLoading(false));
   }, []);
 
-  if (mapsError) {
-    return (
-      <div className={styles.errBox}>
-        No se pudo cargar el mapa. Verifica tu conexión e intenta de nuevo.
-        {mapsError.includes('API_KEY') && (
-          <> El administrador debe configurar la clave de Google Maps.</>
-        )}
-      </div>
-    );
+  function handleChange(data: LocationData) {
+    setPending(data);
   }
 
-  if (!mapsLoaded || settingsLoading) {
-    return (
-      <div className={styles.skeleton}>
-        <Loader size={18} className={styles.spin} />
-        Cargando mapa…
-      </div>
-    );
+  function handleConfirm() {
+    if (!pending) return;
+    setConfirmed(pending);
+    onChange(pending);
+    setModalOpen(false);
   }
 
-  return <LocationPickerInner onChange={onChange} deliverySettings={deliverySettings} />;
+  // Preview card
+  const preview = confirmed;
+
+  return (
+    <>
+      {/* Preview / trigger card */}
+      <div style={{
+        border: `1.5px solid ${preview ? 'var(--brand)' : 'var(--border)'}`,
+        borderRadius: 14,
+        background: preview ? 'var(--brand-light)' : 'var(--bg2)',
+        padding: '14px 16px',
+        display: 'flex', alignItems: 'center', gap: 12,
+        transition: 'border-color .15s, background .15s',
+      }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+          background: preview ? 'var(--brand)' : 'var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {preview
+            ? <CheckCircle size={20} color="#fff" />
+            : <Map size={20} color="var(--text3)" />
+          }
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {preview ? (
+            <>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--brand)' }}>
+                {preview.barrio}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {preview.notes}
+              </div>
+              {preview.distance_km > 0 && (
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 1 }}>
+                  {preview.distance_km} km · Domicilio: {fmtPrice(preview.delivery_fee)}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Sin ubicación seleccionada</div>
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 1 }}>Toca para ubicar en el mapa</div>
+            </>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
+          style={{
+            flexShrink: 0, padding: '8px 14px', borderRadius: 10,
+            border: '1.5px solid var(--brand)', background: 'var(--brand)',
+            color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+            fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          <MapPin size={14} />
+          {preview ? 'Cambiar' : 'Ubicar en el mapa'}
+        </button>
+      </div>
+
+      {/* Modal del mapa */}
+      {modalOpen && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9000,
+            background: 'rgba(0,0,0,.6)',
+            display: 'flex', alignItems: 'flex-end',
+            backdropFilter: 'blur(2px)',
+          }}
+          onClick={e => e.target === e.currentTarget && setModalOpen(false)}
+        >
+          <div style={{
+            width: '100%', maxHeight: '95dvh',
+            background: 'var(--surface)', borderRadius: '20px 20px 0 0',
+            overflowY: 'auto', padding: '0 16px 20px',
+          }}>
+            {/* Handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)' }} />
+            </div>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <MapPin size={18} color="var(--brand)" /> Seleccionar dirección de entrega
+              </h3>
+              <button
+                onClick={() => setModalOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {mapsError && (
+              <div style={{ padding: '12px 16px', borderRadius: 12, background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>
+                No se pudo cargar el mapa. Verifica tu conexión.
+              </div>
+            )}
+
+            {!mapsError && (!mapsLoaded || settingsLoading) && (
+              <div className={styles.skeleton} style={{ margin: '20px 0' }}>
+                <Loader size={18} className={styles.spin} />
+                Cargando mapa…
+              </div>
+            )}
+
+            {!mapsError && mapsLoaded && !settingsLoading && (
+              <LocationPickerInner
+                onChange={handleChange}
+                deliverySettings={deliverySettings}
+                onConfirm={handleConfirm}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
 }

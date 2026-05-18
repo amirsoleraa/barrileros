@@ -12,6 +12,7 @@ import { db } from '@/lib/firebase';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { fmtPrice } from '@/lib/utils';
 import type { RutaEntrega, Pedido } from '@/types';
 
@@ -246,6 +247,7 @@ function RouteTimeline({ ruta, pedidos, onReorder, onDeliverStop, onCancelStop, 
 export function TrackingPanel() {
   const { pedidos } = useAdminStore();
   const { showToast } = useAppStore();
+  const confirm = useConfirm();
 
   const enCamino = Object.values(pedidos)
     .filter(p => p.estado === 'camino')
@@ -328,7 +330,8 @@ export function TrackingPanel() {
   }
 
   async function handleCancelStop(rutaId: string, pedidoId: string) {
-    if (!window.confirm('¿Cancelar este pedido?')) return;
+    const ok = await confirm({ title: 'Cancelar pedido', message: '¿Cancelar este pedido?', danger: true, confirmLabel: 'Cancelar pedido' });
+    if (!ok) return;
     const ruta = rutas.find(r => r.id === rutaId)!;
     const newIds = ruta.pedidoIds.filter(id => id !== pedidoId);
     await Promise.all([
@@ -344,7 +347,8 @@ export function TrackingPanel() {
   }
 
   async function handleRescheduleStop(rutaId: string, pedidoId: string) {
-    if (!window.confirm('¿Reprogramar este pedido? Se quitará de la ruta y quedará disponible para otra.')) return;
+    const ok = await confirm({ title: 'Reprogramar pedido', message: '¿Reprogramar este pedido? Se quitará de la ruta y quedará disponible para otra.', confirmLabel: 'Reprogramar' });
+    if (!ok) return;
     const ruta = rutas.find(r => r.id === rutaId)!;
     const newIds = ruta.pedidoIds.filter(id => id !== pedidoId);
     await updateDoc(doc(db, 'rutas', rutaId), { pedidoIds: newIds });
@@ -363,7 +367,8 @@ export function TrackingPanel() {
   }
 
   async function handleFinalizarRuta(ruta: RutaEntrega) {
-    if (!window.confirm(`¿Finalizar "${ruta.nombre}"? Los pedidos pendientes se marcarán como Entregados.`)) return;
+    const ok = await confirm({ title: `Finalizar "${ruta.nombre}"`, message: 'Los pedidos pendientes se marcarán como Entregados.', confirmLabel: 'Finalizar ruta' });
+    if (!ok) return;
     try {
       const snapshot = ruta.pedidoIds.map(pid => pedidos[pid]).filter(Boolean);
       await Promise.all([
@@ -388,7 +393,8 @@ export function TrackingPanel() {
   }
 
   async function handleEliminarRuta(id: string) {
-    if (!window.confirm('¿Eliminar esta ruta? Los pedidos no cambiarán de estado.')) return;
+    const ok = await confirm({ title: 'Eliminar ruta', message: '¿Eliminar esta ruta? Los pedidos no cambiarán de estado.', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
     await deleteDoc(doc(db, 'rutas', id));
     setRutas(prev => prev.filter(r => r.id !== id));
     showToast('Ruta eliminada');

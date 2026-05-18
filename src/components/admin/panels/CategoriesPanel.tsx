@@ -4,6 +4,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestor
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import type { Categoria } from '@/types';
 
 const COLOR_SWATCHES = [
@@ -13,6 +14,7 @@ const COLOR_SWATCHES = [
 
 export function CategoriesPanel() {
   const { categorias, productos, showToast, setCategorias } = useAppStore();
+  const confirm = useConfirm();
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [nombre, setNombre] = useState('');
@@ -57,7 +59,8 @@ export function CategoriesPanel() {
 
   async function handleDelete(id: string) {
     if (prodCount(id) > 0) { showToast('No puedes eliminar una categoría con productos asignados'); return; }
-    if (!window.confirm('¿Eliminar esta categoría?')) return;
+    const ok = await confirm({ title: 'Eliminar categoría', message: '¿Eliminar esta categoría?', danger: true, confirmLabel: 'Eliminar' });
+    if (!ok) return;
     await deleteDoc(doc(db, 'categorias', id));
     const next = { ...categorias };
     delete next[id];

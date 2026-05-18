@@ -7,6 +7,7 @@ import { AdminLoginPage } from '@/pages/admin/AdminLoginPage';
 import { CartPanel }      from '@/components/client/CartPanel';
 import { Toast }          from '@/components/ui/Toast';
 import { LoadingScreen }  from '@/components/ui/LoadingScreen';
+import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
 import { useFirebaseInit } from '@/hooks/useFirebaseInit';
 import { useTheme }        from '@/hooks/useTheme';
 
@@ -36,6 +37,7 @@ function ClientLayout() {
 
 export default function App() {
   return (
+    <ConfirmProvider>
     <BrowserRouter>
       <Routes>
         {/* Storefront del cliente */}
@@ -65,5 +67,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </ConfirmProvider>
   );
 }
