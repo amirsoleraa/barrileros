@@ -16,12 +16,15 @@ interface Props {
 }
 
 // ─── Inner: solo se monta cuando Maps ya está cargado ────────────────────────
-function LocationPickerInner({ onChange, deliverySettings, onConfirm }: {
+function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCode }: {
   onChange: Props['onChange'];
   deliverySettings: DeliverySettings | null;
   onConfirm: () => void;
+  countryCode: string;
 }) {
   const { barrios } = useAppStore();
+  const countryCodeRef = useRef(countryCode);
+  countryCodeRef.current = countryCode;
   const mapRef   = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mapInst  = useRef<any>(null);
@@ -96,7 +99,7 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm }: {
 
     tokenRef.current = new gm.places.AutocompleteSessionToken();
     const ac = new gm.places.Autocomplete(inputRef.current!, {
-      componentRestrictions: { country: 'co' },
+      componentRestrictions: { country: countryCodeRef.current || 'co' },
       fields: ['geometry', 'formatted_address'],
       sessionToken: tokenRef.current,
     });
@@ -302,6 +305,8 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm }: {
 
 // ─── Wrapper público: maneja carga de Maps + delivery_settings ───────────────
 export function LocationPicker({ onChange }: Props) {
+  const { cfg } = useAppStore();
+  const countryCode = cfg.mapCountryCode || 'co';
   const [mapsLoaded,       setMapsLoaded]       = useState(false);
   const [mapsError,        setMapsError]        = useState('');
   const [deliverySettings, setDeliverySettings] = useState<DeliverySettings | null>(null);
@@ -446,6 +451,7 @@ export function LocationPicker({ onChange }: Props) {
                 onChange={handleChange}
                 deliverySettings={deliverySettings}
                 onConfirm={handleConfirm}
+                countryCode={countryCode}
               />
             )}
           </div>

@@ -68,6 +68,9 @@ img { display: block; max-width: 100%; }
 a { text-decoration: none; color: inherit; }
 #root { min-height: 100vh; }
 
+/* Google Maps autocomplete dropdown must appear above fixed/modal overlays */
+.pac-container { z-index: 10000 !important; }
+
 /* ── Botones ── */
 .btn-p {
   padding: 15px;

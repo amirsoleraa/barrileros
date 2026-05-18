@@ -39,6 +39,7 @@ export function ConfigPanel() {
   const [mensaje, setMensaje]   = useState(cfg.mensajeConfirmacion);
   const [whatsapp, setWhatsapp] = useState(cfg.whatsappNumero ?? '');
   const [historialPin, setHistorialPin] = useState(cfg.historialPin ?? '');
+  const [mapCountry, setMapCountry] = useState(cfg.mapCountryCode ?? 'co');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState(cfg.logoUrl);
   const [saving, setSaving]     = useState(false);
@@ -54,6 +55,7 @@ export function ConfigPanel() {
     setMensaje(cfg.mensajeConfirmacion);
     setWhatsapp(cfg.whatsappNumero ?? '');
     setHistorialPin(cfg.historialPin ?? '');
+    setMapCountry(cfg.mapCountryCode ?? 'co');
     setCampos({ ...DEFAULT_CAMPOS, ...(cfg.camposFormulario ?? {}) });
   }, [cfg]);
 
@@ -80,6 +82,7 @@ export function ConfigPanel() {
         mensajeConfirmacion: mensaje.trim(),
         whatsappNumero: whatsapp.replace(/\D/g, ''),
         historialPin: historialPin.trim(),
+        mapCountryCode: mapCountry.trim().toLowerCase() || 'co',
       };
 
       await setDoc(doc(db, 'config', 'main'), updates, { merge: true });
@@ -184,6 +187,19 @@ export function ConfigPanel() {
             />
             <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
               Se solicita para editar registros en el Historial de pedidos.
+            </div>
+          </div>
+          <div className="f-field">
+            <label>País para búsqueda en el mapa</label>
+            <input
+              value={mapCountry}
+              onChange={e => setMapCountry(e.target.value)}
+              placeholder="co"
+              maxLength={2}
+              style={{ textTransform: 'lowercase' }}
+            />
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
+              Código ISO de 2 letras: co (Colombia), mx (México), ar (Argentina), us (EE.UU.)…
             </div>
           </div>
 

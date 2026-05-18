@@ -94,8 +94,6 @@ export function ResumenPage() {
   };
 
   function onSaveDatos(data: DatosForm) {
-    if (mostrar.correo && data.correo && !isValidEmail(data.correo)) return;
-    if (mostrar.tel    && data.tel    && !isValidPhone(data.tel))    return;
     setDatosEnvio(data as DatosEnvio);
     setDatosOpen(false);
     showToast('Datos guardados');
@@ -443,8 +441,8 @@ export function ResumenPage() {
           </div>
           {mostrar.correo && (
             <div className="f-field">
-              <label>Correo electrónico *</label>
-              <input {...register('correo', { required: 'Obligatorio', validate: v => isValidEmail(v || '') || 'Correo inválido' })} placeholder="correo@ejemplo.com" type="email" />
+              <label>Correo electrónico</label>
+              <input {...register('correo', { validate: v => !v || isValidEmail(v) || 'Correo inválido' })} placeholder="correo@ejemplo.com" type="email" />
               {errors.correo && <span className="f-err">{errors.correo.message}</span>}
             </div>
           )}
