@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { onSnapshot, doc, collection } from 'firebase/firestore';
-import { db, firebaseReady } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { db, auth, firebaseReady } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { applyThemeColors } from '@/lib/utils';
 import type { AppConfig, Producto, Categoria, Cupon, Novedad, Publicidad, Adicional, Barrio, Domiciliario, Promocion } from '@/types';
@@ -145,17 +146,22 @@ export function useFirebaseInit() {
       )
     );
 
-    // Domiciliarios
-    unsubs.push(
-      onSnapshot(collection(db, 'domiciliarios'),
-        snap => {
-          const ds: Record<string, Domiciliario> = {};
-          snap.forEach(d => { ds[d.id] = { id: d.id, ...d.data() } as Domiciliario; });
-          setDomiciliarios(ds);
-        },
-        () => {}
-      )
-    );
+    // Domiciliarios — solo para usuarios autenticados (admin o domiciliario)
+    let domUnsub: (() => void) | null = null;
+    const authUnsub = onAuthStateChanged(auth, user => {
+      if (domUnsub) { domUnsub(); domUnsub = null; }
+      if (user) {
+        domUnsub = onSnapshot(collection(db, 'domiciliarios'),
+          snap => {
+            const ds: Record<string, Domiciliario> = {};
+            snap.forEach(d => { ds[d.id] = { id: d.id, ...d.data() } as Domiciliario; });
+            setDomiciliarios(ds);
+          },
+          () => {}
+        );
+      }
+    });
+    unsubs.push(() => { authUnsub(); if (domUnsub) domUnsub(); });
 
     // Promociones
     unsubs.push(

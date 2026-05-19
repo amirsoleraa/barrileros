@@ -57,7 +57,9 @@ service cloud.firestore {
       allow read:   if isAdmin() || isDomiciliario();
       allow update: if isAdmin()
                     || (isDomiciliario()
-                        && resource.data.domiciliarioId == myDomiciliarioId()
+                        && (resource.data.domiciliarioId == myDomiciliarioId()
+                            || resource.data.domiciliarioId == null
+                            || resource.data.domiciliarioId == '')
                         && request.resource.data.diff(resource.data).affectedKeys()
                            .hasOnly(['estado', 'rutaNombre', 'repartidorNombre', 'domiciliarioId', 'notaPendiente']));
       allow delete: if isAdmin();
