@@ -121,7 +121,9 @@ service cloud.firestore {
       allow update: if isAdmin()
                     || (isDomiciliario()
                         && resource.data.domiciliarioId == myDomiciliarioId());
-      allow delete: if isAdmin();
+      allow delete: if isAdmin()
+                    || (isDomiciliario()
+                        && resource.data.domiciliarioId == myDomiciliarioId());
     }
 
     // ── HISTORIAL DE PEDIDOS ─────────────────────────────────────────────────

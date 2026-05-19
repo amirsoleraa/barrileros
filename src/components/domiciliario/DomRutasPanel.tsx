@@ -87,8 +87,10 @@ export function DomRutasPanel({ domiciliario }: DomRutasPanelProps) {
   }
 
   async function handleReorder(rutaId: string, newOrder: string[]) {
-    await updateDoc(doc(db, 'rutas', rutaId), { pedidoIds: newOrder });
-    setRutas(prev => prev.map(r => r.id === rutaId ? { ...r, pedidoIds: newOrder } : r));
+    try {
+      await updateDoc(doc(db, 'rutas', rutaId), { pedidoIds: newOrder });
+      setRutas(prev => prev.map(r => r.id === rutaId ? { ...r, pedidoIds: newOrder } : r));
+    } catch { showToast('Error al reordenar', 'error'); }
   }
 
   async function handleDeliverStop(rutaId: string, pedidoId: string) {
@@ -188,9 +190,11 @@ export function DomRutasPanel({ domiciliario }: DomRutasPanelProps) {
   async function handleEliminarRuta(id: string) {
     const ok = await confirm({ title: 'Eliminar ruta', message: '¿Eliminar esta ruta?', danger: true, confirmLabel: 'Eliminar' });
     if (!ok) return;
-    await deleteDoc(doc(db, 'rutas', id));
-    setRutas(prev => prev.filter(r => r.id !== id));
-    showToast('Ruta eliminada');
+    try {
+      await deleteDoc(doc(db, 'rutas', id));
+      setRutas(prev => prev.filter(r => r.id !== id));
+      showToast('Ruta eliminada');
+    } catch { showToast('Error al eliminar la ruta', 'error'); }
   }
 
   const otrosDomiciliarios = Object.values(domiciliarios)
