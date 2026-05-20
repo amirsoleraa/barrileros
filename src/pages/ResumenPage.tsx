@@ -289,7 +289,7 @@ export function ResumenPage() {
               )}
             </div>
             <div className={styles.cardBody} style={{ paddingTop: 12 }}>
-              <LocationPicker onChange={setLocationData} />
+              <LocationPicker onChange={setLocationData} initialData={locationData} />
             </div>
           </div>
         )}

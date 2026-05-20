@@ -13,14 +13,16 @@ const DEFAULT_CENTER = { lat: 10.3910, lng: -75.4794 };
 
 interface Props {
   onChange: (data: LocationData) => void;
+  initialData?: LocationData | null;
 }
 
 // ─── Inner: solo se monta cuando Maps ya está cargado ────────────────────────
-function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCode }: {
+function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCode, initialData }: {
   onChange: Props['onChange'];
   deliverySettings: DeliverySettings | null;
   onConfirm: () => void;
   countryCode: string;
+  initialData?: LocationData | null;
 }) {
   const { barrios } = useAppStore();
   const countryCodeRef = useRef(countryCode);
@@ -30,11 +32,11 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
   const mapInst  = useRef<any>(null);
   const tokenRef = useRef<any>(null);
 
-  const [lat,          setLat]          = useState<number | null>(null);
-  const [lng,          setLng]          = useState<number | null>(null);
-  const [address,      setAddress]      = useState('');
-  const [barrio,       setBarrio]       = useState('');
-  const [notes,        setNotes]        = useState('');
+  const [lat,          setLat]          = useState<number | null>(initialData?.lat ?? null);
+  const [lng,          setLng]          = useState<number | null>(initialData?.lng ?? null);
+  const [address,      setAddress]      = useState(initialData?.address ?? '');
+  const [barrio,       setBarrio]       = useState(initialData?.barrio ?? '');
+  const [notes,        setNotes]        = useState(initialData?.notes ?? '');
   const [geoError,     setGeoError]     = useState('');
   const [geoLoading,   setGeoLoading]   = useState(false);
   const [barrioOpen,   setBarrioOpen]   = useState(false);
@@ -81,9 +83,10 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
 
     const gm = (window as any).google.maps;
 
+    const hasInitial = initialData?.lat && initialData?.lng;
     const map = new gm.Map(mapRef.current, {
-      center:           DEFAULT_CENTER,
-      zoom:             13,
+      center:           hasInitial ? { lat: initialData!.lat, lng: initialData!.lng } : DEFAULT_CENTER,
+      zoom:             hasInitial ? 16 : 13,
       disableDefaultUI: true,
       zoomControl:      true,
       clickableIcons:   false,
@@ -96,6 +99,10 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
       if (firstIdle) { firstIdle = false; return; }
       applyCenter(map.getCenter());
     });
+
+    if (hasInitial && inputRef.current && initialData!.address) {
+      inputRef.current.value = initialData!.address;
+    }
 
     tokenRef.current = new gm.places.AutocompleteSessionToken();
     const ac = new gm.places.Autocomplete(inputRef.current!, {
@@ -304,7 +311,7 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
 }
 
 // ─── Wrapper público: maneja carga de Maps + delivery_settings ───────────────
-export function LocationPicker({ onChange }: Props) {
+export function LocationPicker({ onChange, initialData }: Props) {
   const { cfg } = useAppStore();
   const countryCode = cfg.mapCountryCode || 'co';
   const [mapsLoaded,       setMapsLoaded]       = useState(false);
@@ -312,7 +319,7 @@ export function LocationPicker({ onChange }: Props) {
   const [deliverySettings, setDeliverySettings] = useState<DeliverySettings | null>(null);
   const [settingsLoading,  setSettingsLoading]  = useState(true);
   const [modalOpen,        setModalOpen]        = useState(false);
-  const [confirmed,        setConfirmed]        = useState<LocationData | null>(null);
+  const [confirmed,        setConfirmed]        = useState<LocationData | null>(initialData ?? null);
   const [pending,          setPending]          = useState<LocationData | null>(null);
 
   useEffect(() => {
@@ -452,6 +459,7 @@ export function LocationPicker({ onChange }: Props) {
                 deliverySettings={deliverySettings}
                 onConfirm={handleConfirm}
                 countryCode={countryCode}
+                initialData={confirmed}
               />
             )}
           </div>
