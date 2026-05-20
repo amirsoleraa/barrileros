@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
+import { doc, getDoc } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppStore } from '@/stores/useAppStore';
+import { db } from '@/lib/firebase';
 
 export function AdminLoginPage() {
   const navigate = useNavigate();
@@ -11,10 +13,17 @@ export function AdminLoginPage() {
   const [pass, setPass]       = useState('');
   const [err, setErr]         = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  // Once auth resolves, if there's a cached user, try the admin panel
-  // (AdminGuard will verify role and sign out + redirect back if not admin)
-  if (!authLoading && user) return <Navigate to="/admin" replace />;
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    getDoc(doc(db, 'users', user.uid))
+      .then(snap => setIsAdmin(snap.data()?.role === 'admin'))
+      .catch(() => setIsAdmin(false));
+  }, [user?.uid]);
+
+  // Only redirect once role is confirmed — form stays visible while checking
+  if (!authLoading && isAdmin) return <Navigate to="/admin" replace />;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,9 +34,8 @@ export function AdminLoginPage() {
     if (error) {
       setErr(error);
       setSubmitting(false);
-    } else {
-      navigate('/admin', { replace: true });
     }
+    // On success: onAuthStateChanged updates user → useEffect checks role → Navigate fires
   }
 
   return (

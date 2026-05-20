@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
 import { useAdminInit } from '@/hooks/useAdminInit';
 import { useAuth } from '@/hooks/useAuth';
-import { auth, db } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminTopbar } from '@/components/admin/AdminTopbar';
 import { Toast } from '@/components/ui/Toast';
@@ -47,11 +46,6 @@ function AdminGuard() {
       .then(snap => setIsAdmin(snap.data()?.role === 'admin' ? true : false))
       .catch(() => setIsAdmin(false));
   }, [user?.uid]);
-
-  // Sign out any authenticated non-admin
-  useEffect(() => {
-    if (isAdmin === false && user) signOut(auth);
-  }, [isAdmin, user]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/admin/login" replace />;
