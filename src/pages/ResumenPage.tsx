@@ -77,10 +77,14 @@ export function ResumenPage() {
     : 0;
   const total = subtotal + domicilio - descuento - promoResult.descuentoProductos;
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<DatosForm>({
+  const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<DatosForm>({
     defaultValues: datosEnvio ?? {},
-    shouldUnregister: true,
   });
+
+  // Sync form with store every time the modal opens
+  useEffect(() => {
+    if (datosOpen) reset(datosEnvio ?? {});
+  }, [datosOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const watchedBarrio = watch('barrio');
 
   const cf = cfg.camposFormulario ?? {};
