@@ -5,11 +5,12 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { CartItem, DatosEnvio, Cupon, Pedido } from '@/types';
+import type { CartItem, DatosEnvio, Cupon, Pedido, LocationData } from '@/types';
 
 interface CartState {
   cart: CartItem[];
   datosEnvio: DatosEnvio | null;
+  locationData: LocationData | null;
   cuponAplicado: Cupon | null;
   lastPedido: Pedido | null;
   cartOpen: boolean;
@@ -18,6 +19,7 @@ interface CartState {
   updateQty: (id: string, extras: string[], delta: number) => void;
   removeItem: (id: string, extras: string[]) => void;
   setDatosEnvio: (datos: DatosEnvio) => void;
+  setLocationData: (location: LocationData | null) => void;
   setCuponAplicado: (cupon: Cupon | null) => void;
   setLastPedido: (pedido: Pedido) => void;
   setCartOpen: (open: boolean) => void;
@@ -29,6 +31,7 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       cart: [],
       datosEnvio: null,
+      locationData: null,
       cuponAplicado: null,
       lastPedido: null,
       cartOpen: false,
@@ -70,18 +73,19 @@ export const useCartStore = create<CartState>()(
         })),
 
       setDatosEnvio: (datos) => set({ datosEnvio: datos }),
+      setLocationData: (location) => set({ locationData: location }),
       setCuponAplicado: (cupon) => set({ cuponAplicado: cupon }),
       setLastPedido: (pedido) => set({ lastPedido: pedido }),
       setCartOpen: (open) => set({ cartOpen: open }),
 
-      reset: () => set({ cart: [], datosEnvio: null, cuponAplicado: null }),
+      reset: () => set({ cart: [], datosEnvio: null, locationData: null, cuponAplicado: null }),
     }),
     {
       name: 'ab_cart',
       version: 1,
       storage: createJSONStorage(() => sessionStorage),
-      partialize: (s) => ({ cart: s.cart, datosEnvio: s.datosEnvio, cuponAplicado: s.cuponAplicado }),
-      migrate: () => ({ cart: [], datosEnvio: null, cuponAplicado: null }),
+      partialize: (s) => ({ cart: s.cart, datosEnvio: s.datosEnvio, locationData: s.locationData, cuponAplicado: s.cuponAplicado }),
+      migrate: () => ({ cart: [], datosEnvio: null, locationData: null, cuponAplicado: null }),
     }
   )
 );

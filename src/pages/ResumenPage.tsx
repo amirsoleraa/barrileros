@@ -11,7 +11,7 @@ import { LocationPicker } from '@/components/client/LocationPicker';
 import { sendOrderConfirmation } from '@/lib/email';
 import { fmtPrice, generarNumeroPedido, isValidEmail, isValidPhone } from '@/lib/utils';
 import { evaluatePromos } from '@/lib/promos';
-import type { DatosEnvio, Pedido, LocationData } from '@/types';
+import type { DatosEnvio, Pedido } from '@/types';
 import styles from './ResumenPage.module.css';
 
 interface DatosForm {
@@ -26,7 +26,7 @@ interface DatosForm {
 
 export function ResumenPage() {
   const navigate = useNavigate();
-  const { cart, datosEnvio, cuponAplicado, setCuponAplicado, setDatosEnvio, setLastPedido, reset: clearCart } = useCartStore();
+  const { cart, datosEnvio, locationData, cuponAplicado, setCuponAplicado, setDatosEnvio, setLocationData, setLastPedido, reset: clearCart } = useCartStore();
   const { cfg, cupones, barrios, promociones, productos, showToast } = useAppStore();
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export function ResumenPage() {
   const [cuponCode,    setCuponCode]    = useState('');
   const [cuponMsg,     setCuponMsg]     = useState('');
   const [cuponOk,      setCuponOk]      = useState(false);
-  const [locationData, setLocationData] = useState<LocationData | null>(null);
+
 
   const subtotal  = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const domicilioBase = cfg.domicilioActivo
