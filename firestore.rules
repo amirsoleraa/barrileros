@@ -13,10 +13,6 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'domiciliario';
     }
 
-    function myDomiciliarioId() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.domiciliarioId;
-    }
-
     // ── USUARIOS ─────────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read:  if request.auth != null && (request.auth.uid == userId || isAdmin());
@@ -57,9 +53,6 @@ service cloud.firestore {
       allow read:   if isAdmin() || isDomiciliario();
       allow update: if isAdmin()
                     || (isDomiciliario()
-                        && (resource.data.domiciliarioId == myDomiciliarioId()
-                            || resource.data.domiciliarioId == null
-                            || resource.data.domiciliarioId == '')
                         && request.resource.data.diff(resource.data).affectedKeys()
                            .hasOnly(['estado', 'rutaNombre', 'repartidorNombre', 'domiciliarioId', 'notaPendiente']));
       allow delete: if isAdmin();
@@ -117,15 +110,9 @@ service cloud.firestore {
     // ── RUTAS DE ENTREGA ─────────────────────────────────────────────────────
     match /rutas/{rutaId} {
       allow read:   if isAdmin() || isDomiciliario();
-      allow create: if isAdmin()
-                    || (isDomiciliario()
-                        && request.resource.data.domiciliarioId == myDomiciliarioId());
-      allow update: if isAdmin()
-                    || (isDomiciliario()
-                        && resource.data.domiciliarioId == myDomiciliarioId());
-      allow delete: if isAdmin()
-                    || (isDomiciliario()
-                        && resource.data.domiciliarioId == myDomiciliarioId());
+      allow create: if isAdmin() || isDomiciliario();
+      allow update: if isAdmin() || isDomiciliario();
+      allow delete: if isAdmin() || isDomiciliario();
     }
 
     // ── HISTORIAL DE PEDIDOS ─────────────────────────────────────────────────
@@ -136,8 +123,7 @@ service cloud.firestore {
 
     // ── NOTIFICACIONES ───────────────────────────────────────────────────────
     match /notificaciones/{domId}/items/{notifId} {
-      allow read, update: if isAdmin()
-                          || (isDomiciliario() && myDomiciliarioId() == domId);
+      allow read, update: if isAdmin() || isDomiciliario();
       allow create:       if isAdmin() || isDomiciliario();
       allow delete:       if isAdmin();
     }

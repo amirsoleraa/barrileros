@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, type Firestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { getAuth, type Auth } from 'firebase/auth';
 
@@ -28,14 +28,16 @@ export let domDb!:   Firestore;
 export let firebaseReady = false;
 
 try {
+  const offlineCache = { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) };
+
   const app = initializeApp(firebaseConfig);
-  db      = getFirestore(app);
+  db      = initializeFirestore(app, offlineCache);
   storage = getStorage(app);
   auth    = getAuth(app);
 
   const domApp = initializeApp(firebaseConfig, 'domiciliario');
   domAuth = getAuth(domApp);
-  domDb   = getFirestore(domApp);
+  domDb   = initializeFirestore(domApp, offlineCache);
 
   firebaseReady = true;
 } catch (e) {
