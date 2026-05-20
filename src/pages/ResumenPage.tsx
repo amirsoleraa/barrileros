@@ -26,7 +26,7 @@ interface DatosForm {
 
 export function ResumenPage() {
   const navigate = useNavigate();
-  const { cart, datosEnvio, cuponAplicado, setCuponAplicado, setDatosEnvio, setLastPedido, reset } = useCartStore();
+  const { cart, datosEnvio, cuponAplicado, setCuponAplicado, setDatosEnvio, setLastPedido, reset: clearCart } = useCartStore();
   const { cfg, cupones, barrios, promociones, productos, showToast } = useAppStore();
 
   useEffect(() => {
@@ -225,7 +225,7 @@ export function ResumenPage() {
         if (url) window.open(url, '_blank');
       }
 
-      reset();
+      clearCart();
       setConfirmOpen(false);
       navigate('/factura');
     } catch (e) {
