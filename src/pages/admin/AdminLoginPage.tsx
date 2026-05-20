@@ -14,19 +14,22 @@ export function AdminLoginPage() {
   const [pass, setPass]       = useState('');
   const [err, setErr]         = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [roleState, setRoleState] = useState<'checking' | 'admin' | 'other'>(user ? 'checking' : 'other');
+  const [roleState, setRoleState]   = useState<'checking' | 'admin' | 'other'>('other');
+  const [roleChecked, setRoleChecked] = useState(false);
 
   useEffect(() => {
-    if (!user) { setRoleState('other'); return; }
+    if (!user) { setRoleState('other'); setRoleChecked(false); return; }
     setRoleState('checking');
+    setRoleChecked(false);
     getDoc(doc(db, 'users', user.uid))
-      .then(snap => setRoleState(snap.data()?.role === 'admin' ? 'admin' : 'other'))
-      .catch(() => setRoleState('other'));
+      .then(snap => { setRoleState(snap.data()?.role === 'admin' ? 'admin' : 'other'); setRoleChecked(true); })
+      .catch(() => { setRoleState('other'); setRoleChecked(true); });
   }, [user?.uid]);
 
+  // Only sign out after the check confirms non-admin (prevents race condition on login)
   useEffect(() => {
-    if (roleState === 'other' && user) signOut(auth);
-  }, [roleState, user]);
+    if (roleChecked && roleState === 'other' && user) signOut(auth);
+  }, [roleChecked, roleState, user]);
 
   if (authLoading || roleState === 'checking') return null;
   if (user && roleState === 'admin') return <Navigate to="/admin" replace />;
