@@ -38,23 +38,25 @@ function AdminContent() {
 
 function AdminGuard() {
   const { user, loading } = useAuth();
-  const [roleChecked, setRoleChecked] = useState(false);
-  const [isAdmin, setIsAdmin]         = useState(false);
+  // null = checking, true = admin, false = not admin
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!user) { setIsAdmin(false); setRoleChecked(true); return; }
+    if (!user) { setIsAdmin(null); return; }
     getDoc(doc(db, 'users', user.uid))
-      .then(snap => { setIsAdmin(snap.data()?.role === 'admin'); setRoleChecked(true); })
-      .catch(() => { setIsAdmin(false); setRoleChecked(true); });
+      .then(snap => setIsAdmin(snap.data()?.role === 'admin' ? true : false))
+      .catch(() => setIsAdmin(false));
   }, [user?.uid]);
 
-  // Sign out any authenticated non-admin so they don't loop back here
+  // Sign out any authenticated non-admin
   useEffect(() => {
-    if (roleChecked && !isAdmin && user) signOut(auth);
-  }, [roleChecked, isAdmin, user]);
+    if (isAdmin === false && user) signOut(auth);
+  }, [isAdmin, user]);
 
-  if (loading || !roleChecked) return null;
-  if (!user || !isAdmin) return <Navigate to="/admin/login" replace />;
+  if (loading) return null;
+  if (!user) return <Navigate to="/admin/login" replace />;
+  if (isAdmin === null) return null; // role check in progress
+  if (!isAdmin) return <Navigate to="/admin/login" replace />;
   return <AdminContent />;
 }
 
