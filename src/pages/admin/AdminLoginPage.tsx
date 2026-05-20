@@ -1,8 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppStore } from '@/stores/useAppStore';
 
@@ -14,25 +11,10 @@ export function AdminLoginPage() {
   const [pass, setPass]       = useState('');
   const [err, setErr]         = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [roleState, setRoleState]   = useState<'checking' | 'admin' | 'other'>('other');
-  const [roleChecked, setRoleChecked] = useState(false);
 
-  useEffect(() => {
-    if (!user) { setRoleState('other'); setRoleChecked(false); return; }
-    setRoleState('checking');
-    setRoleChecked(false);
-    getDoc(doc(db, 'users', user.uid))
-      .then(snap => { setRoleState(snap.data()?.role === 'admin' ? 'admin' : 'other'); setRoleChecked(true); })
-      .catch(() => { setRoleState('other'); setRoleChecked(true); });
-  }, [user?.uid]);
-
-  // Only sign out after the check confirms non-admin (prevents race condition on login)
-  useEffect(() => {
-    if (roleChecked && roleState === 'other' && user) signOut(auth);
-  }, [roleChecked, roleState, user]);
-
-  if (authLoading || roleState === 'checking') return null;
-  if (user && roleState === 'admin') return <Navigate to="/admin" replace />;
+  // Once auth resolves, if there's a cached user, try the admin panel
+  // (AdminGuard will verify role and sign out + redirect back if not admin)
+  if (!authLoading && user) return <Navigate to="/admin" replace />;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
