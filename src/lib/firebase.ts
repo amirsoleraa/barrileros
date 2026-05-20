@@ -20,6 +20,9 @@ export const firebaseConfig = {
 export let db!:      Firestore;
 export let storage!: FirebaseStorage;
 export let auth!:    Auth;
+// Isolated app for domiciliario portal so admin and dom sessions don't collide
+export let domAuth!: Auth;
+export let domDb!:   Firestore;
 
 /** true sólo cuando Firebase se inicializó correctamente con credenciales reales */
 export let firebaseReady = false;
@@ -29,6 +32,11 @@ try {
   db      = getFirestore(app);
   storage = getStorage(app);
   auth    = getAuth(app);
+
+  const domApp = initializeApp(firebaseConfig, 'domiciliario');
+  domAuth = getAuth(domApp);
+  domDb   = getFirestore(domApp);
+
   firebaseReady = true;
 } catch (e) {
   console.warn('[Firebase] Sin credenciales — la app corre en modo sin conexión.');

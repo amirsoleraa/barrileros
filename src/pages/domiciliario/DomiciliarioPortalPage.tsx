@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Bike, Bell, LogOut, Route, History, Wallet, X } from 'lucide-react';
 import { collection, onSnapshot, updateDoc, doc, query, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { domDb as db } from '@/lib/firebase';
 import { useDomAuth } from '@/hooks/useDomAuth';
 import { useFirebaseInit } from '@/hooks/useFirebaseInit';
 import { useAdminStore } from '@/stores/useAdminStore';

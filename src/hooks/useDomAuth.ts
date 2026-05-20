@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db, firebaseReady } from '@/lib/firebase';
+import { domAuth as auth, domDb as db, firebaseReady } from '@/lib/firebase';
 import type { Domiciliario } from '@/types';
 
 const DOM_EMAIL_DOMAIN = '@dom.barrileros.co';

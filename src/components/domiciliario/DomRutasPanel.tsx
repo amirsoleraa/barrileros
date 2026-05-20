@@ -8,7 +8,7 @@ import {
   collection, getDocs, addDoc, updateDoc, deleteDoc,
   doc, serverTimestamp, query, where, setDoc,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { domDb as db } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { Modal } from '@/components/ui/Modal';

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { domDb as db } from '@/lib/firebase';
 import { Calendar, X } from 'lucide-react';
 import { fmtPrice } from '@/lib/utils';
 import type { HistorialDia, Pedido, Domiciliario } from '@/types';
