@@ -44,6 +44,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: 16,
             backdropFilter: 'blur(2px)',
+            animation: 'overlayIn .22s ease',
           }}
           onClick={e => e.target === e.currentTarget && handleResult(false)}
         >
@@ -53,7 +54,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             maxWidth: 400, width: '100%',
             boxShadow: '0 20px 60px rgba(0,0,0,.25)',
             border: '1px solid var(--border)',
-            animation: 'slideUp .2s ease',
+            animation: 'popIn .32s cubic-bezier(.34,1.56,.64,1)',
           }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 20 }}>
               <div style={{
@@ -98,6 +99,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                   fontWeight: 700, fontSize: 14, fontFamily: 'inherit',
                   background: request.danger ? 'var(--danger)' : 'var(--brand)',
                   color: '#fff',
+                  transition: 'opacity .15s, transform .16s cubic-bezier(.34,1.56,.64,1)',
                 }}
               >
                 {request.confirmLabel ?? 'Confirmar'}
@@ -106,7 +108,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           </div>
         </div>
       )}
-      <style>{`@keyframes slideUp { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }`}</style>
+      <style>{`
+        @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { from { transform: scale(.9) translateY(12px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+      `}</style>
     </ConfirmContext.Provider>
   );
 }

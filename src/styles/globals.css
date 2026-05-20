@@ -51,10 +51,20 @@
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* Elimina el recuadro azul de selección en clicks/taps */
-* { -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; }
+
+/* Elimina el recuadro azul / flash de tap en móvil */
+* { -webkit-tap-highlight-color: rgba(0,0,0,0) !important; }
 *:focus { outline: none; }
 *:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* Todos los botones e interactivos: sin selección de texto y press suave */
+button, a, [role="button"] {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+button:active { transform: scale(0.96); transition: transform .1s cubic-bezier(.34,1.56,.64,1); }
 
 body {
   font-family: 'Rubik', system-ui, sans-serif;
@@ -85,7 +95,7 @@ a { text-decoration: none; color: inherit; }
   font-weight: 600;
   font-size: 15px;
   letter-spacing: .01em;
-  transition: background .15s, transform .12s, box-shadow .15s;
+  transition: background .18s, transform .16s cubic-bezier(.34,1.56,.64,1), box-shadow .18s;
   text-align: center;
   display: block;
   width: 100%;
@@ -94,8 +104,8 @@ a { text-decoration: none; color: inherit; }
   cursor: pointer;
 }
 .btn-p:hover { background: var(--brand-dark); box-shadow: var(--shadow-brand); }
-.btn-p:active { transform: scale(.97); }
-.btn-p:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
+.btn-p:active { transform: scale(.96); }
+.btn-p:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; transform: none; }
 
 .btn-s {
   padding: 15px;
@@ -109,9 +119,10 @@ a { text-decoration: none; color: inherit; }
   width: 100%;
   font-family: inherit;
   cursor: pointer;
-  transition: border-color .15s, background .15s;
+  transition: border-color .15s, background .15s, transform .16s cubic-bezier(.34,1.56,.64,1);
 }
-.btn-s:hover { background: var(--bg); border-color: var(--text2); }
+.btn-s:hover  { background: var(--bg); border-color: var(--text2); }
+.btn-s:active { transform: scale(.96); }
 
 .btn-add {
   display: inline-flex;
@@ -200,8 +211,9 @@ a { text-decoration: none; color: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  transition: background .12s;
+  transition: background .12s, transform .14s cubic-bezier(.34,1.56,.64,1);
 }
+.ab:active { transform: scale(.93); }
 .ab-e { background: var(--bg2); color: var(--text); }
 .ab-e:hover { background: var(--bg3); }
 .ab-d { background: var(--danger-bg); color: var(--danger); }
@@ -641,9 +653,9 @@ a { text-decoration: none; color: inherit; }
   font-size: 14px;
   cursor: pointer;
   font-family: inherit;
-  transition: opacity .15s;
+  transition: opacity .15s, transform .16s cubic-bezier(.34,1.56,.64,1);
 }
-.order-btn-advance:active { opacity: .8; }
+.order-btn-advance:active { opacity: .85; transform: scale(.97); }
 .order-btn-icon {
   width: 40px;
   height: 40px;
@@ -657,9 +669,9 @@ a { text-decoration: none; color: inherit; }
   color: var(--text2);
   flex-shrink: 0;
   font-family: inherit;
-  transition: background .15s;
+  transition: background .15s, transform .14s cubic-bezier(.34,1.56,.64,1);
 }
-.order-btn-icon:active  { background: var(--bg2); }
+.order-btn-icon:active { background: var(--bg2); transform: scale(.9); }
 .order-btn-icon.danger  { border-color: var(--danger-bg); color: var(--danger); background: var(--danger-bg); }
 .order-btn-icon.back    { color: var(--brand); border-color: var(--brand-light); background: var(--brand-light); }
 
