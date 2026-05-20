@@ -13,10 +13,10 @@ export function loadGoogleMaps(): Promise<void> {
   if (loadPromise) return loadPromise;
 
   loadPromise = new Promise<void>((resolve, reject) => {
-    const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
+    const key = (import.meta.env.VITE_GOOGLE_MAPS_KEY ?? import.meta.env.VITE_GOOGLE_MAPS_API_KEY) as string;
     if (!key) {
       loadPromise = null;
-      reject(new Error('VITE_GOOGLE_MAPS_API_KEY no está configurada'));
+      reject(new Error('VITE_GOOGLE_MAPS_KEY no está configurada'));
       return;
     }
 
