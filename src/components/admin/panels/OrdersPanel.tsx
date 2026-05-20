@@ -96,8 +96,13 @@ export function OrdersPanel() {
   }
 
   async function moveToState(pedidoId: string, estado: PedidoTab) {
-    await updateDoc(doc(db, 'pedidos', pedidoId), { estado });
-    showToast(`→ ${ESTADO_INFO[estado].label}`);
+    try {
+      await updateDoc(doc(db, 'pedidos', pedidoId), { estado });
+      showToast(`→ ${ESTADO_INFO[estado].label}`);
+    } catch (e) {
+      showToast('Sin permisos para actualizar este pedido', 'error');
+      console.error('[moveToState]', e);
+    }
   }
 
   async function handleDelete(pedidoId: string) {

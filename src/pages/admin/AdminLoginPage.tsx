@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
+import { doc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppStore } from '@/stores/useAppStore';
 
@@ -11,9 +14,22 @@ export function AdminLoginPage() {
   const [pass, setPass]       = useState('');
   const [err, setErr]         = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [roleState, setRoleState] = useState<'checking' | 'admin' | 'other'>(user ? 'checking' : 'other');
 
-  if (authLoading) return null;
-  if (user) return <Navigate to="/admin" replace />;
+  useEffect(() => {
+    if (!user) { setRoleState('other'); return; }
+    setRoleState('checking');
+    getDoc(doc(db, 'users', user.uid))
+      .then(snap => setRoleState(snap.data()?.role === 'admin' ? 'admin' : 'other'))
+      .catch(() => setRoleState('other'));
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (roleState === 'other' && user) signOut(auth);
+  }, [roleState, user]);
+
+  if (authLoading || roleState === 'checking') return null;
+  if (user && roleState === 'admin') return <Navigate to="/admin" replace />;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
