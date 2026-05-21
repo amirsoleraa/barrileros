@@ -187,25 +187,23 @@ export function DomRutasPanel({ domiciliario }: DomRutasPanelProps) {
       ]);
 
       // Save immediately to historial_rutas so domiciliario can see it right away
-      try {
-        const ahora = new Date();
-        const fecha = ahora.toISOString().slice(0, 10);
-        const fechaLabel = ahora.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
-        await addDoc(collection(db, 'historial_rutas'), {
-          fecha, fechaLabel,
+      const ahora = new Date();
+      const fecha = ahora.toISOString().slice(0, 10);
+      const fechaLabel = ahora.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+      await addDoc(collection(db, 'historial_rutas'), {
+        fecha, fechaLabel,
+        rutaNombre: ruta.nombre,
+        domiciliarioId: domiciliario.id,
+        domiciliarioNombre: domiciliario.nombre,
+        pedidos: snapshot.map(p => ({
+          ...p,
+          estado: 'entregado',
           rutaNombre: ruta.nombre,
+          repartidorNombre: domiciliario.nombre,
           domiciliarioId: domiciliario.id,
-          domiciliarioNombre: domiciliario.nombre,
-          pedidos: snapshot.map(p => ({
-            ...p,
-            estado: 'entregado',
-            rutaNombre: ruta.nombre,
-            repartidorNombre: domiciliario.nombre,
-            domiciliarioId: domiciliario.id,
-          })),
-          creadoEn: serverTimestamp(),
-        });
-      } catch { /* non-fatal */ }
+        })),
+        creadoEn: serverTimestamp(),
+      });
 
       setRutas(prev => prev.filter(r => r.id !== ruta.id));
       showToast('Ruta finalizada y guardada en historial', 'success');

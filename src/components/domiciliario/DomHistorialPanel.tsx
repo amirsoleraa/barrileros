@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, getDocs, orderBy, where } from 'firebase/firestore';
+import { collection, query, getDocs, where } from 'firebase/firestore';
 import { domDb as db } from '@/lib/firebase';
 import { Calendar, X } from 'lucide-react';
 import { fmtPrice } from '@/lib/utils';
@@ -26,11 +26,10 @@ export function DomHistorialPanel({ domiciliario }: DomHistorialPanelProps) {
       try {
         // Fetch from historial_pedidos (admin close-day entries)
         const [hSnap, rSnap] = await Promise.all([
-          getDocs(query(collection(db, 'historial_pedidos'), orderBy('creadoEn', 'desc'))),
+          getDocs(query(collection(db, 'historial_pedidos'))),
           getDocs(query(
             collection(db, 'historial_rutas'),
             where('domiciliarioId', '==', domiciliario.id),
-            orderBy('creadoEn', 'desc'),
           )),
         ]);
 
