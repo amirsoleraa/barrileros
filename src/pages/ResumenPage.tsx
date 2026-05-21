@@ -26,7 +26,7 @@ interface DatosForm {
 
 export function ResumenPage() {
   const navigate = useNavigate();
-  const { cart, datosEnvio, locationData, cuponAplicado, setCuponAplicado, setDatosEnvio, setLocationData, setLastPedido, reset: clearCart } = useCartStore();
+  const { cart, datosEnvio, locationData, cuponAplicado, setCuponAplicado, setDatosEnvio, setLocationData, setCartOpen, setLastPedido, reset: clearCart } = useCartStore();
   const { cfg, cupones, barrios, promociones, productos, showToast } = useAppStore();
 
   useEffect(() => {
@@ -254,7 +254,12 @@ export function ResumenPage() {
 
         {/* Productos */}
         <div className={styles.card}>
-          <div className={styles.cardHdr}><h3>Productos</h3></div>
+          <div className={styles.cardHdr}>
+            <h3>Productos</h3>
+            <button className="btn-s" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => { setCartOpen(true); navigate('/'); }}>
+              Editar
+            </button>
+          </div>
           <div className={styles.cardBody}>
             {cart.map((item, i) => (
               <div key={i} className={styles.productRow}>
@@ -437,7 +442,7 @@ export function ResumenPage() {
 
       {/* Modal: Datos personales / entrega */}
       <Modal isOpen={datosOpen} onClose={() => setDatosOpen(false)} title={esPorKm ? 'Datos personales' : 'Datos de entrega'}>
-        <form onSubmit={handleSubmit(onSaveDatos)}>
+        <form onSubmit={handleSubmit(onSaveDatos)} noValidate>
           <div className="f-field">
             <label>Nombre completo *</label>
             <input {...register('nombre', { required: 'Obligatorio' })} placeholder="Tu nombre" />

@@ -1,50 +1,99 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where } from 'firebase/firestore';
 import { domDb as db } from '@/lib/firebase';
 import { Calendar, X } from 'lucide-react';
 import { fmtPrice } from '@/lib/utils';
-import type { HistorialDia, Pedido, Domiciliario } from '@/types';
+import type { Pedido, Domiciliario } from '@/types';
+
+interface DiaAgrupado {
+  fecha: string;
+  fechaLabel: string;
+  pedidos: Pedido[];
+}
 
 interface DomHistorialPanelProps { domiciliario: Domiciliario; }
 
 export function DomHistorialPanel({ domiciliario }: DomHistorialPanelProps) {
-  const [dias,    setDias]    = useState<HistorialDia[]>([]);
+  const [dias,    setDias]    = useState<DiaAgrupado[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo,   setDateTo]   = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    getDocs(query(collection(db, 'historial_pedidos'), orderBy('creadoEn', 'desc')))
-      .then(snap => {
-        const list: HistorialDia[] = [];
-        snap.forEach(d => list.push({ id: d.id, ...d.data() } as HistorialDia));
-        setDias(list);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    async function load() {
+      setLoading(true);
+      try {
+        // Fetch from historial_pedidos (admin close-day entries)
+        const [hSnap, rSnap] = await Promise.all([
+          getDocs(query(collection(db, 'historial_pedidos'), orderBy('creadoEn', 'desc'))),
+          getDocs(query(
+            collection(db, 'historial_rutas'),
+            where('domiciliarioId', '==', domiciliario.id),
+            orderBy('creadoEn', 'desc'),
+          )),
+        ]);
+
+        // Build a map: fecha -> pedidos[]
+        const byFecha: Record<string, { label: string; pedidos: Pedido[] }> = {};
+
+        function addPedidos(fecha: string, label: string, pedidos: Pedido[]) {
+          if (!byFecha[fecha]) byFecha[fecha] = { label, pedidos: [] };
+          byFecha[fecha].pedidos.push(...pedidos);
+        }
+
+        // historial_pedidos: filter to this domiciliario
+        hSnap.forEach(d => {
+          const data = d.data();
+          const mine: Pedido[] = (data.pedidos ?? []).filter(
+            (p: Pedido) => p.domiciliarioId === domiciliario.id || p.repartidorNombre === domiciliario.nombre
+          );
+          if (mine.length > 0) addPedidos(data.fecha, data.fechaLabel, mine);
+        });
+
+        // historial_rutas: all pedidos belong to this domiciliario
+        rSnap.forEach(d => {
+          const data = d.data();
+          if ((data.pedidos ?? []).length > 0) addPedidos(data.fecha, data.fechaLabel, data.pedidos);
+        });
+
+        // Deduplicate pedidos by id (a pedido can appear in both if admin also closed day)
+        const grouped: DiaAgrupado[] = Object.entries(byFecha).map(([fecha, { label, pedidos }]) => {
+          const seen = new Set<string>();
+          const unique = pedidos.filter(p => {
+            const key = p.id ?? p.numero;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          return { fecha, fechaLabel: label || fecha, pedidos: unique };
+        });
+
+        grouped.sort((a, b) => b.fecha.localeCompare(a.fecha));
+        setDias(grouped);
+      } catch {
+        // silent
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [domiciliario]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = useMemo(() => {
-    return dias.map(dia => {
-      const pedidosFiltrados = (dia.pedidos ?? []).filter(
-        (p: Pedido) => p.domiciliarioId === domiciliario.id || p.repartidorNombre === domiciliario.nombre
-      );
-      return { ...dia, pedidos: pedidosFiltrados };
-    }).filter(dia => {
-      if (dia.pedidos.length === 0) return false;
-      if (!dia.fecha) return true;
+    return dias.filter(dia => {
       if (dateFrom && dia.fecha < dateFrom) return false;
       if (dateTo   && dia.fecha > dateTo)   return false;
       return true;
     });
-  }, [dias, domiciliario, dateFrom, dateTo]);
+  }, [dias, dateFrom, dateTo]);
 
   const totalPedidos   = filtered.reduce((s, d) => s + d.pedidos.length, 0);
-  const totalEntregado = filtered.reduce((s, d) => s + d.pedidos.filter(p => p.estado === 'entregado').reduce((ss, p) => ss + p.domicilio, 0), 0);
+  const totalEntregado = filtered.reduce((s, d) =>
+    s + d.pedidos.filter(p => p.estado === 'entregado').reduce((ss, p) => ss + (p.domicilio ?? 0), 0), 0);
 
-  function toggleExpand(id: string) {
-    setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  function toggleExpand(fecha: string) {
+    setExpanded(prev => { const n = new Set(prev); n.has(fecha) ? n.delete(fecha) : n.add(fecha); return n; });
   }
 
   return (
@@ -86,13 +135,13 @@ export function DomHistorialPanel({ domiciliario }: DomHistorialPanelProps) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(dia => {
-            const isExp = expanded.has(dia.id);
+            const isExp = expanded.has(dia.fecha);
             const entregados = dia.pedidos.filter(p => p.estado === 'entregado');
-            const domTotal   = entregados.reduce((s, p) => s + p.domicilio, 0);
+            const domTotal   = entregados.reduce((s, p) => s + (p.domicilio ?? 0), 0);
             return (
-              <div key={dia.id} className="admin-card">
+              <div key={dia.fecha} className="admin-card">
                 <div style={{ padding: '12px 16px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  onClick={() => toggleExpand(dia.id)}>
+                  onClick={() => toggleExpand(dia.fecha)}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{dia.fechaLabel || dia.fecha}</div>
                     <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
@@ -104,7 +153,7 @@ export function DomHistorialPanel({ domiciliario }: DomHistorialPanelProps) {
                 {isExp && (
                   <div style={{ borderTop: '1px solid var(--border)' }}>
                     {dia.pedidos.map((p, i) => (
-                      <div key={i} style={{
+                      <div key={p.id ?? i} style={{
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         padding: '10px 16px', borderBottom: i < dia.pedidos.length - 1 ? '1px solid var(--border)' : 'none',
                         gap: 12,
@@ -118,7 +167,7 @@ export function DomHistorialPanel({ domiciliario }: DomHistorialPanelProps) {
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                           <div style={{ fontWeight: 700, fontSize: 13 }}>{fmtPrice(p.total)}</div>
-                          {p.domicilio > 0 && (
+                          {(p.domicilio ?? 0) > 0 && (
                             <div style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>Dom: {fmtPrice(p.domicilio)}</div>
                           )}
                           <div style={{

@@ -36,6 +36,9 @@ export function DomRutasPanel({ domiciliario }: DomRutasPanelProps) {
   const [selected,     setSelected]     = useState<Set<string>>(new Set());
 
   // Reassign modal state
+  const [addingToRuta, setAddingToRuta] = useState<string | null>(null);
+  const [addSelected,  setAddSelected]  = useState<Set<string>>(new Set());
+
   const [reassignPedidoId,  setReassignPedidoId]  = useState<string | null>(null);
   const [reassignRutaId,    setReassignRutaId]     = useState<string | null>(null);
   const [reassignTargetId,  setReassignTargetId]   = useState('');
@@ -167,7 +170,7 @@ export function DomRutasPanel({ domiciliario }: DomRutasPanelProps) {
   }
 
   async function handleFinalizarRuta(ruta: RutaEntrega) {
-    const ok = await confirm({ title: `Finalizar "${ruta.nombre}"`, message: 'Los pedidos pendientes se marcarán como Entregados.', confirmLabel: 'Finalizar ruta' });
+    const ok = await confirm({ title: `Finalizar "${ruta.nombre}"`, message: 'Los pedidos pendientes se marcarán como Entregados y quedarán en tu historial.', confirmLabel: 'Finalizar ruta' });
     if (!ok) return;
     try {
       const snapshot = ruta.pedidoIds.map(pid => pedidos[pid]).filter(Boolean);
@@ -182,9 +185,44 @@ export function DomRutasPanel({ domiciliario }: DomRutasPanelProps) {
           }).catch(() => {})
         ),
       ]);
+
+      // Save immediately to historial_rutas so domiciliario can see it right away
+      try {
+        const ahora = new Date();
+        const fecha = ahora.toISOString().slice(0, 10);
+        const fechaLabel = ahora.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+        await addDoc(collection(db, 'historial_rutas'), {
+          fecha, fechaLabel,
+          rutaNombre: ruta.nombre,
+          domiciliarioId: domiciliario.id,
+          domiciliarioNombre: domiciliario.nombre,
+          pedidos: snapshot.map(p => ({
+            ...p,
+            estado: 'entregado',
+            rutaNombre: ruta.nombre,
+            repartidorNombre: domiciliario.nombre,
+            domiciliarioId: domiciliario.id,
+          })),
+          creadoEn: serverTimestamp(),
+        });
+      } catch { /* non-fatal */ }
+
       setRutas(prev => prev.filter(r => r.id !== ruta.id));
-      showToast('Ruta finalizada', 'success');
+      showToast('Ruta finalizada y guardada en historial', 'success');
     } catch { showToast('Error al finalizar la ruta', 'error'); }
+  }
+
+  async function handleAddToRuta() {
+    if (!addingToRuta || addSelected.size === 0) return;
+    try {
+      const ruta = rutas.find(r => r.id === addingToRuta)!;
+      const newIds = [...new Set([...ruta.pedidoIds, ...addSelected])];
+      await updateDoc(doc(db, 'rutas', addingToRuta), { pedidoIds: newIds });
+      setRutas(prev => prev.map(r => r.id === addingToRuta ? { ...r, pedidoIds: newIds } : r));
+      setAddingToRuta(null);
+      setAddSelected(new Set());
+      showToast(`${addSelected.size} pedido${addSelected.size !== 1 ? 's' : ''} agregado${addSelected.size !== 1 ? 's' : ''} a la ruta`, 'success');
+    } catch { showToast('Error al agregar pedidos a la ruta', 'error'); }
   }
 
   async function handleEliminarRuta(id: string) {
@@ -420,6 +458,7 @@ export function DomRutasPanel({ domiciliario }: DomRutasPanelProps) {
                       {/* Route actions */}
                       <div style={{ padding: '8px 16px 14px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <button className="ab ab-d" onClick={() => handleEliminarRuta(ruta.id)} style={{ gap: 4, fontSize: 12 }}><Trash2 size={12} /> Eliminar ruta</button>
+                        <button className="ab ab-b" onClick={() => { setAddingToRuta(ruta.id); setAddSelected(new Set()); }} style={{ gap: 4, fontSize: 12 }}><Plus size={12} /> Agregar pedido</button>
                         <button className="btn-p" onClick={() => handleFinalizarRuta(ruta)}
                           style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, background: allDone ? 'var(--success)' : undefined }}>
                           <Flag size={14} />
@@ -473,6 +512,50 @@ export function DomRutasPanel({ domiciliario }: DomRutasPanelProps) {
           </div>
         )}
       </Modal>
+
+      {/* Modal: agregar pedido a ruta existente */}
+      {(() => {
+        const allAssignedIds = new Set(rutas.flatMap(r => r.pedidoIds));
+        const available = enCamino.filter(p => !allAssignedIds.has(p.id));
+        return (
+          <Modal isOpen={!!addingToRuta} onClose={() => setAddingToRuta(null)} title="Agregar pedido a la ruta" maxWidth={440}>
+            {available.length === 0 ? (
+              <div className="empty-s">No hay pedidos en camino sin ruta asignada</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: 13, color: 'var(--text3)' }}>Selecciona los pedidos a agregar:</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {available.map(p => {
+                    const isSel = addSelected.has(p.id);
+                    return (
+                      <div key={p.id}
+                        onClick={() => setAddSelected(prev => { const n = new Set(prev); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; })}
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: `1px solid ${isSel ? 'var(--brand)' : 'var(--border)'}`, background: isSel ? 'var(--brand-light)' : 'var(--surface)' }}
+                      >
+                        <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, border: `2px solid ${isSel ? 'var(--brand)' : 'var(--border)'}`, background: isSel ? 'var(--brand)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {isSel && <CheckCircle size={12} color="#fff" />}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--brand)' }}>#{p.numero}</div>
+                          <div style={{ fontSize: 13 }}>{p.cliente?.nombre}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text3)' }}>{[p.cliente?.barrio, p.cliente?.dir].filter(Boolean).join(' · ')}</div>
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{fmtPrice(p.total)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <button className="btn-s" onClick={() => setAddingToRuta(null)}>Cancelar</button>
+                  <button className="btn-p" onClick={handleAddToRuta} disabled={addSelected.size === 0}>
+                    Agregar {addSelected.size > 0 ? `(${addSelected.size})` : ''}
+                  </button>
+                </div>
+              </div>
+            )}
+          </Modal>
+        );
+      })()}
 
       {/* Modal: reasignar pedido */}
       <Modal isOpen={!!reassignPedidoId} onClose={() => setReassignPedidoId(null)} title="Reasignar pedido" maxWidth={440}>

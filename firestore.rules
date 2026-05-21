@@ -121,6 +121,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── HISTORIAL DE RUTAS (creado por domiciliarios al cerrar ruta) ─────────
+    match /historial_rutas/{rutaId} {
+      allow read:   if isAdmin() || isDomiciliario();
+      allow create: if isAdmin() || isDomiciliario();
+      allow delete: if isAdmin();
+    }
+
     // ── NOTIFICACIONES ───────────────────────────────────────────────────────
     match /notificaciones/{domId}/items/{notifId} {
       allow read, update: if isAdmin() || isDomiciliario();

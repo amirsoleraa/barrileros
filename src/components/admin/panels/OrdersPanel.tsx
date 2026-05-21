@@ -7,6 +7,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { fmtPrice, ESTADO_INFO, generarNumeroPedido } from '@/lib/utils';
+import { evaluatePromos } from '@/lib/promos';
 import type { Pedido, PedidoTab, RutaEntrega } from '@/types';
 
 const COLS: { key: PedidoTab; label: string; color: string }[] = [
@@ -53,17 +54,24 @@ const DEFAULT_MANUAL: ManualForm = {
 
 export function OrdersPanel() {
   const { pedidos, pedidosFiltro, setPedidosFiltro } = useAdminStore();
-  const { showToast, barrios } = useAppStore();
+  const { showToast, barrios, cfg, productos, categorias, promociones } = useAppStore();
   const confirm = useConfirm();
   const [detailPedido, setDetailPedido] = useState<Pedido | null>(null);
   const [deleting, setDeleting]         = useState<string | null>(null);
   const [activeCol, setActiveCol]       = useState<PedidoTab>('activos');
   const [cerrando, setCerrando]         = useState(false);
 
+  // PIN protection
+  const [pinTarget,  setPinTarget]  = useState<{ pedidoId: string; action: 'entregado' | 'delete' } | null>(null);
+  const [pinInput,   setPinInput]   = useState('');
+  const [pinError,   setPinError]   = useState('');
+
   // Manual order
   const [manualOpen, setManualOpen]   = useState(false);
   const [manualForm, setManualForm]   = useState<ManualForm>(DEFAULT_MANUAL);
   const [savingManual, setSavingManual] = useState(false);
+  // Manual cart: productId -> qty
+  const [manualCart, setManualCart]   = useState<Record<string, number>>({});
 
   // kanban desktop drag
   const dragId  = useRef<string | null>(null);
@@ -96,6 +104,11 @@ export function OrdersPanel() {
   }
 
   async function moveToState(pedidoId: string, estado: PedidoTab) {
+    if (estado === 'entregado' && cfg.adminPin) {
+      setPinTarget({ pedidoId, action: 'entregado' });
+      setPinInput(''); setPinError('');
+      return;
+    }
     try {
       await updateDoc(doc(db, 'pedidos', pedidoId), { estado });
       showToast(`→ ${ESTADO_INFO[estado].label}`);
@@ -106,12 +119,41 @@ export function OrdersPanel() {
   }
 
   async function handleDelete(pedidoId: string) {
+    if (cfg.adminPin) {
+      setPinTarget({ pedidoId, action: 'delete' });
+      setPinInput(''); setPinError('');
+      return;
+    }
     const ok = await confirm({ title: 'Eliminar pedido', message: '¿Eliminar este pedido?', danger: true, confirmLabel: 'Eliminar' });
     if (!ok) return;
     setDeleting(pedidoId);
     await deleteDoc(doc(db, 'pedidos', pedidoId));
     setDeleting(null);
     showToast('Pedido eliminado');
+  }
+
+  async function handlePinConfirm() {
+    if (!pinTarget) return;
+    if (pinInput !== cfg.adminPin) {
+      setPinError('PIN incorrecto');
+      setPinInput('');
+      return;
+    }
+    const { pedidoId, action } = pinTarget;
+    setPinTarget(null);
+    if (action === 'entregado') {
+      try {
+        await updateDoc(doc(db, 'pedidos', pedidoId), { estado: 'entregado' });
+        showToast(`→ ${ESTADO_INFO['entregado'].label}`);
+      } catch { showToast('Sin permisos para actualizar este pedido', 'error'); }
+    } else {
+      const ok = await confirm({ title: 'Eliminar pedido', message: '¿Eliminar este pedido?', danger: true, confirmLabel: 'Eliminar' });
+      if (!ok) return;
+      setDeleting(pedidoId);
+      await deleteDoc(doc(db, 'pedidos', pedidoId));
+      setDeleting(null);
+      showToast('Pedido eliminado');
+    }
   }
 
   async function handleCerrarDia() {
@@ -218,23 +260,22 @@ export function OrdersPanel() {
 
   async function handleCreateManual() {
     if (!manualForm.clienteNombre.trim()) { showToast('El nombre del cliente es obligatorio'); return; }
-    if (manualForm.items.some(it => !it.nombre.trim())) { showToast('Todos los productos deben tener nombre'); return; }
+    const cartEntries = Object.entries(manualCart).filter(([, qty]) => qty > 0);
+    if (cartEntries.length === 0) { showToast('Agrega al menos un producto'); return; }
 
     setSavingManual(true);
     try {
-      const items = manualForm.items
-        .filter(it => it.nombre.trim())
-        .map((it, i) => ({
-          id: `manual-${i}`,
-          nombre: it.nombre.trim(),
-          precio: parseFloat(it.precio) || 0,
-          qty: parseInt(it.qty) || 1,
-          extras: [],
-        }));
+      const items = cartEntries.map(([id, qty]) => {
+        const prod = productos[id];
+        return { id, nombre: prod?.nombre ?? id, precio: prod?.precio ?? 0, qty, extras: [] };
+      });
 
       const subtotal = items.reduce((s, it) => s + it.precio * it.qty, 0);
+      const promoResult = evaluatePromos(Object.values(promociones), items.map(it => ({
+        id: it.id, name: it.nombre, price: it.precio, qty: it.qty, extras: [], imgUrl: '', emoji: '',
+      })), parseFloat(manualForm.domicilio) || 0, productos);
       const domicilio = parseFloat(manualForm.domicilio) || 0;
-      const total = subtotal + domicilio;
+      const total = subtotal + domicilio - promoResult.descuentoProductos - promoResult.descuentoDomicilio;
 
       const pedido: Omit<Pedido, 'id'> = {
         numero: generarNumeroPedido(),
@@ -248,13 +289,14 @@ export function OrdersPanel() {
         items,
         subtotal,
         domicilio,
-        descuento: 0,
+        descuento: promoResult.descuentoProductos,
         total,
         cupon: null,
         mensajeConfirmacion: '',
         location: null,
         esManual: true,
         notas: manualForm.notas.trim() || undefined,
+        ...(promoResult.promosAplicadas.length > 0 && { promosAplicadas: promoResult.promosAplicadas }),
         createdAt: serverTimestamp() as unknown as Pedido['createdAt'],
       };
 
@@ -262,6 +304,7 @@ export function OrdersPanel() {
       showToast('Pedido manual creado', 'success');
       setManualOpen(false);
       setManualForm(DEFAULT_MANUAL);
+      setManualCart({});
     } catch (e) {
       showToast('Error al crear el pedido', 'error');
       console.error(e);
@@ -642,137 +685,169 @@ export function OrdersPanel() {
       </Modal>
 
       {/* Modal: Pedido manual */}
-      <Modal isOpen={manualOpen} onClose={() => setManualOpen(false)} title="Nuevo pedido manual" maxWidth={520}>
+      {(() => {
+        const prodList = Object.values(productos).filter(p => p.activo);
+        const catList  = Object.values(categorias).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+        const cartEntries = Object.entries(manualCart).filter(([, q]) => q > 0);
+        const manSubtotal = cartEntries.reduce((s, [id, qty]) => s + (productos[id]?.precio ?? 0) * qty, 0);
+        const manDom = cfg.domicilioTipo === 'gratis' ? 0 : cfg.domicilioTipo === 'fijo' ? cfg.domicilioValor : parseFloat(manualForm.domicilio) || 0;
+        const manPromos = evaluatePromos(Object.values(promociones), cartEntries.map(([id, qty]) => ({ id, name: productos[id]?.nombre ?? '', price: productos[id]?.precio ?? 0, qty, extras: [], imgUrl: '', emoji: '' })), manDom, productos);
+        const manTotal = manSubtotal + manDom - manPromos.descuentoProductos;
+
+        return (
+          <Modal isOpen={manualOpen} onClose={() => { setManualOpen(false); setManualCart({}); }} title="Nuevo pedido manual" maxWidth={560}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+              {/* ── Datos cliente ── */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Cliente</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div className="f-field" style={{ marginBottom: 0 }}>
+                    <label>Nombre *</label>
+                    <input value={manualForm.clienteNombre} onChange={e => setManualForm(f => ({ ...f, clienteNombre: e.target.value }))} placeholder="Nombre completo" />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div className="f-field" style={{ marginBottom: 0 }}>
+                      <label>Teléfono</label>
+                      <input value={manualForm.clienteTel} onChange={e => setManualForm(f => ({ ...f, clienteTel: e.target.value }))} placeholder="3001234567" />
+                    </div>
+                    <div className="f-field" style={{ marginBottom: 0 }}>
+                      <label>Barrio</label>
+                      {barriosList.length > 0 ? (
+                        <select value={manualForm.clienteBarrio} onChange={e => setManualForm(f => ({ ...f, clienteBarrio: e.target.value }))}>
+                          <option value="">Seleccionar...</option>
+                          {barriosList.map(b => <option key={b.id} value={b.nombre}>{b.nombre}</option>)}
+                        </select>
+                      ) : (
+                        <input value={manualForm.clienteBarrio} onChange={e => setManualForm(f => ({ ...f, clienteBarrio: e.target.value }))} placeholder="Barrio" />
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div className="f-field" style={{ marginBottom: 0 }}>
+                      <label>Dirección</label>
+                      <input value={manualForm.clienteDir} onChange={e => setManualForm(f => ({ ...f, clienteDir: e.target.value }))} placeholder="Calle 45 # 23-10" />
+                    </div>
+                    <div className="f-field" style={{ marginBottom: 0 }}>
+                      <label>Notas</label>
+                      <input value={manualForm.notas} onChange={e => setManualForm(f => ({ ...f, notas: e.target.value }))} placeholder="Observaciones..." />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Catálogo de productos ── */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Productos</div>
+                {prodList.length === 0 ? (
+                  <div style={{ fontSize: 13, color: 'var(--text3)' }}>No hay productos activos</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {(catList.length > 0 ? catList : [{ id: '_', nombre: 'Productos', color: '' }]).map(cat => {
+                      const catProds = cat.id === '_' ? prodList : prodList.filter(p => p.categoriaId === cat.id);
+                      if (catProds.length === 0) return null;
+                      return (
+                        <div key={cat.id}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', marginBottom: 6 }}>{cat.nombre}</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {catProds.map(prod => {
+                              const qty = manualCart[prod.id] ?? 0;
+                              return (
+                                <div key={prod.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, background: qty > 0 ? 'var(--brand-light)' : 'var(--bg)', border: `1px solid ${qty > 0 ? 'var(--brand)' : 'var(--border)'}` }}>
+                                  {prod.imgUrl && <img src={prod.imgUrl} alt={prod.nombre} style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />}
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontWeight: 600, fontSize: 13 }}>{prod.nombre}</div>
+                                    <div style={{ fontSize: 12, color: 'var(--text3)' }}>{fmtPrice(prod.precio)}</div>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                                    <button onClick={() => setManualCart(c => ({ ...c, [prod.id]: Math.max(0, (c[prod.id] ?? 0) - 1) }))}
+                                      style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>−</button>
+                                    <span style={{ minWidth: 20, textAlign: 'center', fontWeight: 700, fontSize: 14 }}>{qty}</span>
+                                    <button onClick={() => setManualCart(c => ({ ...c, [prod.id]: (c[prod.id] ?? 0) + 1 }))}
+                                      style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'var(--brand)', color: '#fff', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>+</button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Domicilio manual (solo si no es fijo/gratis) ── */}
+              {cfg.domicilioActivo && cfg.domicilioTipo === 'por_km' && (
+                <div className="f-field" style={{ marginBottom: 0 }}>
+                  <label>Domicilio (COP)</label>
+                  <input type="number" min="0" value={manualForm.domicilio} onChange={e => setManualForm(f => ({ ...f, domicilio: e.target.value }))} placeholder="0" />
+                </div>
+              )}
+
+              {/* ── Resumen ── */}
+              {cartEntries.length > 0 && (
+                <div style={{ background: 'var(--bg2)', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {cartEntries.map(([id, qty]) => (
+                    <div key={id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                      <span>{qty}× {productos[id]?.nombre}</span>
+                      <span>{fmtPrice((productos[id]?.precio ?? 0) * qty)}</span>
+                    </div>
+                  ))}
+                  {manPromos.promosAplicadas.length > 0 && manPromos.promosAplicadas.map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--success)' }}>
+                      <span>{p.nombre}</span>
+                      <span>{p.descuentoProducto ? `-${fmtPrice(p.descuentoProducto)}` : p.tipo === 'compra_lleva' ? 'Gratis' : ''}</span>
+                    </div>
+                  ))}
+                  {manDom > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text2)' }}>
+                      <span>Domicilio</span><span>{fmtPrice(manDom)}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 16, color: 'var(--brand)', borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 4 }}>
+                    <span>Total</span><span>{fmtPrice(manTotal)}</span>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <button className="btn-s" onClick={() => { setManualOpen(false); setManualCart({}); }}>Cancelar</button>
+                <button className="btn-p" onClick={handleCreateManual} disabled={savingManual}>
+                  {savingManual ? 'Creando...' : 'Crear pedido'}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {/* Modal: PIN de administrador */}
+      <Modal isOpen={!!pinTarget} onClose={() => setPinTarget(null)} title={pinTarget?.action === 'entregado' ? 'Confirmar entrega' : 'Confirmar eliminación'} maxWidth={360}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Cliente */}
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Cliente</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div className="f-field" style={{ marginBottom: 0 }}>
-                <label>Nombre *</label>
-                <input
-                  value={manualForm.clienteNombre}
-                  onChange={e => setManualForm(f => ({ ...f, clienteNombre: e.target.value }))}
-                  placeholder="Nombre completo"
-                />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div className="f-field" style={{ marginBottom: 0 }}>
-                  <label>Teléfono</label>
-                  <input
-                    value={manualForm.clienteTel}
-                    onChange={e => setManualForm(f => ({ ...f, clienteTel: e.target.value }))}
-                    placeholder="3001234567"
-                  />
-                </div>
-                <div className="f-field" style={{ marginBottom: 0 }}>
-                  <label>Barrio</label>
-                  {barriosList.length > 0 ? (
-                    <select
-                      value={manualForm.clienteBarrio}
-                      onChange={e => setManualForm(f => ({ ...f, clienteBarrio: e.target.value }))}
-                    >
-                      <option value="">Seleccionar...</option>
-                      {barriosList.map(b => <option key={b.id} value={b.nombre}>{b.nombre}</option>)}
-                    </select>
-                  ) : (
-                    <input
-                      value={manualForm.clienteBarrio}
-                      onChange={e => setManualForm(f => ({ ...f, clienteBarrio: e.target.value }))}
-                      placeholder="Barrio"
-                    />
-                  )}
-                </div>
-              </div>
-              <div className="f-field" style={{ marginBottom: 0 }}>
-                <label>Dirección</label>
-                <input
-                  value={manualForm.clienteDir}
-                  onChange={e => setManualForm(f => ({ ...f, clienteDir: e.target.value }))}
-                  placeholder="Calle 45 # 23-10"
-                />
-              </div>
-            </div>
+          <div style={{ fontSize: 14, color: 'var(--text2)' }}>
+            {pinTarget?.action === 'entregado'
+              ? 'Esta acción solo puede realizarla el domiciliario. Ingresa el PIN de administrador para confirmar.'
+              : 'Ingresa el PIN de administrador para eliminar este pedido.'}
           </div>
-
-          {/* Productos */}
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Productos</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {manualForm.items.map((it, idx) => (
-                <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 60px auto', gap: 6, alignItems: 'center' }}>
-                  <input
-                    value={it.nombre}
-                    onChange={e => setManualItem(idx, 'nombre', e.target.value)}
-                    placeholder="Nombre del producto"
-                    style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)' }}
-                  />
-                  <input
-                    type="number" min="0"
-                    value={it.precio}
-                    onChange={e => setManualItem(idx, 'precio', e.target.value)}
-                    placeholder="Precio"
-                    style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)' }}
-                  />
-                  <input
-                    type="number" min="1"
-                    value={it.qty}
-                    onChange={e => setManualItem(idx, 'qty', e.target.value)}
-                    placeholder="Qty"
-                    style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)', textAlign: 'center' }}
-                  />
-                  {manualForm.items.length > 1 && (
-                    <button
-                      onClick={() => removeManualItem(idx)}
-                      style={{ width: 30, height: 34, borderRadius: 8, border: '1px solid var(--danger-bg)', background: 'var(--danger-bg)', cursor: 'pointer', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                onClick={addManualItem}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: '1px dashed var(--border)', background: 'transparent', cursor: 'pointer', fontSize: 13, color: 'var(--text3)', fontFamily: 'inherit', width: 'fit-content' }}
-              >
-                <Plus size={13} /> Agregar producto
-              </button>
-            </div>
-          </div>
-
-          {/* Notas y domicilio */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <div className="f-field" style={{ marginBottom: 0 }}>
-              <label>Notas</label>
-              <input
-                value={manualForm.notas}
-                onChange={e => setManualForm(f => ({ ...f, notas: e.target.value }))}
-                placeholder="Observaciones..."
-              />
-            </div>
-            <div className="f-field" style={{ marginBottom: 0 }}>
-              <label>Domicilio (COP)</label>
-              <input
-                type="number" min="0"
-                value={manualForm.domicilio}
-                onChange={e => setManualForm(f => ({ ...f, domicilio: e.target.value }))}
-                placeholder="0"
-              />
-            </div>
-          </div>
-
-          {/* Total preview */}
-          {manualSubtotal > 0 && (
-            <div style={{ background: 'var(--bg2)', borderRadius: 10, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-              <span style={{ color: 'var(--text2)' }}>Subtotal: {fmtPrice(manualSubtotal)}</span>
-              <span style={{ fontWeight: 700, color: 'var(--brand)' }}>Total: {fmtPrice(manualTotal)}</span>
-            </div>
-          )}
-
+          <input
+            type="password"
+            inputMode="numeric"
+            maxLength={8}
+            value={pinInput}
+            onChange={e => { setPinInput(e.target.value); setPinError(''); }}
+            onKeyDown={e => e.key === 'Enter' && handlePinConfirm()}
+            placeholder="PIN"
+            autoFocus
+            style={{ padding: '12px 14px', borderRadius: 10, border: `1px solid ${pinError ? 'var(--danger)' : 'var(--border)'}`, fontSize: 20, textAlign: 'center', letterSpacing: 6, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--text)' }}
+          />
+          {pinError && <div style={{ fontSize: 13, color: 'var(--danger)', textAlign: 'center' }}>{pinError}</div>}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <button className="btn-s" onClick={() => setManualOpen(false)}>Cancelar</button>
-            <button className="btn-p" onClick={handleCreateManual} disabled={savingManual}>
-              {savingManual ? 'Creando...' : 'Crear pedido'}
+            <button className="btn-s" onClick={() => setPinTarget(null)}>Cancelar</button>
+            <button className={`btn-p${pinTarget?.action === 'delete' ? '' : ''}`}
+              style={pinTarget?.action === 'delete' ? { background: 'var(--danger)' } : undefined}
+              onClick={handlePinConfirm}>
+              Confirmar
             </button>
           </div>
         </div>

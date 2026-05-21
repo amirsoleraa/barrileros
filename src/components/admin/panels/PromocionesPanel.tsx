@@ -45,9 +45,26 @@ export function PromocionesPanel() {
   const [isOpen,  setIsOpen]  = useState(false);
   const [editId,  setEditId]  = useState<string | null>(null);
   const [form,    setForm]    = useState<Omit<Promocion, 'id' | 'createdAt'>>(DEFAULT_FORM);
-  const [saving,  setSaving]  = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const productosList = Object.values(productos).filter(p => p.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  function promoDetail(p: Promocion): string {
+    const pA = p.productoAId ? (productos[p.productoAId]?.nombre ?? '—') : null;
+    const pB = p.productoBId ? (productos[p.productoBId]?.nombre ?? '—') : null;
+    switch (p.tipo) {
+      case 'compra_lleva':
+        return pA && pB ? `Compra ${p.cantidadA ?? 1}× ${pA} → lleva ${p.cantidadB ?? 1}× ${pB} gratis` : '—';
+      case 'compra_descuento':
+        return pA && pB ? `Compra ${p.cantidadA ?? 1}× ${pA} → ${pB} con ${p.descuentoBPct ?? 100}% descuento` : '—';
+      case 'domicilio_descuento':
+        return p.domicilioGratis ? 'Domicilio gratis' : `Domicilio con ${p.domicilioPct ?? 0}% descuento`;
+      case 'compra_cupon':
+        return pA ? `Compra ${p.cantidadA ?? 1}× ${pA} → cupón de ${p.cuponPct ?? 10}% descuento` : '—';
+      default: return '—';
+    }
+  }
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'promociones'), snap => {
@@ -158,42 +175,62 @@ export function PromocionesPanel() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {promos.map(p => {
             const PromoIcon = TIPO_ICONS[p.tipo];
+            const isExp = expandedId === p.id;
             return (
               <div key={p.id} style={{
                 background: 'var(--surface)', border: '1px solid var(--border)',
                 borderLeft: `4px solid ${p.activa ? 'var(--brand)' : 'var(--border)'}`,
-                borderRadius: 12, padding: '12px 16px',
-                display: 'flex', alignItems: 'center', gap: 12,
-                opacity: p.activa ? 1 : 0.6,
+                borderRadius: 12, opacity: p.activa ? 1 : 0.65,
+                overflow: 'hidden',
               }}>
-                <div style={{
-                  width: 40, height: 40, borderRadius: 12, flexShrink: 0,
-                  background: p.activa ? 'var(--brand-light)' : 'var(--bg2)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <PromoIcon size={18} color={p.activa ? 'var(--brand)' : 'var(--text3)'} />
+                {/* Header row — always visible, tappable */}
+                <div
+                  style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+                  onClick={() => setExpandedId(isExp ? null : p.id)}
+                >
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                    background: p.activa ? 'var(--brand-light)' : 'var(--bg2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <PromoIcon size={16} color={p.activa ? 'var(--brand)' : 'var(--text3)'} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{p.nombre}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 1 }}>{TIPO_LABELS[p.tipo]}</div>
+                  </div>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, flexShrink: 0,
+                    background: p.activa ? 'var(--brand-light)' : 'var(--bg2)',
+                    color: p.activa ? 'var(--brand)' : 'var(--text3)',
+                  }}>
+                    {p.activa ? 'Activa' : 'Inactiva'}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--text3)', flexShrink: 0 }}>{isExp ? '▲' : '▼'}</span>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{p.nombre}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{TIPO_LABELS[p.tipo]}</div>
-                  {p.descripcion && (
-                    <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>{p.descripcion}</div>
-                  )}
-                </div>
-                <span style={{
-                  fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, flexShrink: 0,
-                  background: p.activa ? 'var(--brand-light)' : 'var(--bg2)',
-                  color: p.activa ? 'var(--brand)' : 'var(--text3)',
-                }}>
-                  {p.activa ? 'Activa' : 'Inactiva'}
-                </span>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button className={`ab ${p.activa ? 'ab-d' : 'ab-e'}`} onClick={() => handleToggle(p)} style={{ fontSize: 11 }}>
-                    {p.activa ? 'Desactivar' : 'Activar'}
-                  </button>
-                  <button className="ab ab-e" onClick={() => openEdit(p)}><Pencil size={12} /></button>
-                  <button className="ab ab-d" onClick={() => handleDelete(p.id)}><Trash2 size={12} /></button>
-                </div>
+
+                {/* Expanded detail */}
+                {isExp && (
+                  <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ fontSize: 13, color: 'var(--text2)', background: 'var(--bg2)', borderRadius: 8, padding: '8px 12px' }}>
+                      {promoDetail(p)}
+                    </div>
+                    {p.descripcion && (
+                      <div style={{ fontSize: 13, color: 'var(--text3)' }}>📝 {p.descripcion}</div>
+                    )}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button className={`ab ${p.activa ? 'ab-d' : 'ab-e'}`} onClick={() => handleToggle(p)} style={{ fontSize: 12 }}>
+                        {p.activa ? 'Desactivar' : 'Activar'}
+                      </button>
+                      <button className="ab ab-e" onClick={() => openEdit(p)} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
+                        <Pencil size={12} /> Editar
+                      </button>
+                      <button className="ab ab-d" onClick={() => handleDelete(p.id)} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
+                        <Trash2 size={12} /> Eliminar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
