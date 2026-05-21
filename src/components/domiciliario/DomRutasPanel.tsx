@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   MapPin, CheckCircle, Flag, ChevronDown, ChevronUp,
   Plus, Trash2, ArrowUp, ArrowDown, XCircle, RotateCcw,
   ExternalLink, Package, AlertTriangle,
 } from 'lucide-react';
 import {
-  collection, getDocs, addDoc, updateDoc, deleteDoc,
+  collection, onSnapshot, getDoc, addDoc, updateDoc, deleteDoc,
   doc, serverTimestamp, query, where, setDoc,
 } from 'firebase/firestore';
 import { domDb as db } from '@/lib/firebase';
@@ -24,7 +24,7 @@ interface DomRutasPanelProps { domiciliario: Domiciliario; }
 
 export function DomRutasPanel({ domiciliario }: DomRutasPanelProps) {
   const { showToast, domiciliarios } = useAppStore();
-  const { pedidos } = useAdminStore();
+  const { pedidos, setPedidos } = useAdminStore();
   const confirm = useConfirm();
 
   const [rutas,        setRutas]        = useState<RutaEntrega[]>([]);
@@ -49,23 +49,40 @@ export function DomRutasPanel({ domiciliario }: DomRutasPanelProps) {
     .filter(p => p.estado === 'camino' && (!p.domiciliarioId || p.domiciliarioId === domiciliario.id))
     .sort((a, b) => (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0));
 
-  useEffect(() => { loadRutas(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const fetchedPedidoIds = useRef<Set<string>>(new Set());
 
-  async function loadRutas() {
+  // Real-time subscription to active routes
+  useEffect(() => {
     setLoading(true);
-    try {
-      const snap = await getDocs(query(
-        collection(db, 'rutas'),
-        where('estado', '==', 'activa'),
-        where('domiciliarioId', '==', domiciliario.id),
-      ));
+    const q = query(
+      collection(db, 'rutas'),
+      where('estado', '==', 'activa'),
+      where('domiciliarioId', '==', domiciliario.id),
+    );
+    const unsub = onSnapshot(q, snap => {
       const list: RutaEntrega[] = [];
       snap.forEach(d => list.push({ id: d.id, ...d.data() } as RutaEntrega));
       list.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
       setRutas(list);
-    } catch { showToast('Error al cargar rutas', 'error'); }
-    finally { setLoading(false); }
-  }
+      setLoading(false);
+    }, () => { showToast('Error al cargar rutas', 'error'); setLoading(false); });
+    return unsub;
+  }, [domiciliario.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch any pedidos not yet in the store when routes change
+  useEffect(() => {
+    const allIds = rutas.flatMap(r => r.pedidoIds);
+    const missingIds = allIds.filter(id => !pedidos[id] && !fetchedPedidoIds.current.has(id));
+    if (missingIds.length === 0) return;
+    missingIds.forEach(id => fetchedPedidoIds.current.add(id));
+    Promise.all(missingIds.map(id => getDoc(doc(db, 'pedidos', id))))
+      .then(snaps => {
+        const fetched: Record<string, Pedido> = {};
+        snaps.forEach(s => { if (s.exists()) fetched[s.id] = { id: s.id, ...s.data() } as Pedido; });
+        if (Object.keys(fetched).length > 0) setPedidos(prev => ({ ...prev, ...fetched }));
+      })
+      .catch(() => {});
+  }, [rutas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleCrearRuta() {
     if (selected.size === 0) { showToast('Selecciona al menos un pedido', 'error'); return; }
