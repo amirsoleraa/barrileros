@@ -53,7 +53,7 @@ const DEFAULT_MANUAL: ManualForm = {
 };
 
 export function OrdersPanel() {
-  const { pedidos, pedidosFiltro, setPedidosFiltro } = useAdminStore();
+  const { pedidos, pedidosFiltro, setPedidosFiltro, adminSettings } = useAdminStore();
   const { showToast, barrios, cfg, productos, categorias, promociones } = useAppStore();
   const confirm = useConfirm();
   const [detailPedido, setDetailPedido] = useState<Pedido | null>(null);
@@ -107,7 +107,7 @@ export function OrdersPanel() {
   }
 
   async function moveToState(pedidoId: string, estado: PedidoTab) {
-    if (estado === 'entregado' && cfg.adminPin) {
+    if (estado === 'entregado' && adminSettings?.adminPin) {
       setPinTarget({ pedidoId, action: 'entregado' });
       setPinInput(''); setPinError('');
       return;
@@ -122,7 +122,7 @@ export function OrdersPanel() {
   }
 
   async function handleDelete(pedidoId: string) {
-    if (cfg.adminPin) {
+    if (adminSettings?.adminPin) {
       setPinTarget({ pedidoId, action: 'delete' });
       setPinInput(''); setPinError('');
       return;
@@ -137,7 +137,7 @@ export function OrdersPanel() {
 
   async function handlePinConfirm() {
     if (!pinTarget) return;
-    if (pinInput !== cfg.adminPin) {
+    if (pinInput !== adminSettings?.adminPin) {
       setPinError('PIN incorrecto');
       setPinInput('');
       return;

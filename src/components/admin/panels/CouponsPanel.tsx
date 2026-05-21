@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
-import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { setDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
@@ -64,8 +64,8 @@ export function CouponsPanel() {
         setCupones({ ...cupones, [editId]: { id: editId, usos: editUsos, ...data } });
         showToast('Cupón actualizado');
       } else {
-        const r = await addDoc(collection(db, 'cupones'), { ...data, usos: 0 });
-        setCupones({ ...cupones, [r.id]: { id: r.id, usos: 0, ...data } });
+        await setDoc(doc(db, 'cupones', data.codigo), { ...data, usos: 0 });
+        setCupones({ ...cupones, [data.codigo]: { id: data.codigo, usos: 0, ...data } });
         showToast('Cupón creado');
       }
       setIsOpen(false);

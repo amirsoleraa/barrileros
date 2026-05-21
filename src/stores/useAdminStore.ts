@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════
 
 import { create } from 'zustand';
-import type { Pedido, PedidoTab } from '@/types';
+import type { Pedido, PedidoTab, AdminSettings } from '@/types';
 
 interface AdminState {
   pedidos: Record<string, Pedido>;
@@ -14,6 +14,7 @@ interface AdminState {
   pendingProdImgFile: File | null;
   tmpIngrTags: string[];
   tmpExtTags: string[];
+  adminSettings: AdminSettings | null;
 
   setPedidos: (updater: (prev: Record<string, Pedido>) => Record<string, Pedido>) => void;
   updatePedido: (id: string, data: Partial<Pedido>) => void;
@@ -25,6 +26,7 @@ interface AdminState {
   setPendingProdImgFile: (f: File | null) => void;
   setTmpIngrTags: (tags: string[]) => void;
   setTmpExtTags: (tags: string[]) => void;
+  setAdminSettings: (s: AdminSettings) => void;
 }
 
 export const useAdminStore = create<AdminState>((set) => ({
@@ -36,6 +38,7 @@ export const useAdminStore = create<AdminState>((set) => ({
   pendingProdImgFile: null,
   tmpIngrTags: [],
   tmpExtTags: [],
+  adminSettings: null,
 
   setPedidos: (updater) => set((s) => ({ pedidos: updater(s.pedidos) })),
   updatePedido: (id, data) => set((s) => ({
@@ -53,4 +56,5 @@ export const useAdminStore = create<AdminState>((set) => ({
   setPendingProdImgFile: (f) => set({ pendingProdImgFile: f }),
   setTmpIngrTags: (tags) => set({ tmpIngrTags: tags }),
   setTmpExtTags: (tags) => set({ tmpExtTags: tags }),
+  setAdminSettings: (s) => set({ adminSettings: s }),
 }));

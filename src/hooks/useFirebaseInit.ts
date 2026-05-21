@@ -4,10 +4,10 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth, firebaseReady } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { applyThemeColors } from '@/lib/utils';
-import type { AppConfig, Producto, Categoria, Cupon, Novedad, Publicidad, Adicional, Barrio, Domiciliario, Promocion } from '@/types';
+import type { AppConfig, Producto, Categoria, Novedad, Publicidad, Adicional, Barrio, Domiciliario, Promocion } from '@/types';
 
 export function useFirebaseInit() {
-  const { setCfg, setProductos, setCategorias, setCupones, setNovedades, setPublicidades, setAdicionales, setBarrios, setDomiciliarios, setPromociones, setLoading } = useAppStore();
+  const { setCfg, setProductos, setCategorias, setNovedades, setPublicidades, setAdicionales, setBarrios, setDomiciliarios, setPromociones, setLoading } = useAppStore();
 
   useEffect(() => {
     if (!firebaseReady) {
@@ -15,12 +15,12 @@ export function useFirebaseInit() {
       return;
     }
 
-    // Track first-load of the 3 critical collections before hiding loading screen
+    // Track first-load of the 2 critical collections before hiding loading screen
     let criticalReady = 0;
     let loadingDone = false;
     function markCritical() {
       criticalReady++;
-      if (criticalReady >= 3 && !loadingDone) {
+      if (criticalReady >= 2 && !loadingDone) {
         loadingDone = true;
         setTimeout(() => setLoading(false), 500);
       }
@@ -78,19 +78,6 @@ export function useFirebaseInit() {
           const prods: Record<string, Producto> = {};
           snap.forEach(d => { prods[d.id] = { id: d.id, ...d.data() } as Producto; });
           setProductos(prods);
-          markCritical();
-        },
-        () => markCritical()
-      )
-    );
-
-    // Cupones — crítica
-    unsubs.push(
-      onSnapshot(collection(db, 'cupones'),
-        snap => {
-          const cups: Record<string, Cupon> = {};
-          snap.forEach(d => { cups[d.id] = { id: d.id, ...d.data() } as Cupon; });
-          setCupones(cups);
           markCritical();
         },
         () => markCritical()

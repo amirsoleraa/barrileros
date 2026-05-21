@@ -4,6 +4,7 @@ import { setDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { uploadImage } from '@/lib/cloudinary';
 import { useAppStore } from '@/stores/useAppStore';
+import { useAdminStore } from '@/stores/useAdminStore';
 import { Toggle } from '@/components/ui/Toggle';
 import { ColorsPanel } from './ColorsPanel';
 import type { CamposFormulario } from '@/types';
@@ -33,12 +34,14 @@ const DEFAULT_CAMPOS: CamposFormulario = { correo: true, tel: true, dir: true, b
 
 export function ConfigPanel() {
   const { cfg, setCfg, showToast } = useAppStore();
+  const { adminSettings, setAdminSettings } = useAdminStore();
   const [nombre, setNombre]     = useState(cfg.nombreComercio);
   const [emoji, setEmoji]       = useState(cfg.logoEmoji);
   const [logoUrl, setLogoUrl]   = useState(cfg.logoUrl);
   const [mensaje, setMensaje]   = useState(cfg.mensajeConfirmacion);
   const [whatsapp, setWhatsapp] = useState(cfg.whatsappNumero ?? '');
-  const [historialPin, setHistorialPin] = useState(cfg.historialPin ?? '');
+  const [historialPin, setHistorialPin] = useState(adminSettings?.historialPin ?? '');
+  const [adminPin, setAdminPin] = useState(adminSettings?.adminPin ?? '');
   const [mapCountry, setMapCountry] = useState(cfg.mapCountryCode ?? 'co');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState(cfg.logoUrl);
@@ -54,7 +57,6 @@ export function ConfigPanel() {
     setLogoPreview(cfg.logoUrl);
     setMensaje(cfg.mensajeConfirmacion);
     setWhatsapp(cfg.whatsappNumero ?? '');
-    setHistorialPin(cfg.historialPin ?? '');
     setMapCountry(cfg.mapCountryCode ?? 'co');
     setCampos({ ...DEFAULT_CAMPOS, ...(cfg.camposFormulario ?? {}) });
   }, [cfg]);
@@ -81,12 +83,20 @@ export function ConfigPanel() {
         logoUrl: finalLogoUrl,
         mensajeConfirmacion: mensaje.trim(),
         whatsappNumero: whatsapp.replace(/\D/g, ''),
-        historialPin: historialPin.trim(),
         mapCountryCode: mapCountry.trim().toLowerCase() || 'co',
       };
 
-      await setDoc(doc(db, 'config', 'main'), updates, { merge: true });
+      const pinUpdates = {
+        historialPin: historialPin.trim(),
+        adminPin: adminPin.trim(),
+      };
+
+      await Promise.all([
+        setDoc(doc(db, 'config', 'main'), updates, { merge: true }),
+        setDoc(doc(db, 'config', 'adminSettings'), pinUpdates, { merge: true }),
+      ]);
       setCfg(updates);
+      setAdminSettings(pinUpdates);
       setLogoFile(null);
       showToast('Configuración guardada', 'success');
     } catch (e) {
@@ -187,6 +197,19 @@ export function ConfigPanel() {
             />
             <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
               Se solicita para editar registros en el Historial de pedidos.
+            </div>
+          </div>
+          <div className="f-field">
+            <label>PIN de confirmación de pedidos</label>
+            <input
+              type="password"
+              value={adminPin}
+              onChange={e => setAdminPin(e.target.value)}
+              placeholder="Ej: 9999"
+              maxLength={8}
+            />
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
+              Se solicita al marcar pedidos como entregados o al eliminarlos.
             </div>
           </div>
           <div className="f-field">

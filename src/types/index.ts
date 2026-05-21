@@ -21,9 +21,12 @@ export interface AppConfig {
   mensajeConfirmacion: string;
   whatsappNumero?: string;
   camposFormulario?: CamposFormulario;
+  mapCountryCode?: string;
+}
+
+export interface AdminSettings {
   historialPin?: string;
   adminPin?: string;
-  mapCountryCode?: string;
 }
 
 export interface DeliverySettings {

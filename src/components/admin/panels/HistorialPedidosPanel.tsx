@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { onSnapshot, collection, query, orderBy, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
+import { useAdminStore } from '@/stores/useAdminStore';
 import { fmtPrice } from '@/lib/utils';
 import { ChevronDown, ChevronUp, Lock, Unlock, Edit2, Save, X, FileText, Calendar, Trash2 } from 'lucide-react';
 import type { HistorialDia, Pedido } from '@/types';
@@ -83,6 +84,7 @@ function printFactura(p: Pedido, fechaLabel: string, nombreComercio: string) {
 
 export function HistorialPedidosPanel() {
   const { cfg, showToast } = useAppStore();
+  const { adminSettings } = useAdminStore();
   const [dias, setDias]             = useState<HistorialDia[]>([]);
   const [loading, setLoading]       = useState(true);
   const [expanded, setExpanded]     = useState<Set<string>>(new Set());
@@ -160,7 +162,7 @@ export function HistorialPedidosPanel() {
   }), [filtered, groupedFiltered]);
 
   function handleUnlock() {
-    const pin = cfg.historialPin ?? '';
+    const pin = adminSettings?.historialPin ?? '';
     if (!pin) { showToast('Configura un PIN en Configuración > General primero', 'error'); return; }
     if (pinInput === pin) {
       setPinUnlocked(true);

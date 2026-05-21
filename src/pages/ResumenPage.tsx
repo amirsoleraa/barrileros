@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, MapPin, Ticket, CheckCircle, MessageCircle, User, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, setDoc, updateDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAppStore } from '@/stores/useAppStore';
@@ -11,7 +11,7 @@ import { LocationPicker } from '@/components/client/LocationPicker';
 import { sendOrderConfirmation } from '@/lib/email';
 import { fmtPrice, generarNumeroPedido, isValidEmail, isValidPhone } from '@/lib/utils';
 import { evaluatePromos } from '@/lib/promos';
-import type { DatosEnvio, Pedido } from '@/types';
+import type { DatosEnvio, Pedido, Cupon } from '@/types';
 import styles from './ResumenPage.module.css';
 
 interface DatosForm {
@@ -27,7 +27,7 @@ interface DatosForm {
 export function ResumenPage() {
   const navigate = useNavigate();
   const { cart, datosEnvio, locationData, cuponAplicado, setCuponAplicado, setDatosEnvio, setLocationData, setCartOpen, setLastPedido, reset: clearCart } = useCartStore();
-  const { cfg, cupones, barrios, promociones, productos, showToast } = useAppStore();
+  const { cfg, barrios, promociones, productos, showToast } = useAppStore();
 
   useEffect(() => {
     document.documentElement.dataset.theme = 'dark';
@@ -103,19 +103,24 @@ export function ResumenPage() {
     showToast('Datos guardados');
   }
 
-  function applyCoupon() {
+  async function applyCoupon() {
     const code = cuponCode.trim().toUpperCase();
     if (!code) return;
-    const cup = Object.values(cupones).find(c => c.codigo === code && c.activo !== false);
-    if (!cup) {
-      setCuponMsg('Cupón inválido o expirado'); setCuponOk(false); setCuponAplicado(null); return;
+    try {
+      const snap = await getDoc(doc(db, 'cupones', code));
+      if (!snap.exists() || snap.data().activo === false) {
+        setCuponMsg('Cupón inválido o expirado'); setCuponOk(false); setCuponAplicado(null); return;
+      }
+      const cup = { id: snap.id, ...snap.data() } as Cupon;
+      if (cup.limite > 0 && cup.usos >= cup.limite) {
+        setCuponMsg('Cupón agotado'); setCuponOk(false); setCuponAplicado(null); return;
+      }
+      setCuponAplicado(cup);
+      setCuponMsg(`Cupón aplicado — ${cup.tipo === 'porcentaje' ? `${cup.valor}%` : fmtPrice(cup.valor)} de descuento`);
+      setCuponOk(true);
+    } catch {
+      setCuponMsg('Error al verificar cupón'); setCuponOk(false);
     }
-    if (cup.limite > 0 && cup.usos >= cup.limite) {
-      setCuponMsg('Cupón agotado'); setCuponOk(false); setCuponAplicado(null); return;
-    }
-    setCuponAplicado(cup);
-    setCuponMsg(`Cupón aplicado — ${cup.tipo === 'porcentaje' ? `${cup.valor}%` : fmtPrice(cup.valor)} de descuento`);
-    setCuponOk(true);
   }
 
   function handleConfirmar() {
@@ -195,13 +200,12 @@ export function ResumenPage() {
       const fullPedido = { ...pedido, id: ref.id };
 
       if (cuponAplicado) {
-        const cup = Object.values(cupones).find(c => c.codigo === cuponAplicado.codigo);
-        if (cup) updateDoc(doc(db, 'cupones', cup.id), { usos: (cup.usos || 0) + 1 }).catch(() => {});
+        updateDoc(doc(db, 'cupones', cuponAplicado.id), { usos: (cuponAplicado.usos || 0) + 1 }).catch(() => {});
       }
 
       for (const code of promoResult.cuponesGenerados) {
         const promoApl = promoResult.promosAplicadas.find(pa => pa.cuponGenerado === code);
-        addDoc(collection(db, 'cupones'), {
+        setDoc(doc(db, 'cupones', code), {
           codigo: code,
           tipo: 'porcentaje',
           valor: promoApl?.cuponPct ?? 10,

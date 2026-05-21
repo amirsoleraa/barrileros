@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { onSnapshot, collection, query, where, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
+import { useAdminStore } from '@/stores/useAdminStore';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { fmtPrice } from '@/lib/utils';
 import { User, Package, ChevronDown, ChevronUp, CheckCircle, Trash2, X, Calendar, Bike } from 'lucide-react';
@@ -22,6 +23,7 @@ function fechaISO(ts?: { seconds: number }): string {
 
 export function HistorialRutasPanel() {
   const { cfg, domiciliarios, showToast } = useAppStore();
+  const { adminSettings } = useAdminStore();
   const confirm = useConfirm();
   const [rutas, setRutas]       = useState<RutaEntrega[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -125,7 +127,7 @@ export function HistorialRutasPanel() {
   }
 
   async function startDelete(rutaId: string) {
-    const pin = cfg.historialPin ?? '';
+    const pin = adminSettings?.historialPin ?? '';
     if (!pin) {
       const ok = await confirm({ title: 'Eliminar ruta', message: '¿Eliminar esta ruta del historial? Esta acción no se puede deshacer.', danger: true, confirmLabel: 'Eliminar' });
       if (ok) confirmDelete(rutaId, '');
@@ -136,7 +138,7 @@ export function HistorialRutasPanel() {
   }
 
   async function confirmDelete(rutaId: string, pin: string) {
-    const expectedPin = cfg.historialPin ?? '';
+    const expectedPin = adminSettings?.historialPin ?? '';
     if (expectedPin && pin !== expectedPin) {
       showToast('PIN incorrecto', 'error');
       setPinInput('');

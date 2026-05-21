@@ -8,11 +8,11 @@ import { db, firebaseReady } from '@/lib/firebase';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { applyThemeColors } from '@/lib/utils';
-import type { AppConfig, Producto, Categoria, Cupon, Novedad, Pedido, Adicional, Barrio, Domiciliario, Promocion } from '@/types';
+import type { AppConfig, AdminSettings, Producto, Categoria, Cupon, Novedad, Pedido, Adicional, Barrio, Domiciliario, Promocion } from '@/types';
 
 export function useAdminInit() {
   const { setCfg, setProductos, setCategorias, setCupones, setNovedades, setAdicionales, setBarrios, setDomiciliarios, setPromociones, showToast } = useAppStore();
-  const { setPedidos } = useAdminStore();
+  const { setPedidos, setAdminSettings } = useAdminStore();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -25,17 +25,19 @@ export function useAdminInit() {
 
     async function init() {
       try {
-        const [cfgDoc, colorDoc, catSnap, prodSnap, cupSnap, novSnap] = await Promise.all([
+        const [cfgDoc, colorDoc, catSnap, prodSnap, cupSnap, novSnap, adminSettingsDoc] = await Promise.all([
           getDoc(doc(db, 'config', 'main')),
           getDoc(doc(db, 'config', 'colores')),
           getDocs(collection(db, 'categorias')),
           getDocs(collection(db, 'productos')),
           getDocs(collection(db, 'cupones')),
           getDocs(collection(db, 'novedades')),
+          getDoc(doc(db, 'config', 'adminSettings')),
         ]);
 
         if (cfgDoc.exists()) setCfg(cfgDoc.data() as Partial<AppConfig>);
         if (colorDoc.exists()) applyThemeColors(colorDoc.data() as Record<string, string>);
+        if (adminSettingsDoc.exists()) setAdminSettings(adminSettingsDoc.data() as AdminSettings);
 
         const cats:  Record<string, Categoria>   = {};
         const prods: Record<string, Producto>    = {};
