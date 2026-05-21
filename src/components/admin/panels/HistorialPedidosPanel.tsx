@@ -122,13 +122,42 @@ export function HistorialPedidosPanel() {
     });
   }, [dias, dateFrom, dateTo]);
 
+  const groupedFiltered = useMemo(() => {
+    type G = {
+      fecha: string; fechaLabel: string;
+      pedidos: Array<Pedido & { _diaId: string }>;
+      totalEntregados: number; totalCancelados: number; totalRecaudo: number;
+      docIds: string[];
+    };
+    const map: Record<string, G> = {};
+    for (const dia of filtered) {
+      if (!map[dia.fecha]) {
+        map[dia.fecha] = {
+          fecha: dia.fecha, fechaLabel: dia.fechaLabel,
+          pedidos: dia.pedidos.map(p => ({ ...p, _diaId: dia.id })),
+          totalEntregados: dia.totalEntregados,
+          totalCancelados: dia.totalCancelados,
+          totalRecaudo: dia.totalRecaudo,
+          docIds: [dia.id],
+        };
+      } else {
+        map[dia.fecha].pedidos.push(...dia.pedidos.map(p => ({ ...p, _diaId: dia.id })));
+        map[dia.fecha].totalEntregados += dia.totalEntregados;
+        map[dia.fecha].totalCancelados += dia.totalCancelados;
+        map[dia.fecha].totalRecaudo += dia.totalRecaudo;
+        map[dia.fecha].docIds.push(dia.id);
+      }
+    }
+    return Object.values(map).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  }, [filtered]);
+
   // Summary for filtered period
   const summary = useMemo(() => ({
-    dias: filtered.length,
+    dias: groupedFiltered.length,
     entregados: filtered.reduce((s, d) => s + d.totalEntregados, 0),
     cancelados: filtered.reduce((s, d) => s + d.totalCancelados, 0),
     recaudo: filtered.reduce((s, d) => s + d.totalRecaudo, 0),
-  }), [filtered]);
+  }), [filtered, groupedFiltered]);
 
   function handleUnlock() {
     const pin = cfg.historialPin ?? '';
@@ -281,13 +310,13 @@ export function HistorialPedidosPanel() {
         <div className="empty-s">Sin registros para el período seleccionado.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {filtered.map(dia => {
-            const isExp = expanded.has(dia.id);
+          {groupedFiltered.map(dia => {
+            const isExp = expanded.has(dia.fecha);
             return (
-              <div key={dia.id} className="admin-card">
+              <div key={dia.fecha} className="admin-card">
                 <div
                   style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
-                  onClick={() => toggleExpand(dia.id)}
+                  onClick={() => toggleExpand(dia.fecha)}
                 >
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 15 }}>{dia.fechaLabel}</div>
@@ -302,7 +331,7 @@ export function HistorialPedidosPanel() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {pinUnlocked && (
                       <button
-                        onClick={e => { e.stopPropagation(); deleteDoc(doc(db, 'historial_pedidos', dia.id)).then(() => showToast('Día eliminado', 'success')).catch(() => showToast('Error al eliminar', 'error')); }}
+                        onClick={e => { e.stopPropagation(); Promise.all(dia.docIds.map(id => deleteDoc(doc(db, 'historial_pedidos', id)))).then(() => showToast('Día eliminado', 'success')).catch(() => showToast('Error al eliminar', 'error')); }}
                         style={{ width: 28, height: 28, borderRadius: 7, border: 'none', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         title="Eliminar este día del historial"
                       >
@@ -316,7 +345,8 @@ export function HistorialPedidosPanel() {
                 {isExp && (
                   <div style={{ borderTop: '1px solid var(--border)' }}>
                     {dia.pedidos.map((p, idx) => {
-                      const isEditing = editingPedido?.diaId === dia.id && editingPedido?.pedidoId === p.id;
+                      const pDiaId = (p as Pedido & { _diaId: string })._diaId;
+                      const isEditing = editingPedido?.diaId === pDiaId && editingPedido?.pedidoId === p.id;
                       return (
                         <div
                           key={p.id ?? idx}
@@ -399,7 +429,7 @@ export function HistorialPedidosPanel() {
                                 </button>
                                 {pinUnlocked && (
                                   <button
-                                    onClick={() => startEdit(dia.id, p)}
+                                    onClick={() => startEdit(pDiaId, p)}
                                     style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)' }}
                                     title="Editar"
                                   >

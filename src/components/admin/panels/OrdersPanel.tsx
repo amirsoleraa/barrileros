@@ -72,6 +72,9 @@ export function OrdersPanel() {
   const [savingManual, setSavingManual] = useState(false);
   // Manual cart: productId -> qty
   const [manualCart, setManualCart]   = useState<Record<string, number>>({});
+  // Barrio combobox
+  const [barrioQuery, setBarrioQuery] = useState('');
+  const [barrioOpen,  setBarrioOpen]  = useState(false);
 
   // kanban desktop drag
   const dragId  = useRef<string | null>(null);
@@ -305,6 +308,7 @@ export function OrdersPanel() {
       setManualOpen(false);
       setManualForm(DEFAULT_MANUAL);
       setManualCart({});
+      setBarrioQuery(''); setBarrioOpen(false);
     } catch (e) {
       showToast('Error al crear el pedido', 'error');
       console.error(e);
@@ -695,7 +699,7 @@ export function OrdersPanel() {
         const manTotal = manSubtotal + manDom - manPromos.descuentoProductos;
 
         return (
-          <Modal isOpen={manualOpen} onClose={() => { setManualOpen(false); setManualCart({}); }} title="Nuevo pedido manual" maxWidth={560}>
+          <Modal isOpen={manualOpen} onClose={() => { setManualOpen(false); setManualCart({}); setBarrioQuery(''); setBarrioOpen(false); }} title="Nuevo pedido manual" maxWidth={560}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
               {/* ── Datos cliente ── */}
@@ -711,15 +715,29 @@ export function OrdersPanel() {
                       <label>Teléfono</label>
                       <input value={manualForm.clienteTel} onChange={e => setManualForm(f => ({ ...f, clienteTel: e.target.value }))} placeholder="3001234567" />
                     </div>
-                    <div className="f-field" style={{ marginBottom: 0 }}>
+                    <div className="f-field" style={{ marginBottom: 0, position: 'relative' }}>
                       <label>Barrio</label>
-                      {barriosList.length > 0 ? (
-                        <select value={manualForm.clienteBarrio} onChange={e => setManualForm(f => ({ ...f, clienteBarrio: e.target.value }))}>
-                          <option value="">Seleccionar...</option>
-                          {barriosList.map(b => <option key={b.id} value={b.nombre}>{b.nombre}</option>)}
-                        </select>
-                      ) : (
-                        <input value={manualForm.clienteBarrio} onChange={e => setManualForm(f => ({ ...f, clienteBarrio: e.target.value }))} placeholder="Barrio" />
+                      <input
+                        value={barrioOpen ? barrioQuery : (manualForm.clienteBarrio || barrioQuery)}
+                        onFocus={() => { setBarrioOpen(true); setBarrioQuery(manualForm.clienteBarrio); }}
+                        onChange={e => { setBarrioQuery(e.target.value); setManualForm(f => ({ ...f, clienteBarrio: '' })); setBarrioOpen(true); }}
+                        onBlur={() => setTimeout(() => { setBarrioOpen(false); if (!manualForm.clienteBarrio) setBarrioQuery(''); }, 150)}
+                        placeholder="Buscar barrio..."
+                        autoComplete="off"
+                      />
+                      {barrioOpen && barriosList.length > 0 && (
+                        <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, maxHeight: 180, overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,.12)', zIndex: 300 }}>
+                          {barriosList
+                            .filter(b => !barrioQuery || manualForm.clienteBarrio || b.nombre.toLowerCase().includes(barrioQuery.toLowerCase()))
+                            .map(b => (
+                              <div key={b.id}
+                                onMouseDown={() => { setManualForm(f => ({ ...f, clienteBarrio: b.nombre })); setBarrioQuery(b.nombre); setBarrioOpen(false); }}
+                                style={{ padding: '9px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid var(--border)', background: manualForm.clienteBarrio === b.nombre ? 'var(--brand-light)' : 'transparent', color: manualForm.clienteBarrio === b.nombre ? 'var(--brand)' : 'var(--text)' }}
+                              >
+                                {b.nombre}
+                              </div>
+                            ))}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -812,7 +830,7 @@ export function OrdersPanel() {
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <button className="btn-s" onClick={() => { setManualOpen(false); setManualCart({}); }}>Cancelar</button>
+                <button className="btn-s" onClick={() => { setManualOpen(false); setManualCart({}); setBarrioQuery(''); setBarrioOpen(false); }}>Cancelar</button>
                 <button className="btn-p" onClick={handleCreateManual} disabled={savingManual}>
                   {savingManual ? 'Creando...' : 'Crear pedido'}
                 </button>
