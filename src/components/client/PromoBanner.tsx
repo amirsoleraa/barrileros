@@ -1,67 +1,56 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { Clock, X } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import styles from './PromoBanner.module.css';
 
-interface LightboxState { url: string; alt: string }
-
 export function PromoBanner() {
   const publicidades = useAppStore(s => s.publicidades);
-  const [lightbox, setLightbox] = useState<LightboxState | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!lightbox) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(null); };
+    if (!lightboxUrl) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightboxUrl(null); };
     document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [lightbox]);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [lightboxUrl]);
 
-  if (publicidades.length === 0) return null;
+  const active = publicidades.filter(p => p.activa);
+  if (active.length === 0) return null;
+
+  const first = active[0];
+  const hasImg = Boolean(first.imgUrl);
 
   return (
     <>
       <div className={styles.root}>
-        <div className={styles.track}>
-          {publicidades.map(p =>
-            p.imgUrl ? (
-              <div
-                key={p.id}
-                className={styles.imgCard}
-                onClick={() => setLightbox({ url: p.imgUrl!, alt: p.titulo })}
-              >
-                <img src={p.imgUrl} alt={p.titulo} className={styles.imgCardPhoto} />
-                <div className={styles.imgCardOverlay} />
-                <div className={styles.imgCardBody}>
-                  <div className={styles.imgCardTitle}>{p.titulo}</div>
-                  {p.descripcion && (
-                    <div className={styles.imgCardDesc}>{p.descripcion}</div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div key={p.id} className={`${styles.textCard} ${styles.amber}`}>
-                <div className={styles.textCardTitle}>{p.titulo}</div>
-                {p.descripcion && (
-                  <div className={styles.textCardDesc}>{p.descripcion}</div>
-                )}
-              </div>
-            )
-          )}
+        <div
+          className={`${styles.card} ${hasImg ? styles.cardWithImg : ''}`}
+          style={hasImg ? { backgroundImage: `url(${first.imgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', cursor: 'pointer' } : {}}
+          onClick={hasImg ? () => setLightboxUrl(first.imgUrl!) : undefined}
+        >
+          <div className={styles.body}>
+            <div className={styles.tag}>Promoción · Hoy</div>
+            <h2 className={styles.title}>{first.titulo}</h2>
+            {first.descripcion && (
+              <p className={styles.desc}>{first.descripcion}</p>
+            )}
+            <div className={styles.timer}>
+              <Clock size={12} />
+              <span>Disponible hoy</span>
+            </div>
+          </div>
+          {!hasImg && <span className={styles.flame}>🔥</span>}
         </div>
       </div>
 
-      {lightbox && (
-        <div className={styles.lbOverlay} onClick={() => setLightbox(null)}>
-          <button className={styles.lbClose} onClick={() => setLightbox(null)}>
-            <X size={22} />
+      {lightboxUrl && (
+        <div className={styles.lbOverlay} onClick={() => setLightboxUrl(null)}>
+          <button className={styles.lbClose} onClick={() => setLightboxUrl(null)}>
+            <X size={20} />
           </button>
           <img
-            src={lightbox.url}
-            alt={lightbox.alt}
+            src={lightboxUrl}
+            alt={first.titulo}
             className={styles.lbImage}
             onClick={e => e.stopPropagation()}
           />
