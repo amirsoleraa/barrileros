@@ -17,7 +17,10 @@ jobs:
           node-version: 20
           cache: npm
 
-      - run: npm ci
+      # npm ci exige que el lockfile ya tenga resueltas las variantes nativas
+      # de esbuild para linux-x64; el lockfile se genera en Windows y no
+      # siempre las incluye, así que usamos npm install (resuelve en el momento).
+      - run: npm install
 
       - name: Lint
         run: npm run lint
@@ -45,5 +48,5 @@ jobs:
           cache: npm
           cache-dependency-path: functions/package-lock.json
 
-      - run: npm ci
+      - run: npm install
       - run: npm run build
