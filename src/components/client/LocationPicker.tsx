@@ -174,6 +174,8 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
           className={styles.searchInput}
           placeholder="Busca tu dirección…"
           type="text"
+          autoComplete="off"
+          name="direccion-busqueda"
         />
       </div>
 
@@ -224,6 +226,7 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
               <>
                 <input
                   autoFocus
+                  autoComplete="off"
                   value={barrioSearch}
                   onChange={e => setBarrioSearch(e.target.value)}
                   placeholder="Buscar barrio…"
@@ -253,6 +256,7 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
             placeholder="Ej: El Prado, Manga, Bocagrande…"
             value={barrio}
             onChange={e => setBarrio(e.target.value)}
+            autoComplete="off"
           />
         )}
       </div>
@@ -268,6 +272,7 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
           placeholder="Apto, torre, piso, color de puerta, referencias del lugar…"
           value={notes}
           onChange={e => setNotes(e.target.value)}
+          autoComplete="off"
         />
       </div>
 

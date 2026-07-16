@@ -50,6 +50,7 @@ export function SearchOverlay({ isOpen, onClose, onOpenDetail }: SearchOverlayPr
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar productos..."
+            autoComplete="off"
           />
           <button onClick={onClose}><X size={18} /></button>
         </div>

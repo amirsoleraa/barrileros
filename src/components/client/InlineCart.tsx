@@ -106,6 +106,7 @@ export function InlineCart() {
               placeholder="Código promocional"
               value={promoCode}
               onChange={e => setPromoCode(e.target.value)}
+              autoComplete="off"
             />
             <button className={styles.promoApply}>Aplicar</button>
           </div>

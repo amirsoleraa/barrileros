@@ -18,6 +18,9 @@ const AUTH_ERRORS: Record<string, string> = {
   'auth/email-already-in-use': 'Ya existe una cuenta con ese correo',
   'auth/weak-password':        'La contraseña debe tener al menos 6 caracteres',
   'auth/popup-closed-by-user': 'Ventana cerrada antes de terminar',
+  'auth/popup-blocked':        'El navegador bloqueó la ventana de Google. Permite pop-ups para este sitio',
+  'auth/unauthorized-domain':  'Este dominio no está autorizado para iniciar sesión con Google (falta agregarlo en Firebase Console → Authentication → Settings → Authorized domains)',
+  'auth/operation-not-allowed': 'Este método de inicio de sesión no está activado en Firebase Console',
 };
 
 export function useClienteAuth() {
@@ -60,7 +63,10 @@ export function useClienteAuth() {
       return null;
     } catch (e: unknown) {
       const code = (e as { code?: string }).code ?? '';
-      return AUTH_ERRORS[code] ?? 'Error al ingresar con Google. Intenta de nuevo.';
+      // Sin traducción conocida: mostramos el código crudo para poder diagnosticar
+      // (ver consola del navegador para el error completo de Firebase).
+      console.error('[signInWithGoogle]', e);
+      return AUTH_ERRORS[code] ?? `Error al ingresar con Google (${code || 'desconocido'})`;
     }
   }
 

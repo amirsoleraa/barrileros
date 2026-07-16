@@ -75,11 +75,11 @@ export function CuentaPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div className="f-field" style={{ margin: 0 }}>
               <label>Nombre</label>
-              <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Tu nombre" />
+              <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Tu nombre" autoComplete="off" />
             </div>
             <div className="f-field" style={{ margin: 0 }}>
               <label>Teléfono</label>
-              <input value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="3001234567" maxLength={10} />
+              <input value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="3001234567" maxLength={10} autoComplete="off" />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <button className="btn-s" onClick={() => setEditando(false)} disabled={saving}>Cancelar</button>

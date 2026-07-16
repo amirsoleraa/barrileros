@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, MapPin, Ticket, CheckCircle, MessageCircle, User, ChevronDown } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { collection, addDoc, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAppStore } from '@/stores/useAppStore';
+import { useClienteAuth } from '@/hooks/useClienteAuth';
 import { Modal } from '@/components/ui/Modal';
 import { LocationPicker } from '@/components/client/LocationPicker';
 import { sendOrderConfirmation } from '@/lib/email';
@@ -26,6 +27,7 @@ interface DatosForm {
 
 export function ResumenPage() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useClienteAuth();
   const { cart, datosEnvio, locationData, cuponAplicado, setCuponAplicado, setDatosEnvio, setLocationData, setCartOpen, setLastPedido, reset: clearCart } = useCartStore();
   const { cfg, barrios, promociones, productos, showToast } = useAppStore();
 
@@ -243,6 +245,8 @@ export function ResumenPage() {
 
   const hasWhatsapp = !!cfg.whatsappNumero?.replace(/\D/g, '');
 
+  if (authLoading) return null;
+  if (!user) return <Navigate to="/login" state={{ from: '/resumen' }} replace />;
   if (cart.length === 0) { navigate('/'); return null; }
 
   return (
@@ -347,6 +351,7 @@ export function ResumenPage() {
                 value={cuponCode}
                 onChange={e => setCuponCode(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && applyCoupon()}
+                autoComplete="off"
               />
               <button className="btn-add" onClick={applyCoupon}>Aplicar</button>
             </div>
@@ -450,20 +455,20 @@ export function ResumenPage() {
         <form onSubmit={handleSubmit(onSaveDatos)} noValidate>
           <div className="f-field">
             <label>Nombre completo *</label>
-            <input {...register('nombre', { required: 'Obligatorio' })} placeholder="Tu nombre" />
+            <input {...register('nombre', { required: 'Obligatorio' })} placeholder="Tu nombre" autoComplete="off" />
             {errors.nombre && <span className="f-err">{errors.nombre.message}</span>}
           </div>
           {mostrar.correo && (
             <div className="f-field">
               <label>Correo electrónico</label>
-              <input {...register('correo', { validate: v => !v || isValidEmail(v) || 'Correo inválido' })} placeholder="correo@ejemplo.com" type="email" />
+              <input {...register('correo', { validate: v => !v || isValidEmail(v) || 'Correo inválido' })} placeholder="correo@ejemplo.com" type="email" autoComplete="off" />
               {errors.correo && <span className="f-err">{errors.correo.message}</span>}
             </div>
           )}
           {mostrar.tel && (
             <div className="f-field">
               <label>Teléfono *</label>
-              <input {...register('tel', { required: 'Obligatorio', validate: v => isValidPhone(v || '') || 'Teléfono inválido (ej: 3001234567)' })} placeholder="3001234567" maxLength={10} />
+              <input {...register('tel', { required: 'Obligatorio', validate: v => isValidPhone(v || '') || 'Teléfono inválido (ej: 3001234567)' })} placeholder="3001234567" maxLength={10} autoComplete="off" />
               {errors.tel && <span className="f-err">{errors.tel.message}</span>}
             </div>
           )}
@@ -471,7 +476,7 @@ export function ResumenPage() {
           {mostrar.dir && (
             <div className="f-field">
               <label>Dirección de entrega *</label>
-              <input {...register('dir', { required: 'Obligatorio' })} placeholder="Calle 45 # 23-10" />
+              <input {...register('dir', { required: 'Obligatorio' })} placeholder="Calle 45 # 23-10" autoComplete="off" />
               {errors.dir && <span className="f-err">{errors.dir.message}</span>}
             </div>
           )}
@@ -555,13 +560,13 @@ export function ResumenPage() {
           {mostrar.comp && (
             <div className="f-field">
               <label>Apartamento / Torre / Referencia</label>
-              <input {...register('comp')} placeholder="Apto 301, Torre B..." />
+              <input {...register('comp')} placeholder="Apto 301, Torre B..." autoComplete="off" />
             </div>
           )}
           {mostrar.recibe && (
             <div className="f-field">
               <label>¿Quién recibe? (si es diferente)</label>
-              <input {...register('recibe')} placeholder="Nombre de quien recibe" />
+              <input {...register('recibe')} placeholder="Nombre de quien recibe" autoComplete="off" />
             </div>
           )}
           <button type="submit" className="btn-p" style={{ marginTop: 8 }}>

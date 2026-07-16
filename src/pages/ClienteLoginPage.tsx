@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { User } from 'lucide-react';
 import { useClienteAuth } from '@/hooks/useClienteAuth';
 import { useAppStore } from '@/stores/useAppStore';
@@ -7,6 +7,8 @@ import { isValidEmail } from '@/lib/utils';
 
 export function ClienteLoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = (location.state as { from?: string } | null)?.from ?? '/cuenta';
   const { cfg } = useAppStore();
   const { user, loading, signIn, signUp, signInWithGoogle } = useClienteAuth();
 
@@ -18,7 +20,7 @@ export function ClienteLoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (loading) return null;
-  if (user) return <Navigate to="/cuenta" replace />;
+  if (user) return <Navigate to={redirectTo} replace />;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,14 +33,14 @@ export function ClienteLoginPage() {
       ? await signIn(email, password)
       : await signUp(nombre, email, password);
     if (error) { setErr(error); setSubmitting(false); }
-    else navigate('/cuenta', { replace: true });
+    else navigate(redirectTo, { replace: true });
   }
 
   async function handleGoogle() {
     setErr(''); setSubmitting(true);
     const error = await signInWithGoogle();
     if (error) { setErr(error); setSubmitting(false); }
-    else navigate('/cuenta', { replace: true });
+    else navigate(redirectTo, { replace: true });
   }
 
   return (
@@ -58,7 +60,7 @@ export function ClienteLoginPage() {
                 value={nombre}
                 onChange={e => setNombre(e.target.value)}
                 placeholder="Tu nombre"
-                autoComplete="name"
+                autoComplete="off"
                 required
               />
             </div>
@@ -70,7 +72,7 @@ export function ClienteLoginPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="correo@ejemplo.com"
-              autoComplete="email"
+              autoComplete="off"
               required
             />
           </div>
@@ -81,7 +83,7 @@ export function ClienteLoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              autoComplete="off"
               required
             />
           </div>
