@@ -41,6 +41,11 @@
   to   { transform: translateX(-50%) translateY(0)    scale(1); opacity: 1; }
 }
 
+/* Hidden on desktop — InlineCart always visible replaces this */
+@media (min-width: 1024px) {
+  .btn { display: none !important; }
+}
+
 .left {
   display: flex;
   align-items: center;

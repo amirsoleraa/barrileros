@@ -209,9 +209,13 @@
     border-radius: 0;
     animation: slideRight .28s cubic-bezier(.25,.46,.45,.94);
   }
-  /* Hide drag handle on desktop */
   .panel::before { display: none; }
   .header { padding: 20px 20px 16px; }
+}
+
+/* On large screens InlineCart replaces the slide-out panel */
+@media (min-width: 1024px) {
+  .backdrop, .panel { display: none !important; }
 }
 
 /* ── Empty state ── */
