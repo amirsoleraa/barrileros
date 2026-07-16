@@ -1,4 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { Home, Search, ClipboardList, User } from 'lucide-react';
+import { useClienteStore } from '@/stores/useClienteStore';
 import styles from './BottomNav.module.css';
 
 interface BottomNavProps {
@@ -13,11 +15,18 @@ const ITEMS = [
 ] as const;
 
 export function BottomNav({ onSearchOpen }: BottomNavProps) {
+  const navigate = useNavigate();
+  const { cliente } = useClienteStore();
+
   return (
     <nav className={styles.nav}>
       {ITEMS.map(({ id, label, icon: Icon }) => {
         const isActive = id === 'inicio';
-        const handleClick = id === 'buscar' ? onSearchOpen : undefined;
+        const handleClick = id === 'buscar'
+          ? onSearchOpen
+          : id === 'cuenta'
+            ? () => navigate(cliente ? '/cuenta' : '/login')
+            : undefined;
         return (
           <button
             key={id}

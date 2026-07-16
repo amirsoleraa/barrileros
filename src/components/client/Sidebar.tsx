@@ -1,5 +1,7 @@
+import { useNavigate } from 'react-router-dom';
 import { Home, UtensilsCrossed, ClipboardList, Heart } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
+import { useClienteStore } from '@/stores/useClienteStore';
 import styles from './Sidebar.module.css';
 
 const NAV_ITEMS = [
@@ -10,7 +12,9 @@ const NAV_ITEMS = [
 ] as const;
 
 export function Sidebar() {
+  const navigate = useNavigate();
   const { cfg, categorias, productos } = useAppStore();
+  const { cliente } = useClienteStore();
 
   const cats = Object.values(categorias).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
   const activeProducts = Object.values(productos).filter(p => p.activo);
@@ -71,11 +75,15 @@ export function Sidebar() {
       <div className={styles.spacer} />
 
       {/* User */}
-      <div className={styles.userRow}>
-        <div className={styles.userAvatar}>B</div>
+      <div
+        className={styles.userRow}
+        onClick={() => navigate(cliente ? '/cuenta' : '/login')}
+        style={{ cursor: 'pointer' }}
+      >
+        <div className={styles.userAvatar}>{cliente?.nombre?.[0]?.toUpperCase() ?? '?'}</div>
         <div className={styles.userInfo}>
-          <div className={styles.userName}>Barrileros</div>
-          <div className={styles.userSub}>Cliente</div>
+          <div className={styles.userName}>{cliente?.nombre || 'Iniciar sesión'}</div>
+          <div className={styles.userSub}>{cliente ? (cliente.correo || cliente.telefono || 'Cliente') : 'Ver mi cuenta'}</div>
         </div>
       </div>
     </aside>

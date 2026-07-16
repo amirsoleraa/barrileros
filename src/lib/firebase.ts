@@ -24,6 +24,9 @@ export let auth!:    Auth;
 // Isolated app for domiciliario portal so admin and dom sessions don't collide
 export let domAuth!: Auth;
 export let domDb!:   Firestore;
+// Isolated app for the customer account (login/historial/direcciones), same reasoning
+export let clienteAuth!: Auth;
+export let clienteDb!:   Firestore;
 
 /** true sólo cuando Firebase se inicializó correctamente con credenciales reales */
 export let firebaseReady = false;
@@ -59,6 +62,11 @@ try {
   setupAppCheck(domApp);
   domAuth = getAuth(domApp);
   domDb   = initializeFirestore(domApp, offlineCache);
+
+  const clienteApp = initializeApp(firebaseConfig, 'cliente');
+  setupAppCheck(clienteApp);
+  clienteAuth = getAuth(clienteApp);
+  clienteDb   = initializeFirestore(clienteApp, offlineCache);
 
   firebaseReady = true;
 } catch (e) {

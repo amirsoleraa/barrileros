@@ -245,6 +245,15 @@ export interface Promocion {
   createdAt?: { seconds: number; nanoseconds: number };
 }
 
+export interface ClienteProfile {
+  id: string;
+  nombre: string;
+  correo?: string;
+  telefono?: string;
+  favoritos: string[];
+  createdAt?: { seconds: number; nanoseconds: number };
+}
+
 export interface PedidoVerificacion {
   ok: boolean;
   motivo?: string;

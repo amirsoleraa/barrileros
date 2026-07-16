@@ -3,6 +3,8 @@ import { StorefrontPage } from '@/pages/StorefrontPage';
 import { ResumenPage }    from '@/pages/ResumenPage';
 import { FacturaPage }    from '@/pages/FacturaPage';
 import { PrivacidadPage } from '@/pages/PrivacidadPage';
+import { ClienteLoginPage } from '@/pages/ClienteLoginPage';
+import { CuentaPage }       from '@/pages/CuentaPage';
 import { AdminPage }      from '@/pages/admin/AdminPage';
 import { AdminLoginPage } from '@/pages/admin/AdminLoginPage';
 import { DomiciliarioLoginPage }  from '@/pages/domiciliario/DomiciliarioLoginPage';
@@ -13,6 +15,7 @@ import { LoadingScreen }  from '@/components/ui/LoadingScreen';
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
 import { useFirebaseInit } from '@/hooks/useFirebaseInit';
 import { useTheme }        from '@/hooks/useTheme';
+import { useClienteInit }  from '@/hooks/useClienteInit';
 
 // Admin panels
 import { OrdersPanel }    from '@/components/admin/panels/OrdersPanel';
@@ -28,6 +31,7 @@ import { ConfigPanel }    from '@/components/admin/panels/ConfigPanel';
 function ClientLayout() {
   useFirebaseInit();
   useTheme();
+  useClienteInit();
   return (
     <>
       <Outlet />
@@ -49,6 +53,8 @@ export default function App() {
           <Route path="/resumen" element={<ResumenPage />} />
           <Route path="/factura" element={<FacturaPage />} />
           <Route path="/privacidad" element={<PrivacidadPage />} />
+          <Route path="/login"  element={<ClienteLoginPage />} />
+          <Route path="/cuenta" element={<CuentaPage />} />
         </Route>
 
         {/* Admin login (sin layout cliente) */}
