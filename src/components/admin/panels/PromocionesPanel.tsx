@@ -15,7 +15,7 @@ const TIPO_LABELS: Record<TipoPromo, string> = {
   compra_cupon:       'Compra X y gana cupón',
 };
 
-const TIPO_ICONS: Record<TipoPromo, React.FC<{ size?: number }>> = {
+const TIPO_ICONS: Record<TipoPromo, React.ElementType> = {
   compra_lleva:       Gift,
   compra_descuento:   Tag,
   domicilio_descuento: Bike,

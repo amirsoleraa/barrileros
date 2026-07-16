@@ -567,6 +567,12 @@ export function ResumenPage() {
           <button type="submit" className="btn-p" style={{ marginTop: 8 }}>
             Guardar datos
           </button>
+          <p style={{ fontSize: 12, color: 'var(--text3)', textAlign: 'center', marginTop: 10 }}>
+            Al guardar aceptas nuestra{' '}
+            <a href="/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand)' }}>
+              política de tratamiento de datos
+            </a>.
+          </p>
         </form>
       </Modal>
 

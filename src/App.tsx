@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { StorefrontPage } from '@/pages/StorefrontPage';
 import { ResumenPage }    from '@/pages/ResumenPage';
 import { FacturaPage }    from '@/pages/FacturaPage';
+import { PrivacidadPage } from '@/pages/PrivacidadPage';
 import { AdminPage }      from '@/pages/admin/AdminPage';
 import { AdminLoginPage } from '@/pages/admin/AdminLoginPage';
 import { DomiciliarioLoginPage }  from '@/pages/domiciliario/DomiciliarioLoginPage';
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="/"        element={<StorefrontPage />} />
           <Route path="/resumen" element={<ResumenPage />} />
           <Route path="/factura" element={<FacturaPage />} />
+          <Route path="/privacidad" element={<PrivacidadPage />} />
         </Route>
 
         {/* Admin login (sin layout cliente) */}

@@ -18,6 +18,10 @@
 | 12 | Cualquiera podía crearse un cupón con el % de descuento que quisiera (ej. 100%) llamando directo a Firestore | La regla ahora exige que el cupón coincida exacto con una promoción real y activa (`promociones/{promoId}.cuponPct`) |
 | 13 | El total del pedido se guardaba tal cual lo enviaba el navegador, sin comparar contra el catálogo real | Cloud Function `onNuevoPedido` recalcula subtotal/cupón/total contra el catálogo real y marca `verificacion.ok = false` en el pedido si no cuadra (ver panel de Pedidos en admin) |
 | 14 | Cualquiera podía crear pedidos sin límite (spam/bots) sin necesitar login | Firebase App Check (reCAPTCHA v3) — opcional, requiere configurarlo (ver abajo) |
+| 15 | Sin aviso de privacidad pese a recoger nombre/teléfono/dirección/ubicación | Página `/privacidad` enlazada desde el formulario de datos del checkout |
+| 16 | Sin monitoreo de errores en producción | Sentry (`@sentry/react`), opcional vía `VITE_SENTRY_DSN` |
+| 17 | Sin respaldo de la base de datos | Point-in-Time Recovery + protección contra borrado activados en Firestore |
+| 18 | Cambios rotos podían llegar a producción sin que nadie los detectara (pasó con el CSP de reCAPTCHA) | CI en GitHub Actions: lint + typecheck + tests + build en cada push/PR a `main` |
 
 ---
 
@@ -39,6 +43,27 @@ Sin esto, cualquiera puede seguir creando pedidos/cupones vía scripts automatiz
 4. Cuando confirmes que todo funciona, activa **"Enforce"** para Cloud Firestore en la consola — recién ahí Firestore empieza a rechazar requests sin token válido.
 
 ---
+
+## Activar Sentry (monitoreo de errores, opcional)
+
+Sin esto, si algo se rompe en producción (como pasó con el CSP de reCAPTCHA), nadie se entera hasta que un cliente se queja.
+
+1. Crea una cuenta gratis en [sentry.io](https://sentry.io) y un proyecto tipo "React".
+2. Copia el DSN que te da (una URL tipo `https://xxx@oXXXXXX.ingest.us.sentry.io/XXXXXX`).
+3. Agrega `VITE_SENTRY_DSN=` con ese valor en tus variables de entorno (Vercel/Netlify) y en tu `.env` local.
+4. Vuelve a desplegar — los errores no capturados del navegador empezarán a aparecer en tu dashboard de Sentry.
+
+## CI (GitHub Actions)
+
+En cada push o PR a `main` corre automáticamente: `eslint`, `tsc --noEmit`, `vitest` y `vite build` (además de compilar `functions/`). Si algo de esto falla, se ve directamente en la pestaña "Checks" del commit/PR en GitHub — no hace falta correrlo a mano.
+
+**Pendiente opcional:** hoy el deploy de `firestore.rules` y `functions` sigue siendo manual (`firebase deploy`). Para automatizarlo desde CI también, hace falta un token de Firebase (`firebase login:ci`, requiere iniciar sesión interactivamente una vez) guardado como secreto en GitHub (`gh secret set FIREBASE_TOKEN`), y agregar un job de deploy al workflow.
+
+## Respaldo de Firestore
+
+Activado vía `firebase firestore:databases:update "(default)" --point-in-time-recovery ENABLED --delete-protection ENABLED`:
+- **Point-in-Time Recovery**: permite recuperar el estado de la base de datos de hasta 7 días atrás si algo se borra o corrompe por error.
+- **Delete protection**: bloquea que la base de datos completa se borre por accidente (ej. desde un script mal escrito o un clic equivocado en la consola).
 
 ## Cómo configurar el despliegue seguro en Netlify
 

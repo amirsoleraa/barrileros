@@ -22,7 +22,7 @@ const NAV_ITEMS = [
 
 interface NavItemProps {
   path: string;
-  icon: React.FC<{ size?: number }>;
+  icon: React.ElementType;
   label: string;
   tip: string;
   badge?: number;
