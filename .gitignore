@@ -10,6 +10,9 @@ node_modules/
 dist/
 dist-ssr/
 
+# Cloud Functions build output
+functions/lib/
+
 # Archivos de sistema
 .DS_Store
 Thumbs.db
