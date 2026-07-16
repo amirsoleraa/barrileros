@@ -13,6 +13,12 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'domiciliario';
     }
 
+    // Id del documento en /domiciliarios/ que corresponde al usuario autenticado
+    // (distinto del uid de Auth — ver users/{uid}.domiciliarioId)
+    function myDomiciliarioId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.domiciliarioId;
+    }
+
     // ── USUARIOS ─────────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read:  if request.auth != null && (request.auth.uid == userId || isAdmin());
@@ -76,13 +82,20 @@ service cloud.firestore {
       allow list:   if isAdmin();
       allow delete: if isAdmin();
       // Admin siempre puede crear; clientes (incluso sin auth) pueden crear cupones
-      // generados automáticamente por promociones compra_cupon
+      // generados automáticamente por promociones compra_cupon — el % de descuento
+      // (valor) debe coincidir EXACTO con el que el admin configuró en esa
+      // promoción real y activa. Antes no se validaba `valor`, así que cualquiera
+      // podía crearse un cupón con el descuento que quisiera (ej. 100%).
       allow create: if isAdmin()
                     || (request.resource.data.origen == 'promo'
                         && request.resource.data.activo == true
                         && request.resource.data.usos == 0
                         && request.resource.data.limite == 1
-                        && request.resource.data.tipo == 'porcentaje');
+                        && request.resource.data.tipo == 'porcentaje'
+                        && request.resource.data.promoId is string
+                        && get(/databases/$(database)/documents/promociones/$(request.resource.data.promoId)).data.activa == true
+                        && get(/databases/$(database)/documents/promociones/$(request.resource.data.promoId)).data.tipo == 'compra_cupon'
+                        && request.resource.data.valor == get(/databases/$(database)/documents/promociones/$(request.resource.data.promoId)).data.cuponPct);
       // Admin puede actualizar cualquier campo; clientes solo pueden incrementar usos
       allow update: if isAdmin()
                     || (request.resource.data.diff(resource.data).affectedKeys()
@@ -121,11 +134,17 @@ service cloud.firestore {
     }
 
     // ── RUTAS DE ENTREGA ─────────────────────────────────────────────────────
+    // Un domiciliario solo puede leer/crear/modificar/eliminar SUS PROPIAS rutas
+    // (antes cualquier domiciliario autenticado podía tocar las rutas de otro)
     match /rutas/{rutaId} {
-      allow read:   if isAdmin() || isDomiciliario();
-      allow create: if isAdmin() || isDomiciliario();
-      allow update: if isAdmin() || isDomiciliario();
-      allow delete: if isAdmin() || isDomiciliario();
+      allow read:   if isAdmin()
+                    || (isDomiciliario() && resource.data.domiciliarioId == myDomiciliarioId());
+      allow create: if isAdmin()
+                    || (isDomiciliario() && request.resource.data.domiciliarioId == myDomiciliarioId());
+      allow update: if isAdmin()
+                    || (isDomiciliario() && resource.data.domiciliarioId == myDomiciliarioId());
+      allow delete: if isAdmin()
+                    || (isDomiciliario() && resource.data.domiciliarioId == myDomiciliarioId());
     }
 
     // ── HISTORIAL DE PEDIDOS ─────────────────────────────────────────────────
@@ -135,9 +154,12 @@ service cloud.firestore {
     }
 
     // ── HISTORIAL DE RUTAS (creado por domiciliarios al cerrar ruta) ─────────
+    // Un domiciliario solo puede leer/crear su propio historial
     match /historial_rutas/{rutaId} {
-      allow read:   if isAdmin() || isDomiciliario();
-      allow create: if isAdmin() || isDomiciliario();
+      allow read:   if isAdmin()
+                    || (isDomiciliario() && resource.data.domiciliarioId == myDomiciliarioId());
+      allow create: if isAdmin()
+                    || (isDomiciliario() && request.resource.data.domiciliarioId == myDomiciliarioId());
       allow delete: if isAdmin();
     }
 

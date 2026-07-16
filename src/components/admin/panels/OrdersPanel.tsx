@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Eye, Trash2, ChevronRight, ChevronLeft, Clock, RotateCcw, Archive, ExternalLink, Plus, PenLine } from 'lucide-react';
+import { Eye, Trash2, ChevronRight, ChevronLeft, Clock, RotateCcw, Archive, ExternalLink, Plus, PenLine, AlertTriangle } from 'lucide-react';
 import { updateDoc, deleteDoc, doc, addDoc, collection, serverTimestamp, writeBatch, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAdminStore } from '@/stores/useAdminStore';
@@ -332,7 +332,12 @@ export function OrdersPanel() {
     const prev = PREV_STATE[p.estado];
     if (mobile) {
       return (
-        <div key={p.id} className="order-card" style={{ borderLeft: p.notaPendiente ? '3px solid #F59E0B' : undefined }}>
+        <div key={p.id} className="order-card" style={{ borderLeft: p.verificacion?.ok === false ? '3px solid #DC2626' : p.notaPendiente ? '3px solid #F59E0B' : undefined }}>
+          {p.verificacion?.ok === false && (
+            <div style={{ fontSize: 12, color: '#B91C1C', background: '#FEE2E2', borderRadius: 8, padding: '5px 10px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+              <AlertTriangle size={12} /> Pedido sospechoso — revisar
+            </div>
+          )}
           {p.notaPendiente && (
             <div style={{ fontSize: 12, color: '#92400E', background: '#FEF3C7', borderRadius: 8, padding: '5px 10px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
               <span>⚠</span> {p.notaPendiente}
@@ -402,8 +407,13 @@ export function OrdersPanel() {
         draggable
         onDragStart={() => onDragStart(p.id)}
         onDragEnd={onDragEnd}
-        style={{ background: 'var(--surface)', border: `1px solid ${p.notaPendiente ? '#F59E0B' : 'var(--border)'}`, borderRadius: 10, padding: '10px 12px', cursor: 'grab', userSelect: 'none', boxShadow: '0 1px 4px rgba(0,0,0,.05)' }}
+        style={{ background: 'var(--surface)', border: `1px solid ${p.verificacion?.ok === false ? '#DC2626' : p.notaPendiente ? '#F59E0B' : 'var(--border)'}`, borderRadius: 10, padding: '10px 12px', cursor: 'grab', userSelect: 'none', boxShadow: '0 1px 4px rgba(0,0,0,.05)' }}
       >
+        {p.verificacion?.ok === false && (
+          <div style={{ fontSize: 11, color: '#B91C1C', background: '#FEE2E2', borderRadius: 6, padding: '3px 8px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+            <AlertTriangle size={11} /> Sospechoso
+          </div>
+        )}
         {p.notaPendiente && (
           <div style={{ fontSize: 11, color: '#92400E', background: '#FEF3C7', borderRadius: 6, padding: '3px 8px', marginBottom: 6 }}>
             ⚠ {p.notaPendiente}
@@ -569,6 +579,12 @@ export function OrdersPanel() {
             {detailPedido.esManual && (
               <div style={{ marginBottom: 12, padding: '6px 12px', borderRadius: 8, background: 'var(--brand-light)', fontSize: 13, color: 'var(--brand)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <PenLine size={13} /> Pedido manual
+              </div>
+            )}
+            {detailPedido.verificacion?.ok === false && (
+              <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: '#FEE2E2', fontSize: 13, color: '#B91C1C', fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>Pedido sospechoso — no coincide con el catálogo: {detailPedido.verificacion.motivo}</span>
               </div>
             )}
             <div style={{ marginBottom: 16 }}>

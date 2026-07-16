@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, MapPin, Ticket, CheckCircle, MessageCircle, User, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { collection, addDoc, setDoc, updateDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAppStore } from '@/stores/useAppStore';
@@ -199,23 +199,24 @@ export function ResumenPage() {
       const ref       = await addDoc(collection(db, 'pedidos'), pedido);
       const fullPedido = { ...pedido, id: ref.id };
 
-      if (cuponAplicado) {
-        updateDoc(doc(db, 'cupones', cuponAplicado.id), { usos: (cuponAplicado.usos || 0) + 1 }).catch(() => {});
-      }
+      // El incremento de `usos` del cupón lo hace la Cloud Function onNuevoPedido
+      // de forma atómica — hacerlo también aquí duplicaba el conteo en cada pedido.
 
       for (const code of promoResult.cuponesGenerados) {
         const promoApl = promoResult.promosAplicadas.find(pa => pa.cuponGenerado === code);
+        if (!promoApl) continue;
         setDoc(doc(db, 'cupones', code), {
           codigo: code,
           tipo: 'porcentaje',
-          valor: promoApl?.cuponPct ?? 10,
+          valor: promoApl.cuponPct ?? 10,
           activo: true,
           usos: 0,
           limite: 1,
           clienteNombre: datosEnvio!.nombre,
           clienteTel: datosEnvio!.tel ?? '',
           pedidoNumero: numero,
-          promoNombre: promoApl?.nombre ?? '',
+          promoNombre: promoApl.nombre,
+          promoId: promoApl.promoId,
           origen: 'promo',
           createdAt: serverTimestamp(),
         }).catch(() => {});

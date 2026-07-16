@@ -132,6 +132,7 @@ export interface Pedido {
   esManual?: boolean;
   notas?: string;
   promosAplicadas?: PromoAplicada[];
+  verificacion?: PedidoVerificacion;
 }
 
 export interface RutaEntrega {
@@ -242,6 +243,13 @@ export interface Promocion {
   domicilioGratis?: boolean;
   cuponPct?: number;
   createdAt?: { seconds: number; nanoseconds: number };
+}
+
+export interface PedidoVerificacion {
+  ok: boolean;
+  motivo?: string;
+  subtotalReal?: number;
+  verificadoEn?: { seconds: number; nanoseconds: number };
 }
 
 export interface PromoAplicada {

@@ -24,9 +24,15 @@ export function DomHistorialPanel({ domiciliario }: DomHistorialPanelProps) {
     async function load() {
       setLoading(true);
       try {
+        // Acotar a los últimos 90 días — antes traía TODA la colección
+        // historial_pedidos en cada carga, sin importar el tamaño del negocio.
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 90);
+        const cutoffFecha = cutoff.toISOString().slice(0, 10);
+
         // Fetch from historial_pedidos (admin close-day entries)
         const [hSnap, rSnap] = await Promise.all([
-          getDocs(query(collection(db, 'historial_pedidos'))),
+          getDocs(query(collection(db, 'historial_pedidos'), where('fecha', '>=', cutoffFecha))),
           getDocs(query(
             collection(db, 'historial_rutas'),
             where('domiciliarioId', '==', domiciliario.id),

@@ -16,3 +16,7 @@ Thumbs.db
 
 # Netlify
 .netlify/
+
+# Firebase / Vercel (estado local de CLI, no debe subirse)
+.firebase/
+.vercel/
