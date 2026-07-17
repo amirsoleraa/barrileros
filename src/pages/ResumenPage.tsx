@@ -250,7 +250,22 @@ export function ResumenPage() {
 
   if (authLoading) return null;
   if (!user) return <Navigate to="/login" state={{ from: '/resumen' }} replace />;
-  if (cart.length === 0 && !successPedido) { navigate('/'); return null; }
+
+  // Se muestra ANTES del guard de carrito vacío y como return temprano:
+  // finalizarPedido() ya vació el carrito (y con él datosEnvio/locationData),
+  // así que el resto del JSX de checkout de abajo asume esos datos
+  // presentes y podía romper el render silenciosamente, impidiendo que
+  // este modal llegara a pintarse.
+  if (successPedido) {
+    return (
+      <OrderConfirmationModal
+        pedido={successPedido}
+        onClose={() => { setSuccessPedido(null); navigate('/'); }}
+      />
+    );
+  }
+
+  if (cart.length === 0) { navigate('/'); return null; }
 
   return (
     <div className={styles.page}>
@@ -631,13 +646,6 @@ export function ResumenPage() {
           </div>
         </div>
       </Modal>
-
-      {successPedido && (
-        <OrderConfirmationModal
-          pedido={successPedido}
-          onClose={() => { setSuccessPedido(null); navigate('/'); }}
-        />
-      )}
     </div>
   );
 }
