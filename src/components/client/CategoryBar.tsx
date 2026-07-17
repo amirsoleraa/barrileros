@@ -16,6 +16,7 @@ export function CategoryBar({ activeCat, onSelect }: CategoryBarProps) {
         className={`${styles.pill} ${activeCat === 'todos' ? styles.active : ''}`}
         onClick={() => onSelect('todos')}
       >
+        <span className={styles.pillIcon}>🔥</span>
         Todo
       </button>
       {cats.map(cat => (
@@ -24,6 +25,11 @@ export function CategoryBar({ activeCat, onSelect }: CategoryBarProps) {
           className={`${styles.pill} ${activeCat === cat.id ? styles.active : ''}`}
           onClick={() => onSelect(cat.id)}
         >
+          {cat.imgUrl ? (
+            <span className={styles.pillImg}><img src={cat.imgUrl} alt="" /></span>
+          ) : cat.emoji ? (
+            <span className={styles.pillIcon}>{cat.emoji}</span>
+          ) : null}
           {cat.nombre}
         </button>
       ))}

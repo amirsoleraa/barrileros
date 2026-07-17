@@ -52,6 +52,8 @@ export interface Categoria {
   id: string;
   nombre: string;
   color: string;
+  emoji?: string;
+  imgUrl?: string;
   orden?: number;
 }
 

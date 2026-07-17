@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { uploadImage } from '@/lib/cloudinary';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -19,6 +20,9 @@ export function CategoriesPanel() {
   const [editId, setEditId] = useState<string | null>(null);
   const [nombre, setNombre] = useState('');
   const [color, setColor] = useState('#F4521E');
+  const [emoji, setEmoji] = useState('');
+  const [imgFile, setImgFile] = useState<File | null>(null);
+  const [imgPreview, setImgPreview] = useState('');
   const [saving, setSaving] = useState(false);
 
   const cats = Object.values(categorias).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
@@ -29,24 +33,39 @@ export function CategoriesPanel() {
 
   function openCreate() {
     setEditId(null); setNombre(''); setColor('#F4521E');
+    setEmoji(''); setImgFile(null); setImgPreview('');
     setIsOpen(true);
   }
   function openEdit(c: Categoria) {
     setEditId(c.id); setNombre(c.nombre); setColor(c.color);
+    setEmoji(c.emoji ?? ''); setImgFile(null); setImgPreview(c.imgUrl ?? '');
     setIsOpen(true);
+  }
+
+  function handleImgChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImgFile(file);
+    setImgPreview(URL.createObjectURL(file));
   }
 
   async function handleSave() {
     if (!nombre.trim()) { showToast('El nombre es obligatorio'); return; }
     setSaving(true);
     try {
+      let imgUrl = imgPreview;
+      if (imgFile) {
+        imgUrl = await uploadImage(imgFile, 'categorias');
+      }
+      const data = { nombre: nombre.trim(), color, emoji: emoji.trim(), imgUrl };
+
       if (editId) {
-        await updateDoc(doc(db, 'categorias', editId), { nombre: nombre.trim(), color });
-        setCategorias({ ...categorias, [editId]: { ...categorias[editId], nombre: nombre.trim(), color } });
+        await updateDoc(doc(db, 'categorias', editId), data);
+        setCategorias({ ...categorias, [editId]: { ...categorias[editId], ...data } });
         showToast('Categoría actualizada');
       } else {
-        const r = await addDoc(collection(db, 'categorias'), { nombre: nombre.trim(), color, orden: cats.length });
-        setCategorias({ ...categorias, [r.id]: { id: r.id, nombre: nombre.trim(), color, orden: cats.length } });
+        const r = await addDoc(collection(db, 'categorias'), { ...data, orden: cats.length });
+        setCategorias({ ...categorias, [r.id]: { id: r.id, ...data, orden: cats.length } });
         showToast('Categoría creada');
       }
       setIsOpen(false);
@@ -90,7 +109,12 @@ export function CategoriesPanel() {
                 borderRadius: 12, padding: '12px 16px',
                 display: 'flex', alignItems: 'center', gap: 12,
               }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: c.color, flexShrink: 0, border: '2px solid rgba(0,0,0,.08)' }} />
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: c.imgUrl ? 'var(--bg2)' : c.color, flexShrink: 0, border: '2px solid rgba(0,0,0,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, overflow: 'hidden' }}>
+                  {c.imgUrl
+                    ? <img src={c.imgUrl} alt={c.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : c.emoji || null
+                  }
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>{c.nombre}</div>
                   <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
@@ -108,9 +132,22 @@ export function CategoriesPanel() {
       )}
 
       <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title={editId ? 'Editar categoría' : 'Nueva categoría'}>
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <div style={{ width: 72, height: 72, borderRadius: 16, margin: '0 auto 10px', background: 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, overflow: 'hidden' }}>
+            {imgPreview
+              ? <img src={imgPreview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span>{emoji || '🍽️'}</span>
+            }
+          </div>
+          <input type="file" accept="image/*" onChange={handleImgChange} style={{ fontSize: 13 }} />
+        </div>
         <div className="f-field">
           <label>Nombre *</label>
           <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Asados, Acompañamientos..." />
+        </div>
+        <div className="f-field">
+          <label>Emoji (si no hay imagen)</label>
+          <input value={emoji} onChange={e => setEmoji(e.target.value)} placeholder="🍖" />
         </div>
         <div className="f-field">
           <label>Color</label>

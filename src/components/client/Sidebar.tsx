@@ -72,7 +72,13 @@ export function Sidebar() {
             </div>
             {cats.map(cat => (
               <div key={cat.id} className={styles.catItem}>
-                <span className={styles.catDot} style={{ background: cat.color }} />
+                {cat.imgUrl ? (
+                  <span className={styles.catImg}><img src={cat.imgUrl} alt="" /></span>
+                ) : cat.emoji ? (
+                  <span className={styles.catEmoji}>{cat.emoji}</span>
+                ) : (
+                  <span className={styles.catDot} style={{ background: cat.color }} />
+                )}
                 <span className={styles.catName}>{cat.nombre}</span>
                 <span className={styles.catCount}>{countByCat[cat.id] ?? 0}</span>
               </div>

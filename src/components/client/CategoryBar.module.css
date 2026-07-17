@@ -11,28 +11,41 @@
 
 .pill {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 18px;
-  border-radius: 20px;
+  border-radius: var(--brr-r-chip, 999px);
   font-size: 13px;
   font-weight: 600;
-  border: 1.5px solid var(--border2);
-  background: transparent;
-  color: var(--text2);
+  font-family: 'Manrope', inherit;
+  border: 1.5px solid var(--brr-line, var(--border2));
+  background: var(--brr-card, transparent);
+  color: var(--brr-ink, var(--text2));
   cursor: pointer;
-  font-family: inherit;
   transition: border-color .14s, color .14s, background .14s;
   white-space: nowrap;
 }
 .pill:hover {
-  border-color: var(--text2);
-  color: var(--text);
+  border-color: var(--brr-primary, var(--text2));
+  color: var(--brr-primary, var(--text));
 }
 
-/* Active = dark pill (matches redesign) */
+.pillIcon { font-size: 15px; line-height: 1; }
+.pillImg {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.pillImg img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Active = charcoal pill (matches redesign) */
 .active {
-  background: var(--text) !important;
+  background: var(--brr-charcoal, var(--text)) !important;
   color: #fff !important;
-  border-color: var(--text) !important;
+  border-color: var(--brr-charcoal, var(--text)) !important;
 }
 
 @media (min-width: 1024px) {
