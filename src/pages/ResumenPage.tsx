@@ -9,6 +9,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { useClienteAuth } from '@/hooks/useClienteAuth';
 import { Modal } from '@/components/ui/Modal';
 import { LocationPicker } from '@/components/client/LocationPicker';
+import { OrderConfirmationModal } from '@/components/client/OrderConfirmationModal';
 import { sendOrderConfirmation } from '@/lib/email';
 import { fmtPrice, generarNumeroPedido, isValidEmail, isValidPhone } from '@/lib/utils';
 import { evaluatePromos } from '@/lib/promos';
@@ -54,6 +55,7 @@ export function ResumenPage() {
   }, []);
   const [confirmOpen,  setConfirmOpen]  = useState(false);
   const [sending,      setSending]      = useState(false);
+  const [successPedido, setSuccessPedido] = useState<Pedido | null>(null);
   const [cuponCode,    setCuponCode]    = useState('');
   const [cuponMsg,     setCuponMsg]     = useState('');
   const [cuponOk,      setCuponOk]      = useState(false);
@@ -235,7 +237,7 @@ export function ResumenPage() {
 
       clearCart();
       setConfirmOpen(false);
-      navigate('/factura');
+      setSuccessPedido(fullPedido as Pedido);
     } catch (e) {
       showToast('Error al enviar el pedido. Intenta de nuevo.');
       console.error(e);
@@ -248,7 +250,7 @@ export function ResumenPage() {
 
   if (authLoading) return null;
   if (!user) return <Navigate to="/login" state={{ from: '/resumen' }} replace />;
-  if (cart.length === 0) { navigate('/'); return null; }
+  if (cart.length === 0 && !successPedido) { navigate('/'); return null; }
 
   return (
     <div className={styles.page}>
@@ -629,6 +631,13 @@ export function ResumenPage() {
           </div>
         </div>
       </Modal>
+
+      {successPedido && (
+        <OrderConfirmationModal
+          pedido={successPedido}
+          onClose={() => { setSuccessPedido(null); navigate('/'); }}
+        />
+      )}
     </div>
   );
 }
