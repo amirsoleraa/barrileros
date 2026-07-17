@@ -2,6 +2,21 @@
   padding: 4px 0 24px;
 }
 
+.viewport {
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.track {
+  display: flex;
+  transition: transform .5s cubic-bezier(.65,0,.35,1);
+}
+
+.slide {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
 .card {
   border-radius: 20px;
   background: linear-gradient(135deg, #3D1F05 0%, #5C3210 45%, #2A1304 100%);
@@ -11,13 +26,15 @@
   min-height: 168px;
   display: flex;
   align-items: flex-end;
+  background-size: cover;
+  background-position: center 30%;
 }
 
 .cardWithImg::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(61,31,5,.92) 0%, rgba(42,19,4,.7) 60%, rgba(42,19,4,.45) 100%);
+  background: linear-gradient(0deg, rgba(42,19,4,.88) 0%, rgba(42,19,4,.55) 45%, rgba(42,19,4,.2) 100%);
   z-index: 1;
 }
 

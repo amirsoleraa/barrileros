@@ -31,8 +31,8 @@ export function InlineCart() {
   if (cartCollapsed) {
     return (
       <button className={styles.rail} onClick={() => setCartCollapsed(false)} aria-label="Mostrar tu pedido">
-        <ChevronLeft size={16} />
-        <ShoppingBag size={20} />
+        <ChevronLeft size={18} />
+        <ShoppingBag size={24} />
         {cartCount > 0 && <span className={styles.railBadge}>{cartCount}</span>}
       </button>
     );

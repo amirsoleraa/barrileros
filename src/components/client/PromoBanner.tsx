@@ -29,29 +29,37 @@ export function PromoBanner() {
 
   if (active.length === 0) return null;
 
-  const current = active[index];
-  const hasImg = Boolean(current.imgUrl);
-
   return (
     <>
       <div className={styles.root}>
-        <div
-          className={`${styles.card} ${hasImg ? styles.cardWithImg : ''}`}
-          style={hasImg ? { backgroundImage: `url(${current.imgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', cursor: 'pointer' } : {}}
-          onClick={hasImg ? () => setLightboxUrl(current.imgUrl!) : undefined}
-        >
-          <div className={styles.body}>
-            <div className={`${styles.tag} brr-eyebrow`}>Promoción · Hoy</div>
-            <h2 className={`${styles.title} brr-display`}>{current.titulo}</h2>
-            {current.descripcion && (
-              <p className={styles.desc}>{current.descripcion}</p>
-            )}
-            <div className={styles.timer}>
-              <Clock size={12} />
-              <span>Disponible hoy</span>
-            </div>
+        <div className={styles.viewport}>
+          <div className={styles.track} style={{ transform: `translateX(-${index * 100}%)` }}>
+            {active.map(p => {
+              const hasImg = Boolean(p.imgUrl);
+              return (
+                <div key={p.id} className={styles.slide}>
+                  <div
+                    className={`${styles.card} ${hasImg ? styles.cardWithImg : ''}`}
+                    style={hasImg ? { backgroundImage: `url(${p.imgUrl})`, cursor: 'pointer' } : {}}
+                    onClick={hasImg ? () => setLightboxUrl(p.imgUrl!) : undefined}
+                  >
+                    <div className={styles.body}>
+                      <div className={`${styles.tag} brr-eyebrow`}>Promoción · Hoy</div>
+                      <h2 className={`${styles.title} brr-display`}>{p.titulo}</h2>
+                      {p.descripcion && (
+                        <p className={styles.desc}>{p.descripcion}</p>
+                      )}
+                      <div className={styles.timer}>
+                        <Clock size={12} />
+                        <span>Disponible hoy</span>
+                      </div>
+                    </div>
+                    {!hasImg && <span className={styles.flame}>🔥</span>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          {!hasImg && <span className={styles.flame}>🔥</span>}
         </div>
 
         {active.length > 1 && (
@@ -75,7 +83,7 @@ export function PromoBanner() {
           </button>
           <img
             src={lightboxUrl}
-            alt={current.titulo}
+            alt=""
             className={styles.lbImage}
             onClick={e => e.stopPropagation()}
           />

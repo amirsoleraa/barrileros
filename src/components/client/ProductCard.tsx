@@ -65,7 +65,7 @@ export function ProductCard({ product, onOpenDetail }: ProductCardProps) {
 
         {/* Favorito (top-right) */}
         <button className={styles.favBtn} onClick={handleFav} aria-label="Favorito">
-          <Heart size={14} fill={isFav ? 'currentColor' : 'none'} className={isFav ? styles.favActive : ''} />
+          <Heart size={14} fill={isFav ? '#E94B1F' : 'none'} stroke={isFav ? '#E94B1F' : '#fff'} />
         </button>
       </div>
 

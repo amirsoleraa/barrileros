@@ -1,7 +1,7 @@
 .nav {
   position: fixed;
   left: 50%;
-  bottom: 18px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   width: calc(100% - 32px);
   max-width: 420px;

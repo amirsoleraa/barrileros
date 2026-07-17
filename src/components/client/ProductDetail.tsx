@@ -102,7 +102,7 @@ export function ProductDetail({ productId, onClose }: ProductDetailProps) {
             <ArrowLeft size={20} />
           </button>
           <button className={styles.favToggle} onClick={handleFav} aria-label="Favorito">
-            <Heart size={18} fill={isFav ? 'currentColor' : 'none'} color={isFav ? 'var(--brr-primary, var(--brand))' : '#fff'} />
+            <Heart size={18} fill={isFav ? '#E94B1F' : 'none'} stroke={isFav ? '#E94B1F' : '#fff'} />
           </button>
         </div>
 
