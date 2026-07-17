@@ -25,11 +25,11 @@
 }
 
 .greetTitle {
-  font-size: 26px;
+  font-size: 21px;
   font-weight: 800;
-  letter-spacing: -.03em;
+  letter-spacing: -.02em;
   color: var(--brr-charcoal, var(--text));
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .greetName {
@@ -41,6 +41,10 @@
     margin-left: 240px;
     margin-right: 340px;
     padding-bottom: 0;
+    transition: margin-right .2s ease;
+  }
+  .mainCartCollapsed {
+    margin-right: 44px;
   }
   .content {
     padding: 0 32px 48px;

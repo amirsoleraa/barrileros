@@ -5,11 +5,12 @@ import { useClienteStore } from '@/stores/useClienteStore';
 import { LocationTrigger } from './LocationTrigger';
 import styles from './Sidebar.module.css';
 
+// "menu" no tiene ruta propia todavía (misma vista que inicio) — nunca se marca activo.
 const NAV_ITEMS = [
-  { id: 'inicio',   label: 'Inicio',      icon: Home,            path: '/' },
-  { id: 'menu',     label: 'Menú',        icon: UtensilsCrossed, path: '/' },
-  { id: 'pedidos',  label: 'Mis pedidos', icon: ClipboardList,   path: '/pedidos' },
-  { id: 'favs',     label: 'Favoritos',   icon: Heart,           path: '/favoritos' },
+  { id: 'inicio',   label: 'Inicio',      icon: Home,            path: '/',          matchable: true },
+  { id: 'menu',     label: 'Menú',        icon: UtensilsCrossed, path: '/',          matchable: false },
+  { id: 'pedidos',  label: 'Mis pedidos', icon: ClipboardList,   path: '/pedidos',   matchable: true },
+  { id: 'favs',     label: 'Favoritos',   icon: Heart,           path: '/favoritos', matchable: true },
 ] as const;
 
 export function Sidebar() {
@@ -47,10 +48,10 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className={styles.nav}>
-        {NAV_ITEMS.map(({ id, label, icon: Icon, path }) => (
+        {NAV_ITEMS.map(({ id, label, icon: Icon, path, matchable }) => (
           <button
             key={id}
-            className={`${styles.navItem} ${location.pathname === path ? styles.navActive : ''}`}
+            className={`${styles.navItem} ${matchable && location.pathname === path ? styles.navActive : ''}`}
             onClick={() => navigate(path)}
           >
             <Icon size={17} />

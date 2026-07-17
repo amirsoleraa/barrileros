@@ -23,12 +23,13 @@
   padding: 22px 20px 14px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .title {
+  flex: 1;
   font-size: 18px;
   font-weight: 800;
   letter-spacing: -.02em;
@@ -36,6 +37,62 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.collapseBtn {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .12s;
+}
+.collapseBtn:hover { background: var(--bg2); }
+
+/* ── Rail colapsado ── */
+.rail {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 44px;
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 16px 0;
+    border-radius: 14px 0 0 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-right: none;
+    box-shadow: var(--shadow-md);
+    color: var(--text2);
+    cursor: pointer;
+    z-index: 20;
+  }
+  .rail:hover { color: var(--brand); }
+}
+
+.railBadge {
+  background: var(--brand);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
 }
 
 .count {

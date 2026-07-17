@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Minus, Plus, ShoppingBag, ArrowRight, X } from 'lucide-react';
+import { Minus, Plus, ShoppingBag, ArrowRight, X, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAppStore } from '@/stores/useAppStore';
@@ -7,7 +7,7 @@ import { fmtPrice } from '@/lib/utils';
 import styles from './InlineCart.module.css';
 
 export function InlineCart() {
-  const { cart, updateQty, removeItem, cuponAplicado, locationData } = useCartStore();
+  const { cart, updateQty, removeItem, cuponAplicado, locationData, cartCollapsed, setCartCollapsed } = useCartStore();
   const { cfg } = useAppStore();
   const navigate = useNavigate();
   const [deliveryMode, setDeliveryMode] = useState<'domicilio' | 'recoger'>('domicilio');
@@ -28,10 +28,23 @@ export function InlineCart() {
   const total = subtotal + domicilio - descuento;
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
+  if (cartCollapsed) {
+    return (
+      <button className={styles.rail} onClick={() => setCartCollapsed(false)} aria-label="Mostrar tu pedido">
+        <ChevronLeft size={16} />
+        <ShoppingBag size={20} />
+        {cartCount > 0 && <span className={styles.railBadge}>{cartCount}</span>}
+      </button>
+    );
+  }
+
   return (
     <aside className={styles.panel}>
       {/* Header */}
       <div className={styles.header}>
+        <button className={styles.collapseBtn} onClick={() => setCartCollapsed(true)} aria-label="Contraer">
+          <ChevronRight size={16} />
+        </button>
         <h2 className={styles.title}>
           Tu pedido
           {cartCount > 0 && <span className={styles.count}>{cartCount}</span>}

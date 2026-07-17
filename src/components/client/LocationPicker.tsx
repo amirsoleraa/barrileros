@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { MapPin, Navigation, Loader, CheckCircle, Map, X } from 'lucide-react';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -418,22 +419,13 @@ export function LocationPicker({ onChange, initialData, renderTrigger }: Props) 
       </div>
       )}
 
-      {/* Modal del mapa */}
-      {modalOpen && (
+      {/* Modal del mapa — en portal para escapar el stacking context del sidebar/carrito */}
+      {modalOpen && createPortal(
         <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 9000,
-            background: 'rgba(0,0,0,.6)',
-            display: 'flex', alignItems: 'flex-end',
-            backdropFilter: 'blur(2px)',
-          }}
+          className={styles.overlay}
           onClick={e => e.target === e.currentTarget && setModalOpen(false)}
         >
-          <div style={{
-            width: '100%', maxHeight: '95dvh',
-            background: 'var(--surface)', borderRadius: '20px 20px 0 0',
-            overflowY: 'auto', padding: '0 16px 20px',
-          }}>
+          <div className={styles.sheet}>
             {/* Handle */}
             <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
               <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)' }} />
@@ -474,7 +466,8 @@ export function LocationPicker({ onChange, initialData, renderTrigger }: Props) 
               />
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

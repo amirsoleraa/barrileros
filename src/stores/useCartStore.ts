@@ -14,6 +14,7 @@ interface CartState {
   cuponAplicado: Cupon | null;
   lastPedido: Pedido | null;
   cartOpen: boolean;
+  cartCollapsed: boolean;
 
   addItem: (item: CartItem) => void;
   updateQty: (id: string, extras: string[], delta: number) => void;
@@ -23,6 +24,7 @@ interface CartState {
   setCuponAplicado: (cupon: Cupon | null) => void;
   setLastPedido: (pedido: Pedido) => void;
   setCartOpen: (open: boolean) => void;
+  setCartCollapsed: (collapsed: boolean) => void;
   reset: () => void;
 }
 
@@ -35,6 +37,7 @@ export const useCartStore = create<CartState>()(
       cuponAplicado: null,
       lastPedido: null,
       cartOpen: false,
+      cartCollapsed: false,
 
       addItem: (incoming) => {
         const existing = get().cart.find(
@@ -77,6 +80,7 @@ export const useCartStore = create<CartState>()(
       setCuponAplicado: (cupon) => set({ cuponAplicado: cupon }),
       setLastPedido: (pedido) => set({ lastPedido: pedido }),
       setCartOpen: (open) => set({ cartOpen: open }),
+      setCartCollapsed: (collapsed) => set({ cartCollapsed: collapsed }),
 
       reset: () => set({ cart: [], datosEnvio: null, locationData: null, cuponAplicado: null }),
     }),

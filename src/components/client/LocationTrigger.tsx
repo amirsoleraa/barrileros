@@ -16,7 +16,7 @@ export function LocationTrigger() {
           <div className={styles.text}>
             <span className={styles.label}>Entrega a</span>
             <span className={styles.addr}>
-              {preview ? (preview.address || preview.barrio) : 'Selecciona tu dirección'}
+              {preview ? (preview.barrio || preview.address) : 'Selecciona tu dirección'}
             </span>
           </div>
           <ChevronRight size={14} className={styles.chevron} />

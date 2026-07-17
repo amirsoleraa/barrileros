@@ -13,11 +13,13 @@ import { InlineCart }    from '@/components/client/InlineCart';
 import { GotoCartButton } from '@/components/client/GotoCartButton';
 import { NotificationsButton } from '@/components/client/NotificationsButton';
 import { useClienteStore } from '@/stores/useClienteStore';
+import { useCartStore } from '@/stores/useCartStore';
 import styles from './StorefrontPage.module.css';
 
 export function StorefrontPage() {
   const navigate = useNavigate();
   const { cliente } = useClienteStore();
+  const { cartCollapsed } = useCartStore();
   const [activeCat,   setActiveCat]   = useState('todos');
   const [detailId,    setDetailId]    = useState<string | null>(null);
   const [searchOpen,  setSearchOpen]  = useState(false);
@@ -28,7 +30,7 @@ export function StorefrontPage() {
     <div className={styles.layout}>
       <Sidebar />
 
-      <main className={styles.main}>
+      <main className={`${styles.main} ${cartCollapsed ? styles.mainCartCollapsed : ''}`}>
         <MobileHeader onSearchOpen={() => setSearchOpen(true)} />
 
         <div className={styles.content}>
