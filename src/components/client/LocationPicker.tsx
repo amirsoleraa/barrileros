@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, Navigation, Loader, CheckCircle, Map, X } from 'lucide-react';
+import { MapPin, Navigation, Loader, CheckCircle, Map, X, Crosshair } from 'lucide-react';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { loadGoogleMaps } from '@/lib/googleMaps';
@@ -29,10 +29,11 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
   const { barrios } = useAppStore();
   const countryCodeRef = useRef(countryCode);
   countryCodeRef.current = countryCode;
-  const mapRef   = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const mapInst  = useRef<any>(null);
-  const tokenRef = useRef<any>(null);
+  const mapRef      = useRef<HTMLDivElement>(null);
+  const inputRef    = useRef<HTMLInputElement>(null);
+  const mapInst     = useRef<any>(null);
+  const tokenRef    = useRef<any>(null);
+  const geocoderRef = useRef<any>(null);
 
   const [lat,          setLat]          = useState<number | null>(initialData?.lat ?? null);
   const [lng,          setLng]          = useState<number | null>(initialData?.lng ?? null);
@@ -77,7 +78,28 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
     const newLng = typeof latLng.lng === 'function' ? latLng.lng() : latLng.lng;
     setLat(newLat);
     setLng(newLng);
+    return { lat: newLat, lng: newLng };
   }, []);
+
+  const reverseGeocode = useCallback((la: number, ln: number) => {
+    if (!geocoderRef.current) return;
+    geocoderRef.current.geocode({ location: { lat: la, lng: ln } }, (results: any, status: string) => {
+      if (status === 'OK' && results?.[0]) {
+        const formatted = results[0].formatted_address as string;
+        setAddress(formatted);
+        if (inputRef.current) inputRef.current.value = formatted;
+      }
+    });
+  }, []);
+
+  // Confirma la posición actual del centro del mapa — antes cualquier
+  // movimiento del mapa (incluso accidental) sobrescribía la ubicación ya
+  // elegida; ahora hace falta este toque explícito.
+  function handleFixHere() {
+    if (!mapInst.current) return;
+    const { lat: la, lng: ln } = applyCenter(mapInst.current.getCenter());
+    reverseGeocode(la, ln);
+  }
 
   // Inicializa mapa y autocomplete (solo al montar)
   useEffect(() => {
@@ -95,23 +117,29 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
       gestureHandling:  'greedy',
     });
     mapInst.current = map;
-
-    let firstIdle = true;
-    map.addListener('idle', () => {
-      if (firstIdle) { firstIdle = false; return; }
-      applyCenter(map.getCenter());
-    });
+    geocoderRef.current = new gm.Geocoder();
 
     if (hasInitial && inputRef.current && initialData!.address) {
       inputRef.current.value = initialData!.address;
     }
 
-    tokenRef.current = new gm.places.AutocompleteSessionToken();
-    const ac = new gm.places.Autocomplete(inputRef.current!, {
+    // Restringe la búsqueda a la zona de reparto configurada — sin esto,
+    // el autocompletado devolvía direcciones de cualquier ciudad de Colombia.
+    const acOptions: Record<string, unknown> = {
       componentRestrictions: { country: countryCodeRef.current || 'co' },
       fields: ['geometry', 'formatted_address'],
-      sessionToken: tokenRef.current,
-    });
+    };
+    if (deliverySettings?.origin_lat && deliverySettings?.origin_lng) {
+      const delta = 0.35; // ≈ 35-40 km alrededor del centro del negocio
+      acOptions.bounds = new gm.LatLngBounds(
+        { lat: deliverySettings.origin_lat - delta, lng: deliverySettings.origin_lng - delta },
+        { lat: deliverySettings.origin_lat + delta, lng: deliverySettings.origin_lng + delta },
+      );
+      acOptions.strictBounds = true;
+    }
+
+    tokenRef.current = new gm.places.AutocompleteSessionToken();
+    const ac = new gm.places.Autocomplete(inputRef.current!, { ...acOptions, sessionToken: tokenRef.current });
 
     ac.addListener('place_changed', () => {
       const place = ac.getPlace();
@@ -119,6 +147,7 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
       setAddress(place.formatted_address ?? '');
       map.setCenter(place.geometry.location);
       map.setZoom(16);
+      applyCenter(place.geometry.location);
       tokenRef.current = new gm.places.AutocompleteSessionToken();
     });
 
@@ -141,6 +170,8 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
         const gm = (window as any).google.maps;
         mapInst.current?.setCenter(new gm.LatLng(latitude, longitude));
         mapInst.current?.setZoom(16);
+        applyCenter({ lat: latitude, lng: longitude });
+        reverseGeocode(latitude, longitude);
         setGeoLoading(false);
       },
       err => {
@@ -190,6 +221,10 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
             <circle cx="16" cy="16" r="6" fill="#fff"/>
           </svg>
         </div>
+        <button type="button" className={styles.fixHereBtn} onClick={handleFixHere}>
+          <Crosshair size={14} />
+          {lat !== null ? 'Actualizar a este punto' : 'Confirmar este punto'}
+        </button>
       </div>
 
       {/* Geolocalización */}
@@ -284,7 +319,7 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
           <span className={styles.feeLabel}>Domicilio</span>
           {distance_km !== null
             ? <span className={styles.feeDist}>{distance_km} km desde nuestro centro</span>
-            : <span className={styles.feeDist}>Mueve el mapa para calcular</span>
+            : <span className={styles.feeDist}>Ubica el pin y toca "Confirmar este punto"</span>
           }
         </div>
         {delivery_fee !== null

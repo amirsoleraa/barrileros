@@ -5,6 +5,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { useCartStore } from '@/stores/useCartStore';
 import { useClienteStore } from '@/stores/useClienteStore';
 import { fmtPrice } from '@/lib/utils';
+import { cldUrl } from '@/lib/cloudinary';
 import type { ProductoAdicional } from '@/types';
 import styles from './ProductDetail.module.css';
 
@@ -95,7 +96,7 @@ export function ProductDetail({ productId, onClose }: ProductDetailProps) {
         {/* Imagen */}
         <div className={styles.img}>
           {product.imgUrl
-            ? <img src={product.imgUrl} alt={product.nombre} />
+            ? <img src={cldUrl(product.imgUrl, 800)} alt={product.nombre} />
             : <span style={{ fontSize: 90 }}>{product.emoji ?? '🍖'}</span>
           }
           <button className={styles.back} onClick={onClose} aria-label="Volver">

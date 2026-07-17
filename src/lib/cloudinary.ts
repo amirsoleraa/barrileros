@@ -19,3 +19,13 @@ export async function uploadImage(file: File, folder = 'uploads'): Promise<strin
   const data = await res.json();
   return data.secure_url as string;
 }
+
+/**
+ * Inserta una transformación de Cloudinary en una URL ya subida (sin re-subir nada).
+ * Las imágenes se guardaban sin redimensionar, así que el navegador bajaba el
+ * archivo original completo incluso para miniaturas pequeñas — de ahí la demora.
+ */
+export function cldUrl(url: string | undefined | null, width: number): string {
+  if (!url || !url.includes('/upload/')) return url ?? '';
+  return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
+}

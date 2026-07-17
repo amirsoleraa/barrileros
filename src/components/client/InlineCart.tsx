@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAppStore } from '@/stores/useAppStore';
 import { fmtPrice } from '@/lib/utils';
+import { cldUrl } from '@/lib/cloudinary';
 import styles from './InlineCart.module.css';
 
 export function InlineCart() {
@@ -87,7 +88,7 @@ export function InlineCart() {
             <div key={`${item.id}-${item.extras.join(',')}-${idx}`} className={styles.item}>
               <div className={styles.itemImg}>
                 {item.imgUrl
-                  ? <img src={item.imgUrl} alt={item.name} />
+                  ? <img src={cldUrl(item.imgUrl, 150)} alt={item.name} />
                   : <span>{item.emoji || '🍖'}</span>
                 }
               </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Clock, X } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
+import { cldUrl } from '@/lib/cloudinary';
 import styles from './PromoBanner.module.css';
 
 export function PromoBanner() {
@@ -40,7 +41,7 @@ export function PromoBanner() {
                 <div key={p.id} className={styles.slide}>
                   <div
                     className={`${styles.card} ${hasImg ? styles.cardWithImg : ''}`}
-                    style={hasImg ? { backgroundImage: `url(${p.imgUrl})`, cursor: 'pointer' } : {}}
+                    style={hasImg ? { backgroundImage: `url(${cldUrl(p.imgUrl, 1200)})`, cursor: 'pointer' } : {}}
                     onClick={hasImg ? () => setLightboxUrl(p.imgUrl!) : undefined}
                   >
                     <div className={styles.body}>

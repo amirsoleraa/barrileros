@@ -80,9 +80,10 @@
     color: #fff;
     cursor: pointer;
     z-index: 20;
-    transition: width .15s;
   }
-  .rail:hover { width: 60px; }
+  /* La regla global button:active{transform:scale(.96)} pisaba el
+     translateY(-50%) de centrado vertical y el botón "saltaba" al presionar. */
+  .rail:active { transform: translateY(-50%) scale(.96); }
 }
 
 .railBadge {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { fmtPrice } from '@/lib/utils';
+import { cldUrl } from '@/lib/cloudinary';
 import styles from './SearchOverlay.module.css';
 
 interface SearchOverlayProps {
@@ -63,7 +64,7 @@ export function SearchOverlay({ isOpen, onClose, onOpenDetail }: SearchOverlayPr
                 onClick={() => { onOpenDetail(p.id); onClose(); }}
               >
                 <div className={styles.sImg}>
-                  {p.imgUrl ? <img src={p.imgUrl} alt={p.nombre} /> : <span>{p.emoji ?? '🍖'}</span>}
+                  {p.imgUrl ? <img src={cldUrl(p.imgUrl, 150)} alt={p.nombre} /> : <span>{p.emoji ?? '🍖'}</span>}
                 </div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>{p.nombre}</div>

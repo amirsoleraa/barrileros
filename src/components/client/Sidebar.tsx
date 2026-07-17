@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, UtensilsCrossed, ClipboardList, Heart } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useClienteStore } from '@/stores/useClienteStore';
+import { cldUrl } from '@/lib/cloudinary';
 import { LocationTrigger } from './LocationTrigger';
 import styles from './Sidebar.module.css';
 
@@ -73,7 +74,7 @@ export function Sidebar() {
             {cats.map(cat => (
               <div key={cat.id} className={styles.catItem}>
                 {cat.imgUrl ? (
-                  <span className={styles.catImg}><img src={cat.imgUrl} alt="" /></span>
+                  <span className={styles.catImg}><img src={cldUrl(cat.imgUrl, 80)} alt="" /></span>
                 ) : cat.emoji ? (
                   <span className={styles.catEmoji}>{cat.emoji}</span>
                 ) : (

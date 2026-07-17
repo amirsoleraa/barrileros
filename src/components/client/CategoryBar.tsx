@@ -1,4 +1,5 @@
 import { useAppStore } from '@/stores/useAppStore';
+import { cldUrl } from '@/lib/cloudinary';
 import styles from './CategoryBar.module.css';
 
 interface CategoryBarProps {
@@ -26,7 +27,7 @@ export function CategoryBar({ activeCat, onSelect }: CategoryBarProps) {
           onClick={() => onSelect(cat.id)}
         >
           {cat.imgUrl ? (
-            <span className={styles.pillImg}><img src={cat.imgUrl} alt="" /></span>
+            <span className={styles.pillImg}><img src={cldUrl(cat.imgUrl, 80)} alt="" /></span>
           ) : cat.emoji ? (
             <span className={styles.pillIcon}>{cat.emoji}</span>
           ) : null}

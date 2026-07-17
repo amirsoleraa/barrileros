@@ -4,6 +4,7 @@ import { useCartStore } from '@/stores/useCartStore';
 import { useAppStore } from '@/stores/useAppStore';
 import { useClienteStore } from '@/stores/useClienteStore';
 import { fmtPrice } from '@/lib/utils';
+import { cldUrl } from '@/lib/cloudinary';
 import type { Producto } from '@/types';
 import styles from './ProductCard.module.css';
 
@@ -50,7 +51,7 @@ export function ProductCard({ product, onOpenDetail }: ProductCardProps) {
       {/* Image area */}
       <div className={styles.img}>
         {product.imgUrl ? (
-          <img src={product.imgUrl} alt={product.nombre} loading="lazy" />
+          <img src={cldUrl(product.imgUrl, 400)} alt={product.nombre} loading="lazy" />
         ) : (
           <span className={styles.initials}>{initials(product.nombre)}</span>
         )}
