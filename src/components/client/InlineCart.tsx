@@ -162,7 +162,7 @@ export function InlineCart() {
           </div>
 
           <button className={styles.checkoutBtn} onClick={() => navigate('/resumen')}>
-            Ir a pagar
+            Confirmar datos
             <ArrowRight size={16} />
           </button>
         </div>

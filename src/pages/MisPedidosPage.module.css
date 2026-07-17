@@ -76,9 +76,12 @@
 
 .cardTop {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--brr-line, var(--border));
 }
 
 .numero {
@@ -86,20 +89,58 @@
   color: var(--brr-muted, var(--text3));
 }
 
-.cardBody {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+.clienteNombre {
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--brr-ink, var(--text));
+  margin-top: 4px;
 }
 
-.items {
-  font-size: 13px;
+.ubicacion {
+  font-size: 12.5px;
   color: var(--brr-muted, var(--text3));
+  margin-top: 2px;
 }
 
-.total {
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.itemRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--brr-ink, var(--text2));
+}
+.itemRow span:last-child {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.totalsBox {
+  border-top: 1px solid var(--brr-line, var(--border));
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.totalsRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--brr-muted, var(--text3));
+  font-variant-numeric: tabular-nums;
+}
+
+.totalFinal {
+  margin-top: 2px;
   font-family: 'Bricolage Grotesque', sans-serif;
   font-weight: 800;
   font-size: 17px;
   color: var(--brr-primary, var(--brand));
 }
+.totalFinal span:first-child { color: var(--brr-ink, var(--text)); font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 14px; }

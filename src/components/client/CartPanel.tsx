@@ -170,7 +170,7 @@ export function CartPanel() {
               className={styles.payBtn}
               onClick={() => { setCartOpen(false); navigate('/resumen'); }}
             >
-              Ir a pagar
+              Confirmar datos
               <ArrowRight size={16} />
             </button>
           </div>

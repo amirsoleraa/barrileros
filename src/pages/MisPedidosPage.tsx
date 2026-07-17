@@ -62,16 +62,50 @@ export function MisPedidosPage() {
             <div className={styles.list}>
               {pedidos.map(p => {
                 const info = ESTADO_INFO[p.estado] ?? { label: p.estado, css: 'sp-a' };
-                const itemCount = p.items.reduce((s, i) => s + i.qty, 0);
+                const ubicacion = p.location?.address
+                  || [p.cliente.dir, p.cliente.barrio].filter(Boolean).join(', ')
+                  || 'Sin dirección registrada';
                 return (
                   <div key={p.id} className={styles.card}>
                     <div className={styles.cardTop}>
-                      <span className={`${styles.numero} brr-eyebrow`}>#{p.numero}</span>
+                      <div>
+                        <span className={`${styles.numero} brr-eyebrow`}>#{p.numero}</span>
+                        <div className={styles.clienteNombre}>{p.cliente.nombre}</div>
+                        <div className={styles.ubicacion}>{ubicacion}</div>
+                      </div>
                       <span className={`sp ${info.css}`}>{info.label}</span>
                     </div>
-                    <div className={styles.cardBody}>
-                      <span className={styles.items}>{itemCount} producto{itemCount !== 1 ? 's' : ''}</span>
-                      <span className={styles.total}>{fmtPrice(p.total)}</span>
+
+                    <div className={styles.itemsList}>
+                      {p.items.map((item, i) => (
+                        <div key={i} className={styles.itemRow}>
+                          <span>{item.qty}× {item.nombre}</span>
+                          <span>{fmtPrice(item.precio * item.qty)}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className={styles.totalsBox}>
+                      <div className={styles.totalsRow}>
+                        <span>Subtotal</span>
+                        <span>{fmtPrice(p.subtotal)}</span>
+                      </div>
+                      {p.domicilio > 0 && (
+                        <div className={styles.totalsRow}>
+                          <span>Domicilio</span>
+                          <span>{fmtPrice(p.domicilio)}</span>
+                        </div>
+                      )}
+                      {p.descuento > 0 && (
+                        <div className={styles.totalsRow} style={{ color: 'var(--brr-success, var(--success))' }}>
+                          <span>Descuento</span>
+                          <span>-{fmtPrice(p.descuento)}</span>
+                        </div>
+                      )}
+                      <div className={`${styles.totalsRow} ${styles.totalFinal}`}>
+                        <span>Total</span>
+                        <span>{fmtPrice(p.total)}</span>
+                      </div>
                     </div>
                   </div>
                 );
