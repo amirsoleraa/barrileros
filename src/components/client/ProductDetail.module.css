@@ -1,4 +1,4 @@
-/* Full-screen bottom sheet overlay */
+/* Full-screen bottom sheet overlay (mobile) → centered modal (desktop) */
 .overlay {
   position: fixed;
   inset: 0;
@@ -11,7 +11,7 @@
 }
 
 .card {
-  background: var(--surface);
+  background: var(--brr-card, var(--surface));
   width: 100%;
   max-height: 94vh;
   overflow-y: auto;
@@ -28,26 +28,34 @@
   to   { transform: translateY(0);    opacity: 1; }
 }
 
-/* Product image */
+/* ── Imagen ── */
 .img {
   width: 100%;
-  height: 260px;
+  height: 280px;
   background: var(--bg2);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  position: relative;
-  border-radius: 24px 24px 0 0;
+  position: sticky;
+  top: 0;
+  z-index: 4;
   flex-shrink: 0;
 }
 .img img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: filter .25s ease;
+}
+.imgEmoji { font-size: 90px; }
+
+/* Al hacer scroll hacia los adicionales, la imagen (fija arriba) se difumina */
+.imgScrolled img {
+  filter: blur(4px) brightness(.65);
 }
 
-/* Gradient overlay at bottom of image */
+/* Degradado inferior de la imagen */
 .img::after {
   content: '';
   position: absolute;
@@ -56,7 +64,6 @@
   pointer-events: none;
 }
 
-/* Back button */
 .back {
   position: absolute;
   top: 14px;
@@ -77,10 +84,16 @@
 }
 .back:hover { background: rgba(0,0,0,.75); }
 
-.favToggle {
+.imgActionsRight {
   position: absolute;
   top: 14px;
   right: 14px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+
+.roundBtn {
   background: rgba(0,0,0,.55);
   backdrop-filter: blur(10px);
   border-radius: 10px;
@@ -89,133 +102,187 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
   border: none;
   cursor: pointer;
   color: #fff;
   transition: background .12s;
 }
-.favToggle:hover { background: rgba(0,0,0,.75); }
+.roundBtn:hover { background: rgba(0,0,0,.75); }
 
-/* Body */
-.body {
-  padding: 20px 20px 0;
+/* ── Columna de info ── */
+.infoCol {
+  display: flex;
+  flex-direction: column;
   flex: 1;
+  min-width: 0;
+}
+
+.scrollArea {
+  padding: 20px 20px 4px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
+.eyebrow {
+  color: var(--brr-primary, var(--brand));
+  font-size: 11px;
+}
+
 .name {
-  font-family: 'Rubik', sans-serif;
-  font-weight: 800;
   font-size: 22px;
-  color: var(--text);
-  letter-spacing: -.025em;
-  line-height: 1.2;
+  color: var(--brr-charcoal, var(--text));
+  line-height: 1.15;
+  margin-top: -4px;
 }
+
 .desc {
-  color: var(--text2);
-  font-size: 14px;
-  line-height: 1.65;
-  margin-top: -6px;
+  color: var(--brr-muted, var(--text2));
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin-top: -8px;
 }
-.price {
-  font-family: 'Rubik', sans-serif;
-  font-weight: 800;
-  font-size: 26px;
-  color: var(--brand);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -.02em;
+
+.section { display: flex; flex-direction: column; gap: 10px; }
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
 }
 
 .secLabel {
   font-weight: 700;
-  font-size: 10px;
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--brr-ink, var(--text));
 }
 
+.secCount {
+  font-size: 11px;
+  color: var(--brr-muted, var(--text3));
+}
+
+/* ── Adicionales: checkbox rows ── */
+.extraList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.extraRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: var(--brr-r-sm, 14px);
+  border: 1.5px solid var(--brr-line, var(--border));
+  background: var(--brr-card, var(--surface));
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.extraRowActive {
+  background: var(--brr-primary-soft, var(--brand-light));
+  border-color: var(--brr-primary, var(--brand));
+}
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid var(--brr-line, var(--border2));
+  background: var(--brr-card, var(--surface));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+}
+.checkboxActive {
+  background: var(--brr-primary, var(--brand));
+  border-color: var(--brr-primary, var(--brand));
+}
+
+.extraName {
+  flex: 1;
+  font-size: 13.5px;
+  color: var(--brr-ink, var(--text));
+  font-weight: 500;
+}
+.extraSub { font-size: 12px; color: var(--brr-primary, var(--brand)); font-weight: 600; }
+
+.extraPrice {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--brr-primary, var(--brand));
+  flex-shrink: 0;
+}
+
+.miniStepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.miniStepBtn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--brr-line, var(--border2));
+  background: var(--brr-card, var(--surface));
+  color: var(--brr-ink, var(--text));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.miniStepBtn:disabled { opacity: .4; cursor: not-allowed; }
+.miniStepNum {
+  min-width: 16px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--brr-ink, var(--text));
+}
+
+/* ── Contiene ── */
+.tagWrap { display: flex; flex-wrap: wrap; gap: 6px; }
 .ingrTag {
   display: inline-block;
-  background: var(--bg3);
+  background: var(--brr-bg-warm, var(--bg3));
   border-radius: 100px;
   padding: 5px 12px;
   font-size: 12px;
-  margin: 3px;
-  color: var(--text2);
+  color: var(--brr-muted, var(--text2));
   font-weight: 500;
 }
 
-/* Selectable extra */
-.extraTag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--bg2);
-  border: 1.5px dashed var(--border2);
-  border-radius: 100px;
-  padding: 6px 14px 6px 10px;
-  font-size: 12px;
-  margin: 3px;
-  cursor: pointer;
-  transition: all .18s;
-  font-weight: 500;
-  color: var(--text2);
-}
-.extraTag::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  border: 1.5px solid var(--border2);
-  flex-shrink: 0;
-  transition: all .15s;
-}
-.extraTag.selected {
-  background: var(--brand-light);
-  border-color: var(--brand);
-  border-style: solid;
-  color: var(--brand);
-  font-weight: 600;
-}
-.extraTag.selected::before {
-  background: var(--brand);
-  border-color: var(--brand);
-}
-
-/* Sticky bottom action bar */
-.bottomSheet {
+/* ── Barra fija de cantidad + agregar ── */
+.bottomBar {
   position: sticky;
   bottom: 0;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  padding: 16px 20px 30px;
-  margin-top: auto;
-  box-shadow: 0 -6px 24px rgba(0,0,0,.3);
-}
-
-.sqRow {
+  z-index: 5;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
+  gap: 10px;
+  background: var(--brr-card, var(--surface));
+  border-top: 1px solid var(--brr-line, var(--border));
+  padding: 14px 20px calc(18px + env(safe-area-inset-bottom, 0px));
+  margin-top: 18px;
 }
 
 .sqCtrl {
   display: flex;
   align-items: center;
-  background: var(--bg2);
-  border-radius: 14px;
+  background: var(--brr-bg-warm, var(--bg2));
+  border-radius: 999px;
   padding: 3px;
   gap: 2px;
+  flex-shrink: 0;
 }
 .sqBtn {
-  width: 40px;
-  height: 40px;
-  color: var(--text);
+  width: 34px;
+  height: 34px;
+  color: var(--brr-ink, var(--text));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -223,42 +290,94 @@
   border: none;
   background: none;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: 999px;
 }
-.sqBtn:hover { background: var(--bg3); }
+.sqBtn:hover { background: var(--brr-card, var(--bg3)); }
 .sqNum {
-  font-family: 'Rubik', sans-serif;
   font-weight: 800;
-  font-size: 18px;
-  min-width: 36px;
+  font-size: 15px;
+  min-width: 26px;
   text-align: center;
-  color: var(--text);
+  color: var(--brr-ink, var(--text));
   font-variant-numeric: tabular-nums;
 }
-.sqTotal {
-  font-family: 'Rubik', sans-serif;
+
+.addBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 48px;
+  padding: 0 18px;
+  border-radius: var(--brr-r-sm, 14px);
+  border: none;
+  background: var(--brr-primary, var(--brand));
+  color: #fff;
+  cursor: pointer;
+  font-family: 'Manrope', inherit;
+  box-shadow: var(--brr-cta-shadow);
+  transition: transform .15s;
+}
+.addBtn:active { transform: scale(.98); }
+
+.addLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.addPrice {
+  font-family: 'Bricolage Grotesque', sans-serif;
   font-weight: 800;
-  font-size: 24px;
-  color: var(--brand);
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -.02em;
 }
 
-.sheetActions { display: flex; gap: 10px; }
+/* ── Desktop: modal centrado de 2 columnas ── */
+@media (min-width: 1024px) {
+  .overlay { align-items: center; padding: 24px; }
 
-/* ── Desktop: centered modal ── */
+  .card {
+    flex-direction: row;
+    border-radius: 24px;
+    width: auto;
+    max-width: 920px;
+    height: 600px;
+    max-height: 88vh;
+    overflow: hidden;
+    animation: scaleIn .24s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  .img {
+    position: static;
+    width: 42%;
+    height: 100%;
+    flex-shrink: 0;
+  }
+  /* En escritorio la imagen no se desplaza, no necesita difuminarse */
+  .imgScrolled img { filter: none; }
+
+  .infoCol { min-width: 0; overflow: hidden; }
+
+  .scrollArea {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 28px 8px;
+    scrollbar-width: thin;
+  }
+
+  .name { font-size: 26px; }
+
+  .bottomBar {
+    margin-top: 0;
+    padding: 16px 28px 20px;
+  }
+}
+
 @keyframes scaleIn {
   from { transform: scale(.94) translateY(12px); opacity: 0; }
   to   { transform: scale(1)   translateY(0);    opacity: 1; }
-}
-
-@media (min-width: 768px) {
-  .overlay { align-items: center; padding: 24px; }
-  .card {
-    border-radius: 24px;
-    max-width: 580px;
-    animation: scaleIn .24s cubic-bezier(.34,1.56,.64,1);
-  }
-  .img { border-radius: 24px 24px 0 0; height: 300px; }
-  .bottomSheet { border-radius: 0 0 24px 24px; padding: 18px 24px 24px; }
 }
