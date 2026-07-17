@@ -118,6 +118,7 @@ export interface Pedido {
   numero: string;
   estado: 'activos' | 'preparando' | 'camino' | 'entregado' | 'cancelado';
   cliente: DatosEnvio;
+  clienteUid?: string | null;
   items: PedidoItem[];
   subtotal: number;
   domicilio: number;

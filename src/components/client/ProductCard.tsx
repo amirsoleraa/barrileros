@@ -1,6 +1,8 @@
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, Heart } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAppStore } from '@/stores/useAppStore';
+import { useClienteStore } from '@/stores/useClienteStore';
 import { fmtPrice } from '@/lib/utils';
 import type { Producto } from '@/types';
 import styles from './ProductCard.module.css';
@@ -15,12 +17,21 @@ function initials(nombre: string) {
 }
 
 export function ProductCard({ product, onOpenDetail }: ProductCardProps) {
+  const navigate = useNavigate();
   const { cart, updateQty } = useCartStore();
   const { categorias } = useAppStore();
+  const { cliente, toggleFavorito } = useClienteStore();
 
   const productEntries = cart.filter(i => i.id === product.id);
   const totalQty = productEntries.reduce((sum, i) => sum + i.qty, 0);
   const catName = categorias[product.categoriaId]?.nombre ?? '';
+  const isFav = cliente?.favoritos.includes(product.id) ?? false;
+
+  function handleFav(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!cliente) { navigate('/login'); return; }
+    toggleFavorito(product.id);
+  }
 
   function quickAdd(e: React.MouseEvent) {
     e.stopPropagation();
@@ -51,6 +62,11 @@ export function ProductCard({ product, onOpenDetail }: ProductCardProps) {
             <span className={styles.badgeSeg}>{catName.toUpperCase()}</span>
           </div>
         )}
+
+        {/* Favorito (top-right) */}
+        <button className={styles.favBtn} onClick={handleFav} aria-label="Favorito">
+          <Heart size={14} fill={isFav ? 'currentColor' : 'none'} className={isFav ? styles.favActive : ''} />
+        </button>
       </div>
 
       {/* Info area */}

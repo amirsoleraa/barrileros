@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Heart } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/stores/useAppStore';
 import { useCartStore } from '@/stores/useCartStore';
+import { useClienteStore } from '@/stores/useClienteStore';
 import { fmtPrice } from '@/lib/utils';
 import type { ProductoAdicional } from '@/types';
 import styles from './ProductDetail.module.css';
@@ -12,7 +14,9 @@ interface ProductDetailProps {
 }
 
 export function ProductDetail({ productId, onClose }: ProductDetailProps) {
+  const navigate = useNavigate();
   const { productos, adicionales } = useAppStore();
+  const { cliente, toggleFavorito } = useClienteStore();
   const { addItem } = useCartStore();
 
   const [qty, setQty] = useState(1);
@@ -36,6 +40,12 @@ export function ProductDetail({ productId, onClose }: ProductDetailProps) {
   }, [product]);
 
   if (!product) return null;
+
+  const isFav = cliente?.favoritos.includes(product.id) ?? false;
+  function handleFav() {
+    if (!cliente) { navigate('/login'); return; }
+    toggleFavorito(product!.id);
+  }
 
   // Guard: existing products may have legacy string[] adicionales
   const prodAdicionales = (product.adicionales ?? []).filter(
@@ -90,6 +100,9 @@ export function ProductDetail({ productId, onClose }: ProductDetailProps) {
           }
           <button className={styles.back} onClick={onClose} aria-label="Volver">
             <ArrowLeft size={20} />
+          </button>
+          <button className={styles.favToggle} onClick={handleFav} aria-label="Favorito">
+            <Heart size={18} fill={isFav ? 'currentColor' : 'none'} color={isFav ? 'var(--brr-primary, var(--brand))' : '#fff'} />
           </button>
         </div>
 

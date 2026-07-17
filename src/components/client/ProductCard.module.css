@@ -77,6 +77,29 @@
   border-radius: 6px;
 }
 
+/* Favorito top-right */
+.favBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,.42);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.favBtn:hover { transform: scale(1.1); }
+.favActive { color: var(--brr-primary, var(--brand)); }
+
 /* ── Info area ── */
 .info {
   padding: 10px 12px 12px;

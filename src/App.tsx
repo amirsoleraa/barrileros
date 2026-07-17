@@ -5,6 +5,8 @@ import { FacturaPage }    from '@/pages/FacturaPage';
 import { PrivacidadPage } from '@/pages/PrivacidadPage';
 import { ClienteLoginPage } from '@/pages/ClienteLoginPage';
 import { CuentaPage }       from '@/pages/CuentaPage';
+import { MisPedidosPage }   from '@/pages/MisPedidosPage';
+import { FavoritosPage }    from '@/pages/FavoritosPage';
 import { AdminPage }      from '@/pages/admin/AdminPage';
 import { AdminLoginPage } from '@/pages/admin/AdminLoginPage';
 import { DomiciliarioLoginPage }  from '@/pages/domiciliario/DomiciliarioLoginPage';
@@ -55,6 +57,8 @@ export default function App() {
           <Route path="/privacidad" element={<PrivacidadPage />} />
           <Route path="/login"  element={<ClienteLoginPage />} />
           <Route path="/cuenta" element={<CuentaPage />} />
+          <Route path="/pedidos"   element={<MisPedidosPage />} />
+          <Route path="/favoritos" element={<FavoritosPage />} />
         </Route>
 
         {/* Admin login (sin layout cliente) */}

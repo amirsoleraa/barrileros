@@ -185,6 +185,7 @@ export function ResumenPage() {
       numero,
       estado: 'activos',
       cliente: datosEnvio!,
+      clienteUid: user?.uid ?? null,
       items,
       subtotal,
       domicilio,
