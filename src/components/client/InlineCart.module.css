@@ -11,8 +11,8 @@
     right: 0;
     top: 0;
     bottom: 0;
-    background: var(--surface);
-    border-left: 1px solid var(--border);
+    background: var(--brr-bg, var(--surface));
+    border-left: 1px solid var(--brr-line, var(--border));
     overflow: hidden;
     z-index: 20;
   }
@@ -24,16 +24,17 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--brr-line, var(--border));
   flex-shrink: 0;
 }
 
 .title {
   flex: 1;
+  font-family: 'Bricolage Grotesque', sans-serif;
   font-size: 18px;
   font-weight: 800;
   letter-spacing: -.02em;
-  color: var(--text);
+  color: var(--brr-charcoal, var(--text));
   display: flex;
   align-items: center;
   gap: 8px;
@@ -43,17 +44,17 @@
   width: 26px;
   height: 26px;
   border-radius: 8px;
-  background: var(--bg);
+  background: var(--brr-bg-warm, var(--bg));
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text2);
+  color: var(--brr-ink, var(--text2));
   cursor: pointer;
   flex-shrink: 0;
   transition: background .12s;
 }
-.collapseBtn:hover { background: var(--bg2); }
+.collapseBtn:hover { background: var(--brr-primary-soft, var(--bg2)); color: var(--brr-primary, var(--brand)); }
 
 /* ── Rail colapsado ── */
 .rail {
@@ -97,7 +98,7 @@
 }
 
 .count {
-  background: var(--text);
+  background: var(--brr-charcoal, var(--text));
   color: #fff;
   font-size: 12px;
   font-weight: 700;
@@ -109,7 +110,7 @@
 .clearBtn {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text3);
+  color: var(--brr-muted, var(--text3));
   background: none;
   border: none;
   cursor: pointer;
@@ -129,23 +130,23 @@
 .modeBtn {
   flex: 1;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: 999px;
   font-size: 12px;
-  font-weight: 600;
-  border: 1.5px solid var(--border);
-  background: transparent;
-  color: var(--text2);
+  font-weight: 700;
+  border: 1.5px solid var(--brr-line, var(--border));
+  background: var(--brr-bg-warm, transparent);
+  color: var(--brr-muted, var(--text2));
   cursor: pointer;
   font-family: inherit;
   transition: all .12s;
   text-align: center;
 }
-.modeBtn:hover { border-color: var(--text3); color: var(--text); }
+.modeBtn:hover { border-color: var(--brr-primary, var(--text3)); color: var(--brr-primary, var(--text)); }
 
 .modeBtnActive {
-  background: var(--text) !important;
+  background: var(--brr-charcoal, var(--text)) !important;
   color: #fff !important;
-  border-color: var(--text) !important;
+  border-color: var(--brr-charcoal, var(--text)) !important;
 }
 
 /* ── Empty state ── */
@@ -157,10 +158,10 @@
   justify-content: center;
   gap: 8px;
   padding: 40px 24px;
-  color: var(--text3);
+  color: var(--brr-muted, var(--text3));
   text-align: center;
 }
-.emptyTitle { font-weight: 600; font-size: 15px; color: var(--text2); }
+.emptyTitle { font-weight: 600; font-size: 15px; color: var(--brr-ink, var(--text2)); }
 .emptyDesc  { font-size: 13px; }
 
 /* ── Item list ── */
@@ -172,7 +173,7 @@
   flex-direction: column;
   gap: 8px;
   scrollbar-width: thin;
-  scrollbar-color: var(--border2) transparent;
+  scrollbar-color: var(--brr-line, var(--border2)) transparent;
 }
 
 .item {
@@ -180,8 +181,9 @@
   gap: 10px;
   align-items: center;
   padding: 10px;
-  border-radius: 12px;
-  background: var(--bg);
+  border-radius: var(--brr-r-sm, 12px);
+  background: var(--brr-card, var(--bg));
+  border: 1px solid var(--brr-line, transparent);
 }
 
 .itemImg {
@@ -202,12 +204,12 @@
 .itemName {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--brr-ink, var(--text));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.itemExtras { font-size: 10px; color: var(--text3); margin-top: 1px; }
+.itemExtras { font-size: 10px; color: var(--brr-muted, var(--text3)); margin-top: 1px; }
 
 .itemRight {
   display: flex;
@@ -224,7 +226,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text3);
+  color: var(--brr-muted, var(--text3));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -236,7 +238,7 @@
   display: flex;
   align-items: center;
   gap: 1px;
-  background: var(--bg2);
+  background: var(--brr-bg-warm, var(--bg2));
   border-radius: 8px;
   padding: 1px;
 }
@@ -250,34 +252,49 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text2);
+  color: var(--brr-ink, var(--text2));
   transition: background .12s;
 }
-.qBtn:hover { background: var(--bg3); color: var(--text); }
+.qBtn:hover { background: var(--brr-card, var(--bg3)); color: var(--brr-primary, var(--text)); }
 .qNum {
   font-weight: 700;
   font-size: 12px;
   min-width: 18px;
   text-align: center;
-  color: var(--text);
+  color: var(--brr-ink, var(--text));
   font-variant-numeric: tabular-nums;
 }
 
 .itemPrice {
   font-size: 12px;
   font-weight: 700;
-  color: var(--brand);
+  color: var(--brr-primary, var(--brand));
   font-variant-numeric: tabular-nums;
 }
+
+.addMoreBtn {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--brr-r-sm, 14px);
+  border: 1.5px dashed var(--brr-line, var(--border2));
+  background: transparent;
+  color: var(--brr-muted, var(--text2));
+  font-weight: 600;
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.addMoreBtn:hover { border-color: var(--brr-primary, var(--brand)); color: var(--brr-primary, var(--brand)); }
 
 /* ── Footer ── */
 .footer {
   padding: 12px 16px 20px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--brr-line, var(--border));
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
 }
 
 .promoRow {
@@ -288,22 +305,22 @@
 .promoInput {
   flex: 1;
   padding: 10px 12px;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--brr-line, var(--border));
   border-radius: 10px;
   font-size: 13px;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--brr-bg, var(--bg));
+  color: var(--brr-ink, var(--text));
   font-family: inherit;
   outline: none;
   transition: border-color .15s;
 }
-.promoInput:focus { border-color: var(--brand); }
-.promoInput::placeholder { color: var(--text3); }
+.promoInput:focus { border-color: var(--brr-primary, var(--brand)); }
+.promoInput::placeholder { color: var(--brr-muted, var(--text3)); }
 
 .promoApply {
   padding: 10px 14px;
   border-radius: 10px;
-  background: var(--text);
+  background: var(--brr-charcoal, var(--text));
   color: #fff;
   border: none;
   font-size: 13px;
@@ -315,25 +332,33 @@
 }
 .promoApply:hover { opacity: .85; }
 
+.promoHint {
+  font-size: 11px;
+  color: var(--brr-muted, var(--text3));
+  margin-bottom: 6px;
+}
+.promoHint strong { color: var(--brr-primary, var(--brand)); }
+
 .summary { display: flex; flex-direction: column; gap: 6px; }
 
 .summaryRow {
   display: flex;
   justify-content: space-between;
   font-size: 13px;
-  color: var(--text2);
+  color: var(--brr-muted, var(--text2));
   font-variant-numeric: tabular-nums;
 }
 
 .total {
+  font-family: 'Bricolage Grotesque', sans-serif;
   font-weight: 800;
   font-size: 17px;
-  color: var(--brand);
+  color: var(--brr-primary, var(--brand));
   padding-top: 10px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--brr-line, var(--border));
   margin-top: 4px;
 }
-.total span:first-child { color: var(--text); }
+.total span:first-child { color: var(--brr-ink, var(--text)); font-size: 14px; }
 
 .checkoutBtn {
   display: flex;
@@ -342,15 +367,15 @@
   gap: 8px;
   width: 100%;
   padding: 14px;
-  border-radius: 14px;
-  background: var(--text);
+  border-radius: var(--brr-r-sm, 14px);
+  background: var(--brr-primary, var(--brand));
   color: #fff;
   font-weight: 700;
   font-size: 15px;
   border: none;
   cursor: pointer;
   font-family: inherit;
-  transition: opacity .15s, transform .16s cubic-bezier(.34,1.56,.64,1);
+  box-shadow: var(--brr-cta-shadow);
+  transition: transform .16s cubic-bezier(.34,1.56,.64,1);
 }
-.checkoutBtn:hover  { opacity: .88; }
 .checkoutBtn:active { transform: scale(.97); }

@@ -111,6 +111,9 @@ export function InlineCart() {
               </div>
             </div>
           ))}
+          <button className={styles.addMoreBtn} onClick={() => navigate('/')}>
+            + Agregar más platos
+          </button>
         </div>
       )}
 
@@ -127,6 +130,7 @@ export function InlineCart() {
             />
             <button className={styles.promoApply}>Aplicar</button>
           </div>
+          <div className={styles.promoHint}>Prueba <strong>BARRILERO10</strong> para 10% off</div>
 
           <div className={styles.summary}>
             <div className={styles.summaryRow}>
