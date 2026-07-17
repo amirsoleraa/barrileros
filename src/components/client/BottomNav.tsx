@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Search, ClipboardList, User } from 'lucide-react';
 import { useClienteStore } from '@/stores/useClienteStore';
 import styles from './BottomNav.module.css';
@@ -16,17 +16,28 @@ const ITEMS = [
 
 export function BottomNav({ onSearchOpen }: BottomNavProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { cliente } = useClienteStore();
 
   return (
     <nav className={styles.nav}>
       {ITEMS.map(({ id, label, icon: Icon }) => {
-        const isActive = id === 'inicio';
+        const isActive = id === 'inicio'
+          ? location.pathname === '/'
+          : id === 'pedidos'
+            ? location.pathname === '/pedidos'
+            : id === 'cuenta'
+              ? location.pathname === '/cuenta'
+              : false;
         const handleClick = id === 'buscar'
           ? onSearchOpen
-          : id === 'cuenta'
-            ? () => navigate(cliente ? '/cuenta' : '/login')
-            : undefined;
+          : id === 'pedidos'
+            ? () => navigate('/pedidos')
+            : id === 'cuenta'
+              ? () => navigate(cliente ? '/cuenta' : '/login')
+              : id === 'inicio'
+                ? () => navigate('/')
+                : undefined;
         return (
           <button
             key={id}

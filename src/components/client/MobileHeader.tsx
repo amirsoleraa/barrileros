@@ -1,5 +1,7 @@
-import { Search, ShoppingCart, MapPin, ChevronRight } from 'lucide-react';
+import { Search, ShoppingCart, Heart } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/stores/useCartStore';
+import { LocationTrigger } from './LocationTrigger';
 import styles from './MobileHeader.module.css';
 
 interface MobileHeaderProps {
@@ -7,23 +9,22 @@ interface MobileHeaderProps {
 }
 
 export function MobileHeader({ onSearchOpen }: MobileHeaderProps) {
+  const navigate = useNavigate();
   const { cart, setCartOpen } = useCartStore();
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
   return (
     <header className={styles.header}>
       <div className={styles.location}>
-        <MapPin size={14} className={styles.pin} />
-        <div className={styles.locationText}>
-          <span className={styles.locationLabel}>Entrega a</span>
-          <span className={styles.locationAddr}>Selecciona tu dirección</span>
-        </div>
-        <ChevronRight size={14} className={styles.chevron} />
+        <LocationTrigger />
       </div>
 
       <div className={styles.actions}>
         <button className={styles.iconBtn} onClick={onSearchOpen} aria-label="Buscar">
           <Search size={18} />
+        </button>
+        <button className={styles.iconBtn} onClick={() => navigate('/favoritos')} aria-label="Favoritos">
+          <Heart size={18} />
         </button>
         <button className={styles.iconBtn} onClick={() => setCartOpen(true)} aria-label="Carrito">
           <ShoppingCart size={18} />

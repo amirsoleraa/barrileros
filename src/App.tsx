@@ -33,12 +33,12 @@ function ClientLayout() {
   useTheme();
   useClienteInit();
   return (
-    <>
+    <div className="brr-app">
       <Outlet />
       <CartPanel />
       <Toast />
       <LoadingScreen />
-    </>
+    </div>
   );
 }
 

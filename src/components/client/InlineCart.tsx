@@ -7,15 +7,18 @@ import { fmtPrice } from '@/lib/utils';
 import styles from './InlineCart.module.css';
 
 export function InlineCart() {
-  const { cart, updateQty, removeItem, cuponAplicado } = useCartStore();
+  const { cart, updateQty, removeItem, cuponAplicado, locationData } = useCartStore();
   const { cfg } = useAppStore();
   const navigate = useNavigate();
   const [deliveryMode, setDeliveryMode] = useState<'domicilio' | 'recoger'>('domicilio');
   const [promoCode, setPromoCode] = useState('');
 
+  const esPorKm = cfg.domicilioTipo === 'por_km';
+  const domicilioPendiente = deliveryMode === 'domicilio' && cfg.domicilioActivo && esPorKm && !locationData;
+
   const subtotal  = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const domicilio = deliveryMode === 'domicilio' && cfg.domicilioActivo
-    ? (cfg.domicilioTipo === 'gratis' ? 0 : cfg.domicilioValor)
+    ? (cfg.domicilioTipo === 'gratis' ? 0 : esPorKm ? (locationData?.delivery_fee ?? 0) : cfg.domicilioValor)
     : 0;
   const descuento = cuponAplicado
     ? (cuponAplicado.tipo === 'porcentaje'
@@ -119,9 +122,13 @@ export function InlineCart() {
             {cfg.domicilioActivo && deliveryMode === 'domicilio' && (
               <div className={styles.summaryRow}>
                 <span>Domicilio</span>
-                <span style={{ color: domicilio === 0 ? 'var(--success)' : undefined }}>
-                  {domicilio === 0 ? '¡Gratis!' : fmtPrice(domicilio)}
-                </span>
+                {domicilioPendiente ? (
+                  <span style={{ color: 'var(--text3)', fontSize: 12 }}>Selecciona tu ubicación</span>
+                ) : (
+                  <span style={{ color: domicilio === 0 ? 'var(--success)' : undefined }}>
+                    {domicilio === 0 ? '¡Gratis!' : fmtPrice(domicilio)}
+                  </span>
+                )}
               </div>
             )}
             {descuento > 0 && (

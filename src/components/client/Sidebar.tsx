@@ -1,18 +1,20 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, UtensilsCrossed, ClipboardList, Heart } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
 import { useClienteStore } from '@/stores/useClienteStore';
+import { LocationTrigger } from './LocationTrigger';
 import styles from './Sidebar.module.css';
 
 const NAV_ITEMS = [
-  { id: 'inicio',   label: 'Inicio',      icon: Home },
-  { id: 'menu',     label: 'Menú',        icon: UtensilsCrossed },
-  { id: 'pedidos',  label: 'Mis pedidos', icon: ClipboardList },
-  { id: 'favs',     label: 'Favoritos',   icon: Heart },
+  { id: 'inicio',   label: 'Inicio',      icon: Home,            path: '/' },
+  { id: 'menu',     label: 'Menú',        icon: UtensilsCrossed, path: '/' },
+  { id: 'pedidos',  label: 'Mis pedidos', icon: ClipboardList,   path: '/pedidos' },
+  { id: 'favs',     label: 'Favoritos',   icon: Heart,           path: '/favoritos' },
 ] as const;
 
 export function Sidebar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { cfg, categorias, productos } = useAppStore();
   const { cliente } = useClienteStore();
 
@@ -38,12 +40,18 @@ export function Sidebar() {
         <span className={styles.brandName}>{cfg.nombreComercio}</span>
       </div>
 
+      {/* Ubicación */}
+      <div className={styles.locationWrap}>
+        <LocationTrigger />
+      </div>
+
       {/* Navigation */}
       <nav className={styles.nav}>
-        {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
+        {NAV_ITEMS.map(({ id, label, icon: Icon, path }) => (
           <button
             key={id}
-            className={`${styles.navItem} ${id === 'inicio' ? styles.navActive : ''}`}
+            className={`${styles.navItem} ${location.pathname === path ? styles.navActive : ''}`}
+            onClick={() => navigate(path)}
           >
             <Icon size={17} />
             <span>{label}</span>

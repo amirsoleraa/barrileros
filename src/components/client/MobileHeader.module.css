@@ -15,38 +15,9 @@
 }
 
 .location {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
+  flex: 1;
   min-width: 0;
 }
-
-.pin { color: var(--brand); flex-shrink: 0; }
-
-.locationText {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.locationLabel {
-  font-size: 10px;
-  color: var(--text2);
-  line-height: 1.2;
-  font-weight: 500;
-}
-
-.locationAddr {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.chevron { color: var(--text2); flex-shrink: 0; }
 
 .actions {
   display: flex;

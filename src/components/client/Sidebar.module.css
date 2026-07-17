@@ -53,6 +53,14 @@
   letter-spacing: -.02em;
 }
 
+/* ── Ubicación ── */
+.locationWrap {
+  padding: 12px 10px;
+  margin: 4px 0 2px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+
 /* ── Nav ── */
 .nav {
   display: flex;

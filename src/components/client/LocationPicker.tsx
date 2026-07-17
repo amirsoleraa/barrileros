@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from 'react';
 import { MapPin, Navigation, Loader, CheckCircle, Map, X } from 'lucide-react';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -14,6 +14,7 @@ const DEFAULT_CENTER = { lat: 10.3910, lng: -75.4794 };
 interface Props {
   onChange: (data: LocationData) => void;
   initialData?: LocationData | null;
+  renderTrigger?: (args: { onClick: () => void; preview: LocationData | null }) => ReactNode;
 }
 
 // ─── Inner: solo se monta cuando Maps ya está cargado ────────────────────────
@@ -316,7 +317,7 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
 }
 
 // ─── Wrapper público: maneja carga de Maps + delivery_settings ───────────────
-export function LocationPicker({ onChange, initialData }: Props) {
+export function LocationPicker({ onChange, initialData, renderTrigger }: Props) {
   const { cfg } = useAppStore();
   const countryCode = cfg.mapCountryCode || 'co';
   const [mapsLoaded,       setMapsLoaded]       = useState(false);
@@ -356,7 +357,11 @@ export function LocationPicker({ onChange, initialData }: Props) {
 
   return (
     <>
-      {/* Preview / trigger card */}
+      {/* Trigger */}
+      {renderTrigger ? (
+        renderTrigger({ onClick: () => setModalOpen(true), preview })
+      ) : (
+      /* Preview / trigger card */
       <div style={{
         border: `1.5px solid ${preview ? 'var(--brand)' : 'var(--border)'}`,
         borderRadius: 14,
@@ -411,6 +416,7 @@ export function LocationPicker({ onChange, initialData }: Props) {
           {preview ? 'Cambiar' : 'Ubicar en el mapa'}
         </button>
       </div>
+      )}
 
       {/* Modal del mapa */}
       {modalOpen && (

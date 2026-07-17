@@ -86,6 +86,67 @@ a { text-decoration: none; color: inherit; }
 /* Google Maps autocomplete dropdown must appear above fixed/modal overlays */
 .pac-container { z-index: 10000 !important; }
 
+/* ═══════════════════════════════════════════════
+   Sistema de diseño del cliente (.brr-app) — NO afecta admin/domiciliario.
+   Tipografía: Bricolage Grotesque (titulares/precios), Manrope (UI general),
+   JetBrains Mono (eyebrows/etiquetas en mayúsculas).
+   ═══════════════════════════════════════════════ */
+.brr-app {
+  --brr-primary:      #E94B1F;
+  --brr-primary-soft: #FFF1EB;
+  --brr-primary-deep: #B83410;
+  --brr-ember:  #F5B82E;
+  --brr-charcoal: #1A1410;
+  --brr-ink:    #2A211C;
+  --brr-muted:  #8B7D72;
+  --brr-line:   #ECE6DF;
+  --brr-bg:     #FAFAF7;
+  --brr-bg-warm: #F4EEE6;
+  --brr-card:   #FFFFFF;
+  --brr-success: #2E7D5B;
+
+  --brr-r-lg: 22px;
+  --brr-r-md: 18px;
+  --brr-r-sm: 16px;
+  --brr-r-chip: 999px;
+
+  --brr-card-shadow:
+    0 2px 6px rgba(26,20,16,.04),
+    0 12px 28px -8px rgba(26,20,16,.08);
+  --brr-cta-shadow: 0 10px 22px -6px rgba(233,75,31,.5);
+  --brr-icon-shadow:
+    0 1px 3px rgba(26,20,16,.06),
+    0 6px 14px -6px rgba(26,20,16,.1);
+  --brr-nav-shadow:
+    0 2px 6px rgba(26,20,16,.04),
+    0 16px 32px -10px rgba(26,20,16,.16);
+
+  font-family: 'Manrope', system-ui, sans-serif;
+  background: var(--brr-bg);
+  color: var(--brr-ink);
+}
+
+.brr-app h1, .brr-app h2, .brr-app h3, .brr-app h4 {
+  font-family: 'Manrope', system-ui, sans-serif;
+}
+
+/* Titulares grandes y precios destacados */
+.brr-display {
+  font-family: 'Bricolage Grotesque', 'Manrope', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  text-wrap: pretty;
+}
+
+/* Etiquetas pequeñas en mayúsculas: eyebrows, tags, IDs de pedido */
+.brr-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
 /* ── Botones ── */
 .btn-p {
   padding: 15px;
