@@ -6,6 +6,19 @@ import styles from './PromoBanner.module.css';
 export function PromoBanner() {
   const publicidades = useAppStore(s => s.publicidades);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [index, setIndex] = useState(0);
+
+  const active = publicidades.filter(p => p.activa);
+
+  useEffect(() => {
+    if (index >= active.length) setIndex(0);
+  }, [active.length, index]);
+
+  useEffect(() => {
+    if (active.length <= 1) return;
+    const id = setInterval(() => setIndex(i => (i + 1) % active.length), 6000);
+    return () => clearInterval(id);
+  }, [active.length]);
 
   useEffect(() => {
     if (!lightboxUrl) return;
@@ -14,25 +27,24 @@ export function PromoBanner() {
     return () => document.removeEventListener('keydown', onKey);
   }, [lightboxUrl]);
 
-  const active = publicidades.filter(p => p.activa);
   if (active.length === 0) return null;
 
-  const first = active[0];
-  const hasImg = Boolean(first.imgUrl);
+  const current = active[index];
+  const hasImg = Boolean(current.imgUrl);
 
   return (
     <>
       <div className={styles.root}>
         <div
           className={`${styles.card} ${hasImg ? styles.cardWithImg : ''}`}
-          style={hasImg ? { backgroundImage: `url(${first.imgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', cursor: 'pointer' } : {}}
-          onClick={hasImg ? () => setLightboxUrl(first.imgUrl!) : undefined}
+          style={hasImg ? { backgroundImage: `url(${current.imgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', cursor: 'pointer' } : {}}
+          onClick={hasImg ? () => setLightboxUrl(current.imgUrl!) : undefined}
         >
           <div className={styles.body}>
-            <div className={styles.tag}>Promoción · Hoy</div>
-            <h2 className={styles.title}>{first.titulo}</h2>
-            {first.descripcion && (
-              <p className={styles.desc}>{first.descripcion}</p>
+            <div className={`${styles.tag} brr-eyebrow`}>Promoción · Hoy</div>
+            <h2 className={`${styles.title} brr-display`}>{current.titulo}</h2>
+            {current.descripcion && (
+              <p className={styles.desc}>{current.descripcion}</p>
             )}
             <div className={styles.timer}>
               <Clock size={12} />
@@ -41,6 +53,19 @@ export function PromoBanner() {
           </div>
           {!hasImg && <span className={styles.flame}>🔥</span>}
         </div>
+
+        {active.length > 1 && (
+          <div className={styles.dots}>
+            {active.map((p, i) => (
+              <button
+                key={p.id}
+                className={`${styles.dot} ${i === index ? styles.dotActive : ''}`}
+                onClick={() => setIndex(i)}
+                aria-label={`Ver promoción ${i + 1}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {lightboxUrl && (
@@ -50,7 +75,7 @@ export function PromoBanner() {
           </button>
           <img
             src={lightboxUrl}
-            alt={first.titulo}
+            alt={current.titulo}
             className={styles.lbImage}
             onClick={e => e.stopPropagation()}
           />

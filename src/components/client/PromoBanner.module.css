@@ -30,11 +30,8 @@
 
 .tag {
   font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  color: var(--brand);
-  background: rgba(244,82,30,.2);
+  color: var(--brr-ember, var(--brand));
+  background: rgba(245,184,46,.16);
   border-radius: 20px;
   display: inline-flex;
   align-items: center;
@@ -44,10 +41,7 @@
 
 .title {
   font-size: 22px;
-  font-weight: 800;
   color: #fff;
-  letter-spacing: -.03em;
-  line-height: 1.15;
   margin-bottom: 8px;
 }
 
@@ -117,6 +111,30 @@
   transition: background .15s;
 }
 .lbClose:hover { background: rgba(255,255,255,.22); }
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: none;
+  background: var(--brr-line, var(--border2));
+  cursor: pointer;
+  padding: 0;
+  transition: background .15s, width .15s;
+}
+
+.dotActive {
+  background: var(--brr-primary, var(--brand));
+  width: 18px;
+  border-radius: 4px;
+}
 
 @media (min-width: 1024px) {
   .card {
