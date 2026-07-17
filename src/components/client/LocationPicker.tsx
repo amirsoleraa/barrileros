@@ -44,6 +44,7 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
   const [geoLoading,   setGeoLoading]   = useState(false);
   const [barrioOpen,   setBarrioOpen]   = useState(false);
   const [barrioSearch, setBarrioSearch] = useState('');
+  const [pinLocked,    setPinLocked]    = useState(Boolean(initialData?.lat && initialData?.lng));
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -92,13 +93,21 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
     });
   }, []);
 
-  // Confirma la posición actual del centro del mapa — antes cualquier
-  // movimiento del mapa (incluso accidental) sobrescribía la ubicación ya
-  // elegida; ahora hace falta este toque explícito.
+  // Confirma la posición actual del centro del mapa y bloquea el arrastre
+  // — antes cualquier movimiento del mapa (incluso accidental) sobrescribía
+  // la ubicación ya elegida; ahora hace falta este toque explícito, y una
+  // vez confirmado el mapa deja de moverse hasta que se pida "Actualizar".
   function handleFixHere() {
     if (!mapInst.current) return;
+    if (pinLocked) {
+      setPinLocked(false);
+      mapInst.current.setOptions({ draggable: true });
+      return;
+    }
     const { lat: la, lng: ln } = applyCenter(mapInst.current.getCenter());
     reverseGeocode(la, ln);
+    setPinLocked(true);
+    mapInst.current.setOptions({ draggable: false });
   }
 
   // Inicializa mapa y autocomplete (solo al montar)
@@ -115,6 +124,7 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
       zoomControl:      true,
       clickableIcons:   false,
       gestureHandling:  'greedy',
+      draggable:        !hasInitial,
     });
     mapInst.current = map;
     geocoderRef.current = new gm.Geocoder();
@@ -148,6 +158,8 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
       map.setCenter(place.geometry.location);
       map.setZoom(16);
       applyCenter(place.geometry.location);
+      setPinLocked(true);
+      map.setOptions({ draggable: false });
       tokenRef.current = new gm.places.AutocompleteSessionToken();
     });
 
@@ -170,8 +182,10 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
         const gm = (window as any).google.maps;
         mapInst.current?.setCenter(new gm.LatLng(latitude, longitude));
         mapInst.current?.setZoom(16);
+        mapInst.current?.setOptions({ draggable: false });
         applyCenter({ lat: latitude, lng: longitude });
         reverseGeocode(latitude, longitude);
+        setPinLocked(true);
         setGeoLoading(false);
       },
       err => {
@@ -223,7 +237,7 @@ function LocationPickerInner({ onChange, deliverySettings, onConfirm, countryCod
         </div>
         <button type="button" className={styles.fixHereBtn} onClick={handleFixHere}>
           <Crosshair size={14} />
-          {lat !== null ? 'Actualizar a este punto' : 'Confirmar este punto'}
+          {pinLocked ? 'Actualizar ubicación' : 'Confirmar este punto'}
         </button>
       </div>
 

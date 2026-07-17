@@ -71,6 +71,9 @@
   box-shadow: 0 4px 14px rgba(0,0,0,.25);
 }
 .fixHereBtn:hover { filter: brightness(1.06); }
+/* La regla global button:active{transform:scale(.96)} pisaba el
+   translateX(-50%) de centrado y el botón "saltaba" al presionar. */
+.fixHereBtn:active { transform: translateX(-50%) scale(.96); }
 
 /* ── Botón de geolocalización ── */
 .geoBtn {
