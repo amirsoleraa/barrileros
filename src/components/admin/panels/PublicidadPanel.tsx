@@ -1,10 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, Image, Upload, ArrowUp, ArrowDown, Eye, EyeOff, Megaphone } from 'lucide-react';
-import {
-  collection, addDoc, updateDoc, deleteDoc,
-  doc, getDocs, serverTimestamp, writeBatch,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
+import { rowToApp, toSnake } from '@/lib/caseConvert';
 import { uploadImage } from '@/lib/cloudinary';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
@@ -30,9 +27,8 @@ export function PublicidadPanel() {
   async function loadAll() {
     setLoading(true);
     try {
-      const snap = await getDocs(collection(db, 'publicidades'));
-      const list: Publicidad[] = [];
-      snap.forEach(d => list.push({ id: d.id, ...d.data() } as Publicidad));
+      const { data } = await supabase.from('publicidades').select('*');
+      const list: Publicidad[] = (data ?? []).map((r) => rowToApp<Publicidad>(r, ['createdAt']));
       list.sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
       setAll(list);
     } finally {
@@ -72,15 +68,17 @@ export function PublicidadPanel() {
       if (imgFile) imgUrl = await uploadImage(imgFile, 'publicidades');
 
       if (editId) {
-        await updateDoc(doc(db, 'publicidades', editId), { titulo: titulo.trim(), descripcion: desc.trim(), imgUrl });
+        const { error } = await supabase.from('publicidades').update(toSnake({ titulo: titulo.trim(), descripcion: desc.trim(), imgUrl })).eq('id', editId);
+        if (error) throw error;
         const updated = all.map(p => p.id === editId ? { ...p, titulo: titulo.trim(), descripcion: desc.trim(), imgUrl } : p);
         syncStore(updated);
         showToast('Publicidad actualizada', 'success');
       } else {
         const orden = all.length;
-        const payload = { titulo: titulo.trim(), descripcion: desc.trim(), imgUrl, activa: true, orden, createdAt: serverTimestamp() };
-        const ref = await addDoc(collection(db, 'publicidades'), payload);
-        const newPub: Publicidad = { id: ref.id, titulo: titulo.trim(), descripcion: desc.trim(), imgUrl, activa: true, orden };
+        const payload = { titulo: titulo.trim(), descripcion: desc.trim(), imgUrl, activa: true, orden };
+        const { data: row, error } = await supabase.from('publicidades').insert(toSnake(payload)).select().single();
+        if (error) throw error;
+        const newPub: Publicidad = { id: row.id, titulo: titulo.trim(), descripcion: desc.trim(), imgUrl, activa: true, orden };
         syncStore([...all, newPub]);
         showToast('Publicidad creada', 'success');
       }
@@ -93,14 +91,14 @@ export function PublicidadPanel() {
   }
 
   async function toggleActiva(p: Publicidad) {
-    await updateDoc(doc(db, 'publicidades', p.id), { activa: !p.activa });
+    await supabase.from('publicidades').update({ activa: !p.activa }).eq('id', p.id);
     syncStore(all.map(x => x.id === p.id ? { ...x, activa: !p.activa } : x));
   }
 
   async function handleDelete(id: string) {
     const ok = await confirm({ title: 'Eliminar publicidad', message: '¿Eliminar esta publicidad?', danger: true, confirmLabel: 'Eliminar' });
     if (!ok) return;
-    await deleteDoc(doc(db, 'publicidades', id));
+    await supabase.from('publicidades').delete().eq('id', id);
     syncStore(all.filter(p => p.id !== id));
     showToast('Publicidad eliminada');
   }
@@ -112,9 +110,7 @@ export function PublicidadPanel() {
     [next[idx], next[target]] = [next[target], next[idx]];
     // actualizar campo orden en todos
     const reordered = next.map((p, i) => ({ ...p, orden: i }));
-    const batch = writeBatch(db);
-    reordered.forEach(p => batch.update(doc(db, 'publicidades', p.id), { orden: p.orden }));
-    await batch.commit();
+    await Promise.all(reordered.map(p => supabase.from('publicidades').update({ orden: p.orden }).eq('id', p.id)));
     syncStore(reordered);
   }
 

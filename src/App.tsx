@@ -15,7 +15,7 @@ import { CartPanel }      from '@/components/client/CartPanel';
 import { Toast }          from '@/components/ui/Toast';
 import { LoadingScreen }  from '@/components/ui/LoadingScreen';
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
-import { useFirebaseInit } from '@/hooks/useFirebaseInit';
+import { useAppInit } from '@/hooks/useAppInit';
 import { useTheme }        from '@/hooks/useTheme';
 import { useClienteInit }  from '@/hooks/useClienteInit';
 
@@ -31,7 +31,7 @@ import { ConfigPanel }    from '@/components/admin/panels/ConfigPanel';
 
 // Layout del cliente — incluye CartPanel, Toast y LoadingScreen globales
 function ClientLayout() {
-  useFirebaseInit();
+  useAppInit();
   useTheme();
   useClienteInit();
   return (

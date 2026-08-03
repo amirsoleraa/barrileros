@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, getDocs, orderBy } from 'firebase/firestore';
-import { domDb as db } from '@/lib/firebase';
+import { domSupabase as client } from '@/lib/supabase';
+import { rowToApp } from '@/lib/caseConvert';
 import { Calendar, X, DollarSign, Package, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { fmtPrice } from '@/lib/utils';
@@ -15,11 +15,9 @@ export function DomCarteraPanel({ domiciliario }: DomCarteraPanelProps) {
   const [dateTo,   setDateTo]   = useState('');
 
   useEffect(() => {
-    getDocs(query(collection(db, 'historial_pedidos'), orderBy('creadoEn', 'desc')))
-      .then(snap => {
-        const list: HistorialDia[] = [];
-        snap.forEach(d => list.push({ id: d.id, ...d.data() } as HistorialDia));
-        setDias(list);
+    Promise.resolve(client.from('historial_pedidos').select('*').order('creado_en', { ascending: false }))
+      .then(({ data }) => {
+        setDias((data ?? []).map(r => rowToApp<HistorialDia>(r, ['creadoEn'])));
       })
       .catch(() => {})
       .finally(() => setLoading(false));

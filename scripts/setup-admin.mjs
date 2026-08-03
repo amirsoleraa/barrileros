@@ -1,14 +1,16 @@
 /**
- * Crea el primer usuario administrador en Firebase.
+ * Crea el primer usuario administrador en Supabase.
  * Uso: node scripts/setup-admin.mjs correo@ejemplo.com contraseña123
  *
- * Requisito previo:
- *   firebase deploy --only firestore:rules
+ * Requiere en .env (o variables de entorno):
+ *   VITE_SUPABASE_URL
+ *   SUPABASE_SERVICE_ROLE_KEY  (Dashboard → Project Settings → API — nunca la anon key, y nunca subir este valor al repo)
  */
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { createClient } from '@supabase/supabase-js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
@@ -24,11 +26,11 @@ const env = Object.fromEntries(
     })
 );
 
-const API_KEY = env.VITE_FIREBASE_API_KEY;
-const PROJECT = env.VITE_FIREBASE_PROJECT_ID;
+const SUPABASE_URL = env.VITE_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
+const SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!API_KEY || !PROJECT) {
-  console.error('❌  No se encontraron VITE_FIREBASE_API_KEY o VITE_FIREBASE_PROJECT_ID en .env');
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+  console.error('❌  Faltan VITE_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env');
   process.exit(1);
 }
 
@@ -42,89 +44,60 @@ if (password.length < 6) {
   process.exit(1);
 }
 
-const AUTH_BASE      = 'https://identitytoolkit.googleapis.com/v1/accounts';
-const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
+const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-// ── 1. Crear usuario en Firebase Auth ───────────────────────────────────────
+// ── 1. Crear usuario en Supabase Auth ───────────────────────────────────────
 console.log(`\n🔧  Creando usuario: ${email} …`);
-let uid, idToken;
+let uid;
 
-const createRes  = await fetch(`${AUTH_BASE}:signUp?key=${API_KEY}`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email, password, returnSecureToken: true }),
+const { data: created, error: createError } = await admin.auth.admin.createUser({
+  email, password, email_confirm: true,
 });
-const createData = await createRes.json();
 
-if (createData.error) {
-  if (createData.error.message === 'EMAIL_EXISTS') {
-    console.log('   El correo ya existe en Firebase Auth — iniciando sesión…');
+if (createError) {
+  if (createError.message.toLowerCase().includes('already')) {
+    console.log('   El correo ya existe en Supabase Auth — buscando su usuario…');
+    const { data: list, error: listError } = await admin.auth.admin.listUsers();
+    if (listError) {
+      console.error('❌  Error al buscar el usuario existente:', listError.message);
+      process.exit(1);
+    }
+    const existing = list.users.find(u => u.email === email);
+    if (!existing) {
+      console.error('❌  No se encontró el usuario existente con ese correo.');
+      process.exit(1);
+    }
+    uid = existing.id;
+    console.log(`   ✅ Usuario existente encontrado. UID: ${uid}`);
   } else {
-    console.error('❌  Error al crear usuario:', createData.error.message);
+    console.error('❌  Error al crear usuario:', createError.message);
     process.exit(1);
   }
 } else {
-  uid     = createData.localId;
-  idToken = createData.idToken;
+  uid = created.user.id;
   console.log(`   ✅ Usuario creado. UID: ${uid}`);
 }
 
-// ── 2. Iniciar sesión si ya existía ─────────────────────────────────────────
-if (!uid) {
-  const signInRes  = await fetch(`${AUTH_BASE}:signInWithPassword?key=${API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, returnSecureToken: true }),
-  });
-  const signInData = await signInRes.json();
-  if (signInData.error) {
-    console.error('❌  Error al autenticar:', signInData.error.message);
-    process.exit(1);
-  }
-  uid     = signInData.localId;
-  idToken = signInData.idToken;
-  console.log(`   ✅ Sesión iniciada. UID: ${uid}`);
-}
-
-// ── 3. Crear documento users/{uid} con role: admin ──────────────────────────
-console.log('\n🔧  Guardando rol de administrador en Firestore…');
-const userDocRes = await fetch(`${FIRESTORE_BASE}/users/${uid}`, {
-  method: 'PATCH',
-  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-  body: JSON.stringify({
-    fields: {
-      role:      { stringValue: 'admin' },
-      email:     { stringValue: email },
-      createdAt: { timestampValue: new Date().toISOString() },
-    },
-  }),
-});
-const userDocData = await userDocRes.json();
-if (userDocData.error) {
-  console.error('❌  Error al guardar el documento de usuario:', userDocData.error.message);
-  console.error('   Asegúrate de haber desplegado las reglas: firebase deploy --only firestore:rules');
+// ── 2. Crear profiles/{uid} con role: admin ─────────────────────────────────
+console.log('\n🔧  Guardando rol de administrador…');
+const { error: profileError } = await admin.from('profiles').upsert({ id: uid, role: 'admin' });
+if (profileError) {
+  console.error('❌  Error al guardar el perfil de administrador:', profileError.message);
   process.exit(1);
 }
-console.log('   ✅ Documento users/' + uid + ' guardado con role: admin');
+console.log(`   ✅ profiles/${uid} guardado con role: admin`);
 
-// ── 4. Crear config/adminReady para bloquear futuros bootstraps ─────────────
+// ── 3. Crear config['adminReady'] para bloquear futuros bootstraps ─────────
 console.log('\n🔧  Bloqueando ventana de bootstrap…');
-const lockRes  = await fetch(`${FIRESTORE_BASE}/config/adminReady`, {
-  method: 'PATCH',
-  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-  body: JSON.stringify({
-    fields: {
-      at:    { timestampValue: new Date().toISOString() },
-      email: { stringValue: email },
-    },
-  }),
+const { error: lockError } = await admin.from('config').upsert({
+  key: 'adminReady',
+  data: { at: new Date().toISOString(), email },
 });
-const lockData = await lockRes.json();
-if (lockData.error) {
-  console.warn('⚠️   No se pudo crear config/adminReady:', lockData.error.message);
-  console.warn('    Puedes crearlo manualmente en la consola de Firebase para mayor seguridad.');
+if (lockError) {
+  console.warn('⚠️   No se pudo crear config[adminReady]:', lockError.message);
+  console.warn('    Puedes crearlo manualmente en el SQL Editor de Supabase para mayor seguridad.');
 } else {
-  console.log('   ✅ config/adminReady creado — bootstrap bloqueado permanentemente');
+  console.log('   ✅ config[adminReady] creado — bootstrap bloqueado permanentemente');
 }
 
 console.log(`

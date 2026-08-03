@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Tag, Gift, Bike, Ticket } from 'lucide-react';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
+import { subscribeTable } from '@/lib/realtime';
+import { rowToApp, toSnake } from '@/lib/caseConvert';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
 import { Toggle } from '@/components/ui/Toggle';
@@ -67,13 +68,21 @@ export function PromocionesPanel() {
   }
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'promociones'), snap => {
-      const list: Promocion[] = [];
-      snap.forEach(d => list.push({ id: d.id, ...d.data() } as Promocion));
-      list.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
-      setPromos(list);
+    let cache: Promocion[] = [];
+    function refresh() {
+      const sorted = [...cache].sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+      setPromos(sorted);
+    }
+    supabase.from('promociones').select('*').then(({ data }) => {
+      cache = (data ?? []).map((r) => rowToApp<Promocion>(r, ['createdAt']));
+      refresh();
       setLoading(false);
-    }, () => setLoading(false));
+    });
+    const unsub = subscribeTable<Record<string, unknown>>(supabase, 'promociones', {
+      onInsert: (r) => { cache = [...cache, rowToApp<Promocion>(r, ['createdAt'])]; refresh(); },
+      onUpdate: (r) => { const p = rowToApp<Promocion>(r, ['createdAt']); cache = cache.map((x) => x.id === p.id ? p : x); refresh(); },
+      onDelete: (r) => { cache = cache.filter((x) => x.id !== r.id); refresh(); },
+    });
     return unsub;
   }, []);
 
@@ -124,11 +133,19 @@ export function PromocionesPanel() {
         nombre: form.nombre.trim(),
         descripcion: buildPreview(),
       };
+      // producto_a_id / producto_b_id son FKs uuid nullable — '' -> null
+      const dbPayload = toSnake({
+        ...payload,
+        productoAId: payload.productoAId || null,
+        productoBId: payload.productoBId || null,
+      });
       if (editId) {
-        await updateDoc(doc(db, 'promociones', editId), payload);
+        const { error } = await supabase.from('promociones').update(dbPayload).eq('id', editId);
+        if (error) throw error;
         showToast('Promoción actualizada', 'success');
       } else {
-        await addDoc(collection(db, 'promociones'), { ...payload, createdAt: serverTimestamp() });
+        const { error } = await supabase.from('promociones').insert(dbPayload);
+        if (error) throw error;
         showToast('Promoción creada', 'success');
       }
       setIsOpen(false);
@@ -142,12 +159,12 @@ export function PromocionesPanel() {
   async function handleDelete(id: string) {
     const ok = await confirm({ title: 'Eliminar promoción', message: '¿Eliminar esta promoción?', danger: true, confirmLabel: 'Eliminar' });
     if (!ok) return;
-    await deleteDoc(doc(db, 'promociones', id));
+    await supabase.from('promociones').delete().eq('id', id);
     showToast('Promoción eliminada');
   }
 
   async function handleToggle(p: Promocion) {
-    await updateDoc(doc(db, 'promociones', p.id), { activa: !p.activa });
+    await supabase.from('promociones').update({ activa: !p.activa }).eq('id', p.id);
   }
 
   const Icon = form.tipo ? TIPO_ICONS[form.tipo] : Tag;

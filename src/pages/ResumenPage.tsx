@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, MapPin, Ticket, CheckCircle, MessageCircle, User, ChevronDown } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { collection, addDoc, setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAppStore } from '@/stores/useAppStore';
 import { useClienteAuth } from '@/hooks/useClienteAuth';
@@ -111,11 +110,12 @@ export function ResumenPage() {
     const code = cuponCode.trim().toUpperCase();
     if (!code) return;
     try {
-      const snap = await getDoc(doc(db, 'cupones', code));
-      if (!snap.exists() || snap.data().activo === false) {
+      const { data: rows } = await supabase.rpc('get_cupon', { p_codigo: code });
+      const row = rows?.[0];
+      if (!row || row.activo === false) {
         setCuponMsg('Cupón inválido o expirado'); setCuponOk(false); setCuponAplicado(null); return;
       }
-      const cup = { id: snap.id, ...snap.data() } as Cupon;
+      const cup = { id: row.codigo, ...row } as Cupon;
       if (cup.limite > 0 && cup.usos >= cup.limite) {
         setCuponMsg('Cupón agotado'); setCuponOk(false); setCuponAplicado(null); return;
       }
@@ -187,7 +187,7 @@ export function ResumenPage() {
       numero,
       estado: 'activos',
       cliente: datosEnvio!,
-      clienteUid: user?.uid ?? null,
+      clienteUid: user?.id ?? null,
       items,
       subtotal,
       domicilio,
@@ -196,35 +196,50 @@ export function ResumenPage() {
       cupon: cuponAplicado ? cuponAplicado.codigo : null,
       mensajeConfirmacion: cfg.mensajeConfirmacion || '',
       location: locationData ?? null,
-      createdAt: serverTimestamp() as unknown as Pedido['createdAt'],
       ...(promoResult.promosAplicadas.length > 0 && { promosAplicadas: promoResult.promosAplicadas }),
     };
 
     try {
-      const ref       = await addDoc(collection(db, 'pedidos'), pedido);
-      const fullPedido = { ...pedido, id: ref.id };
+      // cliente/items/location/promosAplicadas son JSONB embebidos en
+      // camelCase — solo las columnas de primer nivel van en snake_case.
+      const { data: row, error } = await supabase.from('pedidos').insert({
+        numero: pedido.numero,
+        estado: pedido.estado,
+        cliente: pedido.cliente,
+        cliente_uid: pedido.clienteUid,
+        items: pedido.items,
+        subtotal: pedido.subtotal,
+        domicilio: pedido.domicilio,
+        descuento: pedido.descuento,
+        total: pedido.total,
+        cupon: pedido.cupon,
+        mensaje_confirmacion: pedido.mensajeConfirmacion,
+        location: pedido.location,
+        promos_aplicadas: pedido.promosAplicadas ?? null,
+      }).select().single();
+      if (error) throw error;
+      const fullPedido = { ...pedido, id: row.id, createdAt: undefined } as Pedido;
 
-      // El incremento de `usos` del cupón lo hace la Cloud Function onNuevoPedido
+      // El incremento de `usos` del cupón lo hace el trigger on_nuevo_pedido
       // de forma atómica — hacerlo también aquí duplicaba el conteo en cada pedido.
 
       for (const code of promoResult.cuponesGenerados) {
         const promoApl = promoResult.promosAplicadas.find(pa => pa.cuponGenerado === code);
         if (!promoApl) continue;
-        setDoc(doc(db, 'cupones', code), {
+        supabase.from('cupones').insert({
           codigo: code,
           tipo: 'porcentaje',
           valor: promoApl.cuponPct ?? 10,
           activo: true,
           usos: 0,
           limite: 1,
-          clienteNombre: datosEnvio!.nombre,
-          clienteTel: datosEnvio!.tel ?? '',
-          pedidoNumero: numero,
-          promoNombre: promoApl.nombre,
-          promoId: promoApl.promoId,
+          cliente_nombre: datosEnvio!.nombre,
+          cliente_tel: datosEnvio!.tel ?? '',
+          pedido_numero: numero,
+          promo_nombre: promoApl.nombre,
+          promo_id: promoApl.promoId,
           origen: 'promo',
-          createdAt: serverTimestamp(),
-        }).catch(() => {});
+        }).then(({ error: cupError }) => { if (cupError) console.error(cupError); });
       }
 
       setLastPedido(fullPedido as Pedido);

@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, getDocs, where } from 'firebase/firestore';
-import { domDb as db } from '@/lib/firebase';
+import { domSupabase as client } from '@/lib/supabase';
 import { Calendar, X } from 'lucide-react';
 import { fmtPrice } from '@/lib/utils';
 import type { Pedido, Domiciliario } from '@/types';
@@ -31,12 +30,9 @@ export function DomHistorialPanel({ domiciliario }: DomHistorialPanelProps) {
         const cutoffFecha = cutoff.toISOString().slice(0, 10);
 
         // Fetch from historial_pedidos (admin close-day entries)
-        const [hSnap, rSnap] = await Promise.all([
-          getDocs(query(collection(db, 'historial_pedidos'), where('fecha', '>=', cutoffFecha))),
-          getDocs(query(
-            collection(db, 'historial_rutas'),
-            where('domiciliarioId', '==', domiciliario.id),
-          )),
+        const [hRes, rRes] = await Promise.all([
+          client.from('historial_pedidos').select('fecha, fecha_label, pedidos').gte('fecha', cutoffFecha),
+          client.from('historial_rutas').select('fecha, fecha_label, pedidos').eq('domiciliario_id', domiciliario.id),
         ]);
 
         // Build a map: fecha -> pedidos[]
@@ -48,18 +44,16 @@ export function DomHistorialPanel({ domiciliario }: DomHistorialPanelProps) {
         }
 
         // historial_pedidos: filter to this domiciliario
-        hSnap.forEach(d => {
-          const data = d.data();
-          const mine: Pedido[] = (data.pedidos ?? []).filter(
-            (p: Pedido) => p.domiciliarioId === domiciliario.id || p.repartidorNombre === domiciliario.nombre
+        (hRes.data ?? []).forEach(data => {
+          const mine: Pedido[] = ((data.pedidos ?? []) as Pedido[]).filter(
+            (p) => p.domiciliarioId === domiciliario.id || p.repartidorNombre === domiciliario.nombre
           );
-          if (mine.length > 0) addPedidos(data.fecha, data.fechaLabel, mine);
+          if (mine.length > 0) addPedidos(data.fecha, data.fecha_label, mine);
         });
 
         // historial_rutas: all pedidos belong to this domiciliario
-        rSnap.forEach(d => {
-          const data = d.data();
-          if ((data.pedidos ?? []).length > 0) addPedidos(data.fecha, data.fechaLabel, data.pedidos);
+        (rRes.data ?? []).forEach(data => {
+          if ((data.pedidos ?? []).length > 0) addPedidos(data.fecha, data.fecha_label, data.pedidos as Pedido[]);
         });
 
         // Deduplicate pedidos by id (a pedido can appear in both if admin also closed day)

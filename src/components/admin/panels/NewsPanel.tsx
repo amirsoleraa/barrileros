@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
 import { Plus, Trash2, Image, Upload, Bell } from 'lucide-react';
-import { collection, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { db, firebaseReady } from '@/lib/firebase';
+import { supabase, supabaseReady } from '@/lib/supabase';
 import { uploadImage } from '@/lib/cloudinary';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
@@ -37,7 +36,7 @@ export function NewsPanel() {
 
   async function handleSave() {
     if (!titulo.trim()) { showToast('El título es obligatorio', 'error'); return; }
-    if (!firebaseReady)  { showToast('Firebase no configurado', 'error'); return; }
+    if (!supabaseReady)  { showToast('Supabase no configurado', 'error'); return; }
     setSaving(true);
     try {
       let imgUrl = '';
@@ -45,17 +44,15 @@ export function NewsPanel() {
         imgUrl = await uploadImage(imgFile, 'novedades');
       }
 
-      const payload = {
+      const { data: row, error } = await supabase.from('novedades').insert({
         titulo: titulo.trim(),
         descripcion: desc.trim(),
-        imgUrl,
+        img_url: imgUrl,
         activa: true,
-        createdAt: serverTimestamp(),
-      };
-
-      const docRef = await addDoc(collection(db, 'novedades'), payload);
-      const novedad: Novedad = { id: docRef.id, titulo: titulo.trim(), descripcion: desc.trim(), imgUrl, activa: true };
-      setNovedades({ ...novedades, [docRef.id]: novedad });
+      }).select().single();
+      if (error) throw error;
+      const novedad: Novedad = { id: row.id, titulo: titulo.trim(), descripcion: desc.trim(), imgUrl, activa: true };
+      setNovedades({ ...novedades, [row.id]: novedad });
       showToast('Novedad publicada', 'success');
       setIsOpen(false);
       resetForm();
@@ -69,8 +66,8 @@ export function NewsPanel() {
   async function handleDelete(id: string) {
     const ok = await confirm({ title: 'Eliminar novedad', message: '¿Eliminar esta novedad?', danger: true, confirmLabel: 'Eliminar' });
     if (!ok) return;
-    if (!firebaseReady) return;
-    await deleteDoc(doc(db, 'novedades', id));
+    if (!supabaseReady) return;
+    await supabase.from('novedades').delete().eq('id', id);
     const next = { ...novedades };
     delete next[id];
     setNovedades(next);

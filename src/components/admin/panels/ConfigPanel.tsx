@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save, Upload } from 'lucide-react';
-import { setDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import { uploadImage } from '@/lib/cloudinary';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
@@ -91,9 +90,13 @@ export function ConfigPanel() {
         adminPin: adminPin.trim(),
       };
 
+      const [mainRow, settingsRow] = await Promise.all([
+        supabase.from('config').select('data').eq('key', 'main').single(),
+        supabase.from('config').select('data').eq('key', 'adminSettings').single(),
+      ]);
       await Promise.all([
-        setDoc(doc(db, 'config', 'main'), updates, { merge: true }),
-        setDoc(doc(db, 'config', 'adminSettings'), pinUpdates, { merge: true }),
+        supabase.from('config').upsert({ key: 'main', data: { ...(mainRow.data?.data as object ?? {}), ...updates } }),
+        supabase.from('config').upsert({ key: 'adminSettings', data: { ...(settingsRow.data?.data as object ?? {}), ...pinUpdates } }),
       ]);
       setCfg(updates);
       setAdminSettings(pinUpdates);
@@ -110,7 +113,12 @@ export function ConfigPanel() {
   async function handleSaveCampos() {
     setSavingCampos(true);
     try {
-      await setDoc(doc(db, 'config', 'main'), { camposFormulario: campos }, { merge: true });
+      const { data: mainRow } = await supabase.from('config').select('data').eq('key', 'main').single();
+      const { error } = await supabase.from('config').upsert({
+        key: 'main',
+        data: { ...(mainRow?.data as object ?? {}), camposFormulario: campos },
+      });
+      if (error) throw error;
       setCfg({ camposFormulario: campos });
       showToast('Campos actualizados', 'success');
     } catch (e) {

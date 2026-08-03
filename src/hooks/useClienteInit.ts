@@ -1,42 +1,56 @@
 import { useEffect } from 'react';
-import { onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
-import { clienteAuth, clienteDb, firebaseReady } from '@/lib/firebase';
+import { clienteSupabase as client, supabaseReady } from '@/lib/supabase';
+import { subscribeTable } from '@/lib/realtime';
+import { rowToApp } from '@/lib/caseConvert';
 import { useClienteStore } from '@/stores/useClienteStore';
 import type { ClienteProfile } from '@/types';
+import type { User } from '@supabase/supabase-js';
 
-/** Sincroniza clientes/{uid} con la sesión de clienteAuth — crea el doc la primera vez que alguien inicia sesión. */
+/** Sincroniza clientes/{uid} con la sesión de clienteSupabase — crea la fila la primera vez que alguien inicia sesión. */
 export function useClienteInit() {
   const { setCliente, setLoading } = useClienteStore();
 
   useEffect(() => {
-    if (!firebaseReady) { setLoading(false); return; }
+    if (!supabaseReady) { setLoading(false); return; }
 
-    let docUnsub: (() => void) | null = null;
-    const authUnsub = onAuthStateChanged(clienteAuth, user => {
-      if (docUnsub) { docUnsub(); docUnsub = null; }
+    let rowUnsub: (() => void) | null = null;
+
+    async function loadOrCreate(user: User) {
+      const { data } = await client.from('clientes').select('*').eq('id', user.id).single();
+      if (data) {
+        setCliente(rowToApp<ClienteProfile>(data, ['createdAt']));
+      } else {
+        const nombre = (user.user_metadata?.full_name as string | undefined)
+          ?? (user.user_metadata?.name as string | undefined)
+          ?? '';
+        const { data: created } = await client.from('clientes').insert({
+          id: user.id,
+          nombre,
+          correo: user.email ?? '',
+          telefono: user.phone ?? '',
+          favoritos: [],
+        }).select().single();
+        if (created) setCliente(rowToApp<ClienteProfile>(created, ['createdAt']));
+      }
+      setLoading(false);
+
+      rowUnsub = subscribeTable<Record<string, unknown>>(client, 'clientes', {
+        filter: `id=eq.${user.id}`,
+        onUpdate: (r) => setCliente(rowToApp<ClienteProfile>(r, ['createdAt'])),
+      });
+    }
+
+    async function resolveSession(user: User | null) {
+      if (rowUnsub) { rowUnsub(); rowUnsub = null; }
       if (!user) { setCliente(null); setLoading(false); return; }
+      await loadOrCreate(user);
+    }
 
-      const ref = doc(clienteDb, 'clientes', user.uid);
-      docUnsub = onSnapshot(ref,
-        snap => {
-          if (snap.exists()) {
-            setCliente({ id: snap.id, ...snap.data() } as ClienteProfile);
-          } else {
-            setDoc(ref, {
-              nombre: user.displayName ?? '',
-              correo: user.email ?? '',
-              telefono: user.phoneNumber ?? '',
-              favoritos: [],
-              createdAt: serverTimestamp(),
-            }).catch(() => {});
-          }
-          setLoading(false);
-        },
-        () => setLoading(false)
-      );
+    client.auth.getSession().then(({ data }) => resolveSession(data.session?.user ?? null));
+    const { data: sub } = client.auth.onAuthStateChange((_event, session) => {
+      resolveSession(session?.user ?? null);
     });
 
-    return () => { authUnsub(); if (docUnsub) docUnsub(); };
+    return () => { sub.subscription.unsubscribe(); if (rowUnsub) rowUnsub(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }

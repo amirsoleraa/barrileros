@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
+import { toSnake } from '@/lib/caseConvert';
 import { uploadImage } from '@/lib/cloudinary';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
@@ -60,12 +60,14 @@ export function CategoriesPanel() {
       const data = { nombre: nombre.trim(), color, emoji: emoji.trim(), imgUrl };
 
       if (editId) {
-        await updateDoc(doc(db, 'categorias', editId), data);
+        const { error } = await supabase.from('categorias').update(toSnake(data)).eq('id', editId);
+        if (error) throw error;
         setCategorias({ ...categorias, [editId]: { ...categorias[editId], ...data } });
         showToast('Categoría actualizada');
       } else {
-        const r = await addDoc(collection(db, 'categorias'), { ...data, orden: cats.length });
-        setCategorias({ ...categorias, [r.id]: { id: r.id, ...data, orden: cats.length } });
+        const { data: row, error } = await supabase.from('categorias').insert(toSnake({ ...data, orden: cats.length })).select().single();
+        if (error) throw error;
+        setCategorias({ ...categorias, [row.id]: { id: row.id, ...data, orden: cats.length } });
         showToast('Categoría creada');
       }
       setIsOpen(false);
@@ -80,7 +82,7 @@ export function CategoriesPanel() {
     if (prodCount(id) > 0) { showToast('No puedes eliminar una categoría con productos asignados'); return; }
     const ok = await confirm({ title: 'Eliminar categoría', message: '¿Eliminar esta categoría?', danger: true, confirmLabel: 'Eliminar' });
     if (!ok) return;
-    await deleteDoc(doc(db, 'categorias', id));
+    await supabase.from('categorias').delete().eq('id', id);
     const next = { ...categorias };
     delete next[id];
     setCategorias(next);

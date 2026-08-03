@@ -1,17 +1,15 @@
 // ═══════════════════════════════════════════════
-// hooks/useAuth.ts — Firebase Auth state
+// hooks/useAuth.ts — Supabase Auth state (admin)
 // ═══════════════════════════════════════════════
 
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
-import { auth, firebaseReady } from '@/lib/firebase';
+import type { User } from '@supabase/supabase-js';
+import { supabase, supabaseReady } from '@/lib/supabase';
 
 const AUTH_ERRORS: Record<string, string> = {
-  'auth/invalid-credential': 'Correo o contraseña incorrectos',
-  'auth/user-not-found':     'Correo o contraseña incorrectos',
-  'auth/wrong-password':     'Correo o contraseña incorrectos',
-  'auth/invalid-email':      'Correo electrónico inválido',
-  'auth/too-many-requests':  'Demasiados intentos. Intenta más tarde',
+  'Invalid login credentials': 'Correo o contraseña incorrectos',
+  'Invalid email':             'Correo electrónico inválido',
+  'Email not confirmed':       'Correo no confirmado',
 };
 
 export function useAuth() {
@@ -19,29 +17,29 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!firebaseReady) {
+    if (!supabaseReady) {
       setLoading(false);
       return;
     }
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
       setLoading(false);
     });
-    return unsubscribe;
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
   async function signIn(email: string, password: string): Promise<string | null> {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      return null;
-    } catch (e: unknown) {
-      const code = (e as { code?: string }).code ?? '';
-      return AUTH_ERRORS[code] ?? 'Error al ingresar. Intenta de nuevo.';
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) return null;
+    return AUTH_ERRORS[error.message] ?? 'Error al ingresar. Intenta de nuevo.';
   }
 
   async function logOut(): Promise<void> {
-    await signOut(auth);
+    await supabase.auth.signOut();
   }
 
   return { user, loading, signIn, logOut };

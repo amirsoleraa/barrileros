@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
+import { toSnake } from '@/lib/caseConvert';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
 import { Toggle } from '@/components/ui/Toggle';
@@ -53,12 +53,14 @@ export function AdicionalesPanel() {
         activo: form.activo,
       };
       if (editId) {
-        await updateDoc(doc(db, 'adicionales', editId), data);
+        const { error } = await supabase.from('adicionales').update(toSnake(data)).eq('id', editId);
+        if (error) throw error;
         setAdicionales({ ...adicionales, [editId]: { id: editId, ...data } });
         showToast('Adicional actualizado', 'success');
       } else {
-        const ref = await addDoc(collection(db, 'adicionales'), data);
-        setAdicionales({ ...adicionales, [ref.id]: { id: ref.id, ...data } });
+        const { data: row, error } = await supabase.from('adicionales').insert(toSnake(data)).select().single();
+        if (error) throw error;
+        setAdicionales({ ...adicionales, [row.id]: { id: row.id, ...data } });
         showToast('Adicional creado', 'success');
       }
       setIsOpen(false);
@@ -73,7 +75,7 @@ export function AdicionalesPanel() {
   async function handleDelete(id: string) {
     const ok = await confirm({ title: 'Eliminar adicional', message: '¿Eliminar este adicional?', danger: true, confirmLabel: 'Eliminar' });
     if (!ok) return;
-    await deleteDoc(doc(db, 'adicionales', id));
+    await supabase.from('adicionales').delete().eq('id', id);
     const next = { ...adicionales };
     delete next[id];
     setAdicionales(next);

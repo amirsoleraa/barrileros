@@ -1,10 +1,11 @@
 // ═══════════════════════════════════════════════
-// hooks/useAdminInit.ts — Carga admin + onSnapshot pedidos
+// hooks/useAdminInit.ts — Carga admin + tiempo real de pedidos
 // ═══════════════════════════════════════════════
 
 import { useEffect, useState } from 'react';
-import { getDoc, getDocs, doc, collection, onSnapshot } from 'firebase/firestore';
-import { db, firebaseReady } from '@/lib/firebase';
+import { supabase, supabaseReady } from '@/lib/supabase';
+import { subscribeTable } from '@/lib/realtime';
+import { rowToApp } from '@/lib/caseConvert';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { applyThemeColors } from '@/lib/utils';
@@ -16,7 +17,7 @@ export function useAdminInit() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!firebaseReady) {
+    if (!supabaseReady) {
       setReady(true);
       return;
     }
@@ -25,65 +26,64 @@ export function useAdminInit() {
 
     async function init() {
       try {
-        const [cfgDoc, colorDoc, catSnap, prodSnap, cupSnap, novSnap, adminSettingsDoc] = await Promise.all([
-          getDoc(doc(db, 'config', 'main')),
-          getDoc(doc(db, 'config', 'colores')),
-          getDocs(collection(db, 'categorias')),
-          getDocs(collection(db, 'productos')),
-          getDocs(collection(db, 'cupones')),
-          getDocs(collection(db, 'novedades')),
-          getDoc(doc(db, 'config', 'adminSettings')),
+        const [cfgRow, colorRow, catRows, prodRows, cupRows, novRows, adminSettingsRow] = await Promise.all([
+          supabase.from('config').select('data').eq('key', 'main').single(),
+          supabase.from('config').select('data').eq('key', 'colores').single(),
+          supabase.from('categorias').select('*'),
+          supabase.from('productos').select('*'),
+          supabase.from('cupones').select('*'),
+          supabase.from('novedades').select('*'),
+          supabase.from('config').select('data').eq('key', 'adminSettings').single(),
         ]);
 
-        if (cfgDoc.exists()) setCfg(cfgDoc.data() as Partial<AppConfig>);
-        if (colorDoc.exists()) applyThemeColors(colorDoc.data() as Record<string, string>);
-        if (adminSettingsDoc.exists()) setAdminSettings(adminSettingsDoc.data() as AdminSettings);
+        if (cfgRow.data) setCfg(cfgRow.data.data as Partial<AppConfig>);
+        if (colorRow.data) applyThemeColors(colorRow.data.data as Record<string, string>);
+        if (adminSettingsRow.data) setAdminSettings(adminSettingsRow.data.data as AdminSettings);
 
-        const cats:  Record<string, Categoria>   = {};
-        const prods: Record<string, Producto>    = {};
-        const cups:  Record<string, Cupon>       = {};
-        const novs:  Record<string, Novedad>     = {};
+        const cats:  Record<string, Categoria> = {};
+        const prods: Record<string, Producto>  = {};
+        const cups:  Record<string, Cupon>     = {};
+        const novs:  Record<string, Novedad>   = {};
 
-        catSnap.forEach(d  => { cats[d.id]  = { id: d.id, ...d.data() } as Categoria; });
-        prodSnap.forEach(d => { prods[d.id] = { id: d.id, ...d.data() } as Producto; });
-        cupSnap.forEach(d  => { cups[d.id]  = { id: d.id, ...d.data() } as Cupon; });
-        novSnap.forEach(d  => { novs[d.id]  = { id: d.id, ...d.data() } as Novedad; });
+        (catRows.data ?? []).forEach((r) => { const c = rowToApp<Categoria>(r); cats[c.id] = c; });
+        (prodRows.data ?? []).forEach((r) => { const p = rowToApp<Producto>(r); prods[p.id] = p; });
+        (cupRows.data ?? []).forEach((r) => { const c = rowToApp<Cupon>({ ...r, id: r.codigo }, ['createdAt']); cups[c.id] = c; });
+        (novRows.data ?? []).forEach((r) => { const n = rowToApp<Novedad>(r, ['createdAt']); novs[n.id] = n; });
 
         setCategorias(cats);
         setProductos(prods);
         setCupones(cups);
         setNovedades(novs);
 
-        // Adicionales — no bloquea el resto si la colección no existe aún
+        // Adicionales — no bloquea el resto si la tabla falla
         try {
-          const adSnap = await getDocs(collection(db, 'adicionales'));
+          const { data } = await supabase.from('adicionales').select('*');
           const ads: Record<string, Adicional> = {};
-          adSnap.forEach(d => { ads[d.id] = { id: d.id, ...d.data() } as Adicional; });
+          (data ?? []).forEach((r) => { const a = rowToApp<Adicional>(r); ads[a.id] = a; });
           setAdicionales(ads);
         } catch (_) {}
 
         // Barrios
         try {
-          const bSnap = await getDocs(collection(db, 'barrios'));
+          const { data } = await supabase.from('barrios').select('*');
           const bs: Record<string, Barrio> = {};
-          bSnap.forEach(d => { bs[d.id] = { id: d.id, ...d.data() } as Barrio; });
+          (data ?? []).forEach((r) => { const b = rowToApp<Barrio>(r); bs[b.id] = b; });
           setBarrios(bs);
         } catch (_) {}
 
         // Domiciliarios
         try {
-          const dSnap = await getDocs(collection(db, 'domiciliarios'));
+          const { data } = await supabase.from('domiciliarios').select('*');
           const ds: Record<string, Domiciliario> = {};
-          for (const d of dSnap.docs) { ds[d.id] = { id: d.id, ...d.data() } as Domiciliario; }
+          (data ?? []).forEach((r) => { const d = rowToApp<Domiciliario>(r); ds[d.id] = d; });
           setDomiciliarios(ds);
         } catch (_) {}
 
         // Promociones
         try {
-          const pSnap = await getDocs(collection(db, 'promociones'));
-          const ps: Promocion[] = [];
-          for (const d of pSnap.docs) { ps.push({ id: d.id, ...d.data() } as Promocion); }
-          setPromociones(ps.filter(p => p.activa));
+          const { data } = await supabase.from('promociones').select('*');
+          const ps = (data ?? []).map((r) => rowToApp<Promocion>(r, ['createdAt']));
+          setPromociones(ps.filter((p) => p.activa));
         } catch (_) {}
       } catch (e) {
         console.error('Error al inicializar admin:', e);
@@ -92,26 +92,33 @@ export function useAdminInit() {
 
     init().then(() => setReady(true));
 
-    // Suscripción en tiempo real a pedidos
-    const unsubscribe = onSnapshot(collection(db, 'pedidos'), (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        const data = { id: change.doc.id, ...change.doc.data() } as Pedido;
-        if (change.type === 'added') {
-          setPedidos((prev) => ({ ...prev, [data.id]: data }));
-          if (!isFirstLoad) {
-            showToast(`🔔 Nuevo pedido #${data.numero}`);
-          }
-        } else if (change.type === 'modified') {
-          setPedidos((prev) => ({ ...prev, [data.id]: data }));
-        } else if (change.type === 'removed') {
-          setPedidos((prev) => {
-            const next = { ...prev };
-            delete next[data.id];
-            return next;
-          });
-        }
-      });
+    // Carga inicial de pedidos — Realtime (a diferencia de onSnapshot) no
+    // reenvía las filas existentes, solo cambios a partir de la suscripción.
+    supabase.from('pedidos').select('*').then(({ data }) => {
+      const initial: Record<string, Pedido> = {};
+      (data ?? []).forEach((r) => { const p = rowToApp<Pedido>(r, ['createdAt']); initial[p.id] = p; });
+      setPedidos((prev) => ({ ...prev, ...initial }));
       isFirstLoad = false;
+    });
+
+    // Suscripción en tiempo real a pedidos
+    const unsubscribe = subscribeTable<Record<string, unknown>>(supabase, 'pedidos', {
+      onInsert: (r) => {
+        const data = rowToApp<Pedido>(r, ['createdAt']);
+        setPedidos((prev) => ({ ...prev, [data.id]: data }));
+        if (!isFirstLoad) showToast(`🔔 Nuevo pedido #${data.numero}`);
+      },
+      onUpdate: (r) => {
+        const data = rowToApp<Pedido>(r, ['createdAt']);
+        setPedidos((prev) => ({ ...prev, [data.id]: data }));
+      },
+      onDelete: (r) => {
+        setPedidos((prev) => {
+          const next = { ...prev };
+          delete next[r.id as string];
+          return next;
+        });
+      },
     });
 
     return () => unsubscribe();

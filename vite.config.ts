@@ -46,7 +46,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'firebase-core': ['firebase/app', 'firebase/firestore', 'firebase/auth', 'firebase/storage'],
+          'supabase-core': ['@supabase/supabase-js'],
           'recharts': ['recharts'],
         },
       },

@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { ArrowLeft, LogOut, User as UserIcon } from 'lucide-react';
-import { doc, updateDoc } from 'firebase/firestore';
-import { clienteDb } from '@/lib/firebase';
+import { clienteSupabase } from '@/lib/supabase';
 import { useClienteAuth } from '@/hooks/useClienteAuth';
 import { useClienteStore } from '@/stores/useClienteStore';
 import { useAppStore } from '@/stores/useAppStore';
@@ -32,7 +31,8 @@ export function CuentaPage() {
     if (telefono && !isValidPhone(telefono)) { showToast('Teléfono inválido', 'error'); return; }
     setSaving(true);
     try {
-      await updateDoc(doc(clienteDb, 'clientes', user!.uid), { nombre: nombre.trim(), telefono: telefono.trim() });
+      const { error } = await clienteSupabase.from('clientes').update({ nombre: nombre.trim(), telefono: telefono.trim() }).eq('id', user!.id);
+      if (error) throw error;
       showToast('Perfil actualizado', 'success');
       setEditando(false);
     } catch {

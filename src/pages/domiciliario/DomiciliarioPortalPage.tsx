@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Bike, Bell, LogOut, Route, History, Wallet, X } from 'lucide-react';
-import { collection, onSnapshot, updateDoc, doc, query, orderBy } from 'firebase/firestore';
-import { domDb as db } from '@/lib/firebase';
+import { domSupabase as client } from '@/lib/supabase';
+import { subscribeTable } from '@/lib/realtime';
+import { rowToApp } from '@/lib/caseConvert';
 import { useDomAuth } from '@/hooks/useDomAuth';
-import { useFirebaseInit } from '@/hooks/useFirebaseInit';
+import { useAppInit } from '@/hooks/useAppInit';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { DomRutasPanel }    from '@/components/domiciliario/DomRutasPanel';
 import { DomHistorialPanel } from '@/components/domiciliario/DomHistorialPanel';
@@ -23,22 +24,22 @@ const TABS = [
 ];
 
 function PortalContent() {
-  useFirebaseInit();
+  useAppInit();
   const { cfg } = useAppStore();
   const { setPedidos } = useAdminStore();
 
-  // Subscribe to pedidos in camino (accessible by domiciliarios per Firestore rules)
+  // Subscribe to pedidos (accesibles para domiciliarios per RLS)
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'pedidos'), snap => {
-      snap.docChanges().forEach(change => {
-        const data = { id: change.doc.id, ...change.doc.data() };
-        if (change.type === 'added' || change.type === 'modified') {
-          setPedidos(prev => ({ ...prev, [data.id]: data as Pedido }));
-        } else if (change.type === 'removed') {
-          setPedidos(prev => { const n = { ...prev }; delete n[data.id]; return n; });
-        }
-      });
-    }, () => {});
+    client.from('pedidos').select('*').then(({ data }) => {
+      const initial: Record<string, Pedido> = {};
+      (data ?? []).forEach(r => { const p = rowToApp<Pedido>(r, ['createdAt']); initial[p.id] = p; });
+      setPedidos(prev => ({ ...prev, ...initial }));
+    });
+    const unsub = subscribeTable<Record<string, unknown>>(client, 'pedidos', {
+      onInsert: (r) => { const p = rowToApp<Pedido>(r, ['createdAt']); setPedidos(prev => ({ ...prev, [p.id]: p })); },
+      onUpdate: (r) => { const p = rowToApp<Pedido>(r, ['createdAt']); setPedidos(prev => ({ ...prev, [p.id]: p })); },
+      onDelete: (r) => { setPedidos(prev => { const n = { ...prev }; delete n[r.id as string]; return n; }); },
+    });
     return unsub;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const { session, logOut } = useDomAuth();
@@ -50,15 +51,18 @@ function PortalContent() {
 
   useEffect(() => {
     if (!dom?.id) return;
-    const unsub = onSnapshot(
-      query(collection(db, 'notificaciones', dom.id, 'items'), orderBy('createdAt', 'desc')),
-      snap => {
-        const list: Notificacion[] = [];
-        snap.forEach(d => list.push({ id: d.id, ...d.data() } as Notificacion));
-        setNotifs(list);
-      },
-      () => {}
-    );
+    let cache: Notificacion[] = [];
+    function refresh() {
+      setNotifs([...cache].sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0)));
+    }
+    client.from('notificaciones').select('*').eq('domiciliario_id', dom.id).order('created_at', { ascending: false })
+      .then(({ data }) => { cache = (data ?? []).map(r => rowToApp<Notificacion>(r, ['createdAt'])); refresh(); });
+    const unsub = subscribeTable<Record<string, unknown>>(client, 'notificaciones', {
+      filter: `domiciliario_id=eq.${dom.id}`,
+      onInsert: (r) => { cache = [...cache, rowToApp<Notificacion>(r, ['createdAt'])]; refresh(); },
+      onUpdate: (r) => { const n = rowToApp<Notificacion>(r, ['createdAt']); cache = cache.map(x => x.id === n.id ? n : x); refresh(); },
+      onDelete: (r) => { cache = cache.filter(x => x.id !== r.id); refresh(); },
+    });
     return unsub;
   }, [dom?.id]);
 
@@ -66,11 +70,9 @@ function PortalContent() {
 
   async function markAllRead() {
     if (!dom?.id) return;
-    await Promise.all(
-      notifs.filter(n => !n.leida).map(n =>
-        updateDoc(doc(db, 'notificaciones', dom.id, 'items', n.id), { leida: true }).catch(() => {})
-      )
-    );
+    const ids = notifs.filter(n => !n.leida).map(n => n.id);
+    if (ids.length === 0) return;
+    await client.from('notificaciones').update({ leida: true }).in('id', ids);
   }
 
   function handleOpenNotifs() {

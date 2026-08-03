@@ -3,8 +3,7 @@
 // ═══════════════════════════════════════════════
 
 import { create } from 'zustand';
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { clienteDb } from '@/lib/firebase';
+import { clienteSupabase } from '@/lib/supabase';
 import type { ClienteProfile } from '@/types';
 
 interface ClienteState {
@@ -31,9 +30,8 @@ export const useClienteStore = create<ClienteState>((set, get) => ({
 
     set({ cliente: { ...cliente, favoritos: next } });
     try {
-      await updateDoc(doc(clienteDb, 'clientes', cliente.id), {
-        favoritos: isFav ? arrayRemove(productId) : arrayUnion(productId),
-      });
+      const { error } = await clienteSupabase.from('clientes').update({ favoritos: next }).eq('id', cliente.id);
+      if (error) throw error;
     } catch {
       set({ cliente });
     }

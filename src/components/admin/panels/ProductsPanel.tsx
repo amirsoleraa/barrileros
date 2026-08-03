@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
-import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
+import { toSnake } from '@/lib/caseConvert';
 import { uploadImage } from '@/lib/cloudinary';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
@@ -114,14 +114,19 @@ export function ProductsPanel() {
         adicionales: tmpAdicionales,
         activo: form.activo,
       };
+      // categoria_id es una FK uuid nullable — Firestore aceptaba '' como
+      // "sin categoría", Postgres necesita null
+      const payload = toSnake({ ...data, categoriaId: data.categoriaId || null });
 
       if (editId) {
-        await updateDoc(doc(db, 'productos', editId), data);
+        const { error } = await supabase.from('productos').update(payload).eq('id', editId);
+        if (error) throw error;
         setProductos({ ...productos, [editId]: { id: editId, ...data } });
         showToast('Producto actualizado', 'success');
       } else {
-        const ref2 = await addDoc(collection(db, 'productos'), data);
-        setProductos({ ...productos, [ref2.id]: { id: ref2.id, ...data } });
+        const { data: row, error } = await supabase.from('productos').insert(payload).select().single();
+        if (error) throw error;
+        setProductos({ ...productos, [row.id]: { id: row.id, ...data } });
         showToast('Producto creado', 'success');
       }
       setIsOpen(false);
@@ -136,7 +141,7 @@ export function ProductsPanel() {
   async function handleDelete(id: string) {
     const ok = await confirm({ title: 'Eliminar producto', message: '¿Eliminar este producto?', danger: true, confirmLabel: 'Eliminar' });
     if (!ok) return;
-    await deleteDoc(doc(db, 'productos', id));
+    await supabase.from('productos').delete().eq('id', id);
     const next = { ...productos };
     delete next[id];
     setProductos(next);
@@ -144,7 +149,7 @@ export function ProductsPanel() {
   }
 
   async function toggleActivo(p: Producto) {
-    await updateDoc(doc(db, 'productos', p.id), { activo: !p.activo });
+    await supabase.from('productos').update({ activo: !p.activo }).eq('id', p.id);
     setProductos({ ...productos, [p.id]: { ...p, activo: !p.activo } });
   }
 

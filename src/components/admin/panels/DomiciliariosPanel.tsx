@@ -1,25 +1,12 @@
 import { useState } from 'react';
 import { Plus, Pencil, Trash2, Bike, Phone, User, Lock, Eye, EyeOff } from 'lucide-react';
-import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
-import { getApp, initializeApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signOut, updatePassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { db, firebaseConfig } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
 import { Toggle } from '@/components/ui/Toggle';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { fmtPrice } from '@/lib/utils';
 import type { Domiciliario } from '@/types';
-
-const DOM_EMAIL_DOMAIN = '@dom.barrileros.co';
-
-function getSecondaryAuth() {
-  try {
-    return getAuth(getApp('dom-secondary'));
-  } catch {
-    return getAuth(initializeApp(firebaseConfig, 'dom-secondary'));
-  }
-}
 
 interface DomForm {
   nombre: string;
@@ -64,56 +51,43 @@ export function DomiciliariosPanel() {
     try {
       const pagoBase = parseFloat(form.pagoBase) || 0;
       const tel = form.tel.trim();
-      const existingUid = domiciliarios[editId!]?.uid;
-      const data: Omit<Domiciliario, 'id'> = {
+      const data = {
         nombre: form.nombre.trim(),
         tel,
-        pagoBase,
+        pago_base: pagoBase,
         activo: form.activo,
-        usuario: form.usuario.trim() || (domiciliarios[editId!]?.usuario ?? ''),
-        password: form.password || (domiciliarios[editId!]?.password ?? ''),
-        ...(existingUid ? { uid: existingUid } : {}),
       };
 
       if (editId) {
         const existing = domiciliarios[editId];
-        // If password changed, update Firebase Auth via secondary app
-        if (form.password && form.password !== existing?.password && form.password.length >= 6) {
-          try {
-            const secAuth = getSecondaryAuth();
-            await signInWithEmailAndPassword(secAuth, `${existing.usuario}${DOM_EMAIL_DOMAIN}`, existing.password!);
-            await updatePassword(secAuth.currentUser!, form.password);
-            await signOut(secAuth);
-          } catch {
-            showToast('Contraseña en la app actualizada, pero falló en Auth. Recrea el domiciliario si es necesario.', 'error');
-          }
+        // Si cambió la contraseña, se actualiza vía Edge Function (service
+        // role) — a diferencia de Firebase, no hace falta reautenticarse
+        // como el domiciliario ni guardar su contraseña en texto plano.
+        if (form.password && form.password.length >= 6 && existing?.uid) {
+          const { error: pwError } = await supabase.functions.invoke('admin-domiciliarios', {
+            body: { action: 'set-password', uid: existing.uid, password: form.password },
+          });
+          if (pwError) showToast('Datos actualizados, pero falló el cambio de contraseña.', 'error');
         }
-        await updateDoc(doc(db, 'domiciliarios', editId), data);
-        setDomiciliarios({ ...domiciliarios, [editId]: { id: editId, ...data } });
+        const { error } = await supabase.from('domiciliarios').update(data).eq('id', editId);
+        if (error) throw error;
+        setDomiciliarios({ ...domiciliarios, [editId]: { ...domiciliarios[editId], ...data, pagoBase } });
         showToast('Domiciliario actualizado', 'success');
       } else {
-        // Create Firebase Auth user via secondary app
-        const email = `${form.usuario.trim()}${DOM_EMAIL_DOMAIN}`;
-        let uid = '';
-        try {
-          const secAuth = getSecondaryAuth();
-          const cred = await createUserWithEmailAndPassword(secAuth, email, form.password);
-          uid = cred.user.uid;
-          await signOut(secAuth);
-        } catch (e: unknown) {
-          const code = (e as { code?: string }).code ?? '';
-          if (code === 'auth/email-already-in-use') {
-            showToast('Ese usuario ya existe. Elige otro nombre de usuario.', 'error');
-          } else {
-            showToast('Error al crear cuenta de acceso. Verifica el usuario.', 'error');
-          }
+        const usuario = form.usuario.trim();
+        const { data: fnData, error: fnError } = await supabase.functions.invoke<{ uid?: string }>('admin-domiciliarios', {
+          body: { action: 'create', usuario, password: form.password },
+        });
+        if (fnError || !fnData?.uid) {
+          showToast('Error al crear cuenta de acceso. Es posible que ese usuario ya exista.', 'error');
           setSaving(false);
           return;
         }
-        const r = await addDoc(collection(db, 'domiciliarios'), { ...data, uid });
-        // Create users/{uid} record for Firestore role-based rules
-        await setDoc(doc(db, 'users', uid), { role: 'domiciliario', domiciliarioId: r.id });
-        setDomiciliarios({ ...domiciliarios, [r.id]: { id: r.id, ...data, uid } });
+        const uid = fnData.uid;
+        const { data: row, error } = await supabase.from('domiciliarios').insert({ ...data, usuario, uid }).select().single();
+        if (error) throw error;
+        await supabase.from('profiles').insert({ id: uid, role: 'domiciliario', domiciliario_id: row.id });
+        setDomiciliarios({ ...domiciliarios, [row.id]: { id: row.id, nombre: data.nombre, tel: data.tel, pagoBase, activo: data.activo, usuario, uid } });
         showToast('Domiciliario creado', 'success');
       }
       setIsOpen(false);
@@ -128,7 +102,7 @@ export function DomiciliariosPanel() {
   async function handleDelete(id: string) {
     const ok = await confirm({ title: 'Eliminar domiciliario', message: '¿Eliminar este domiciliario del registro?', danger: true, confirmLabel: 'Eliminar' });
     if (!ok) return;
-    await deleteDoc(doc(db, 'domiciliarios', id));
+    await supabase.from('domiciliarios').delete().eq('id', id);
     const next = { ...domiciliarios };
     delete next[id];
     setDomiciliarios(next);

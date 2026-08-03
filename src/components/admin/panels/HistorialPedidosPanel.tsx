@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { onSnapshot, collection, query, orderBy, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
+import { subscribeTable } from '@/lib/realtime';
+import { rowToApp } from '@/lib/caseConvert';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { fmtPrice } from '@/lib/utils';
@@ -101,15 +102,21 @@ export function HistorialPedidosPanel() {
   const [dateTo,   setDateTo]   = useState('');
 
   useEffect(() => {
-    const q = query(collection(db, 'historial_pedidos'), orderBy('creadoEn', 'desc'));
-    const unsub = onSnapshot(q, snap => {
-      const list: HistorialDia[] = [];
-      snap.forEach(d => list.push({ id: d.id, ...d.data() } as HistorialDia));
-      setDias(list);
+    let cache: HistorialDia[] = [];
+    function refresh() {
+      const sorted = [...cache].sort((a, b) => (b.creadoEn?.seconds ?? 0) - (a.creadoEn?.seconds ?? 0));
+      setDias(sorted);
+    }
+    supabase.from('historial_pedidos').select('*').order('creado_en', { ascending: false }).then(({ data, error }) => {
+      if (error) { showToast('Error al cargar historial', 'error'); setLoading(false); return; }
+      cache = (data ?? []).map(r => rowToApp<HistorialDia>(r, ['creadoEn']));
+      refresh();
       setLoading(false);
-    }, () => {
-      showToast('Error al cargar historial', 'error');
-      setLoading(false);
+    });
+    const unsub = subscribeTable<Record<string, unknown>>(supabase, 'historial_pedidos', {
+      onInsert: (r) => { cache = [...cache, rowToApp<HistorialDia>(r, ['creadoEn'])]; refresh(); },
+      onUpdate: (r) => { const d = rowToApp<HistorialDia>(r, ['creadoEn']); cache = cache.map(x => x.id === d.id ? d : x); refresh(); },
+      onDelete: (r) => { cache = cache.filter(x => x.id !== r.id); refresh(); },
     });
     return unsub;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -195,9 +202,14 @@ export function HistorialPedidosPanel() {
       const totalEntregados = updatedPedidos.filter(p => p.estado === 'entregado').length;
       const totalCancelados = updatedPedidos.filter(p => p.estado === 'cancelado').length;
       const totalRecaudo    = updatedPedidos.filter(p => p.estado === 'entregado').reduce((s, p) => s + p.total, 0);
-      await updateDoc(doc(db, 'historial_pedidos', editingPedido.diaId), {
-        pedidos: updatedPedidos, totalEntregados, totalCancelados, totalRecaudo,
-      });
+      // pedidos es JSONB embebido en camelCase — no pasa por toSnake
+      const { error } = await supabase.from('historial_pedidos').update({
+        pedidos: updatedPedidos,
+        total_entregados: totalEntregados,
+        total_cancelados: totalCancelados,
+        total_recaudo: totalRecaudo,
+      }).eq('id', editingPedido.diaId);
+      if (error) throw error;
       setEditingPedido(null);
       showToast('Cambios guardados', 'success');
     } catch {
@@ -333,7 +345,7 @@ export function HistorialPedidosPanel() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {pinUnlocked && (
                       <button
-                        onClick={e => { e.stopPropagation(); Promise.all(dia.docIds.map(id => deleteDoc(doc(db, 'historial_pedidos', id)))).then(() => showToast('Día eliminado', 'success')).catch(() => showToast('Error al eliminar', 'error')); }}
+                        onClick={e => { e.stopPropagation(); supabase.from('historial_pedidos').delete().in('id', dia.docIds).then(({ error }) => error ? showToast('Error al eliminar', 'error') : showToast('Día eliminado', 'success')); }}
                         style={{ width: 28, height: 28, borderRadius: 7, border: 'none', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         title="Eliminar este día del historial"
                       >

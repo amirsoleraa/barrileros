@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { onSnapshot, collection, query, where, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
+import { subscribeTable } from '@/lib/realtime';
+import { rowToApp } from '@/lib/caseConvert';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -39,19 +40,25 @@ export function HistorialRutasPanel() {
   const [dateTo,   setDateTo]   = useState('');
 
   useEffect(() => {
-    const q = query(collection(db, 'rutas'), where('estado', '==', 'completada'));
-    const unsub = onSnapshot(q, snap => {
-      const list: RutaEntrega[] = [];
-      snap.forEach(d => list.push({ id: d.id, ...d.data() } as RutaEntrega));
-      list.sort((a, b) =>
+    let cache: RutaEntrega[] = [];
+    function refresh() {
+      const sorted = [...cache].sort((a, b) =>
         (b.completadaEn?.seconds ?? b.createdAt?.seconds ?? 0) -
         (a.completadaEn?.seconds ?? a.createdAt?.seconds ?? 0)
       );
-      setRutas(list);
+      setRutas(sorted);
+    }
+    supabase.from('rutas').select('*').eq('estado', 'completada').then(({ data, error }) => {
+      if (error) { showToast('Error al cargar historial de rutas', 'error'); setLoading(false); return; }
+      cache = (data ?? []).map(r => rowToApp<RutaEntrega>(r, ['createdAt', 'completadaEn']));
+      refresh();
       setLoading(false);
-    }, () => {
-      showToast('Error al cargar historial de rutas', 'error');
-      setLoading(false);
+    });
+    const unsub = subscribeTable<Record<string, unknown>>(supabase, 'rutas', {
+      filter: 'estado=eq.completada',
+      onInsert: (r) => { cache = [...cache, rowToApp<RutaEntrega>(r, ['createdAt', 'completadaEn'])]; refresh(); },
+      onUpdate: (r) => { const ru = rowToApp<RutaEntrega>(r, ['createdAt', 'completadaEn']); cache = cache.map(x => x.id === ru.id ? ru : x); refresh(); },
+      onDelete: (r) => { cache = cache.filter(x => x.id !== r.id); refresh(); },
     });
     return unsub;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -146,7 +153,7 @@ export function HistorialRutasPanel() {
     }
     setDeleting(true);
     try {
-      await deleteDoc(doc(db, 'rutas', rutaId));
+      await supabase.from('rutas').delete().eq('id', rutaId);
       setDeletingId(null);
       showToast('Ruta eliminada del historial', 'success');
     } catch {

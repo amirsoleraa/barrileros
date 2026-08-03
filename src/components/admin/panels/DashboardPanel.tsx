@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Package, DollarSign, TrendingUp, Bike, MapPin, Calendar, X } from 'lucide-react';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
+import { rowToApp } from '@/lib/caseConvert';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { fmtPrice } from '@/lib/utils';
 import type { HistorialDia, Pedido } from '@/types';
@@ -35,11 +35,9 @@ export function DashboardPanel() {
 
   // Load historial once for longer period analysis
   useEffect(() => {
-    getDocs(query(collection(db, 'historial_pedidos'), orderBy('creadoEn', 'desc')))
-      .then(snap => {
-        const list: HistorialDia[] = [];
-        snap.forEach(d => list.push({ id: d.id, ...d.data() } as HistorialDia));
-        setHistorial(list);
+    Promise.resolve(supabase.from('historial_pedidos').select('*').order('creado_en', { ascending: false }))
+      .then(({ data }) => {
+        setHistorial((data ?? []).map(r => rowToApp<HistorialDia>(r, ['creadoEn'])));
       })
       .catch(() => {})
       .finally(() => setLoadingHist(false));

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 import { ClipboardList } from 'lucide-react';
-import { clienteDb } from '@/lib/firebase';
+import { clienteSupabase } from '@/lib/supabase';
+import { rowToApp } from '@/lib/caseConvert';
 import { useClienteAuth } from '@/hooks/useClienteAuth';
 import { Sidebar }       from '@/components/client/Sidebar';
 import { MobileHeader }  from '@/components/client/MobileHeader';
@@ -28,8 +28,8 @@ export function MisPedidosPage() {
     if (!user) { setLoading(false); return; }
     (async () => {
       try {
-        const snap = await getDocs(query(collection(clienteDb, 'pedidos'), where('clienteUid', '==', user.uid)));
-        const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Pedido));
+        const { data } = await clienteSupabase.from('pedidos').select('*').eq('cliente_uid', user.id);
+        const list = (data ?? []).map(r => rowToApp<Pedido>(r, ['createdAt']));
         list.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
         setPedidos(list);
       } catch {

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Truck, Save, MapPin, Loader } from 'lucide-react';
-import { setDoc, getDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/stores/useAppStore';
 import { Toggle } from '@/components/ui/Toggle';
 import { loadGoogleMaps } from '@/lib/googleMaps';
@@ -126,10 +125,10 @@ export function DeliveryPanel() {
 
   // Carga configuración por km
   useEffect(() => {
-    getDoc(doc(db, 'config', 'delivery_settings'))
-      .then(snap => {
-        if (!snap.exists()) return;
-        const d = snap.data() as DeliverySettings;
+    Promise.resolve(supabase.from('config').select('data').eq('key', 'delivery_settings').single())
+      .then(({ data: row }) => {
+        if (!row) return;
+        const d = row.data as DeliverySettings;
         setOriginLat(d.origin_lat ?? 0);
         setOriginLng(d.origin_lng ?? 0);
         setOriginAddress(d.origin_address ?? '');
@@ -163,7 +162,8 @@ export function DeliveryPanel() {
         domicilioTipo:   tipo,
         domicilioValor:  parseFloat(valor) || 0,
       };
-      await setDoc(doc(db, 'config', 'main'), configUpdates, { merge: true });
+      const { data: mainRow } = await supabase.from('config').select('data').eq('key', 'main').single();
+      await supabase.from('config').upsert({ key: 'main', data: { ...(mainRow?.data as object ?? {}), ...configUpdates } });
       setCfg(configUpdates);
 
       if (tipo === 'por_km') {
@@ -177,10 +177,10 @@ export function DeliveryPanel() {
           origin_lng:    originLng,
           origin_address: originAddress,
           price_per_km:  pkm,
-          updated_at:    serverTimestamp(),
+          updated_at:    new Date().toISOString(),
           ...(mf ? { min_delivery_fee: mf } : {}),
         };
-        await setDoc(doc(db, 'config', 'delivery_settings'), ds);
+        await supabase.from('config').upsert({ key: 'delivery_settings', data: ds });
       }
 
       showToast('Configuración de domicilio guardada');

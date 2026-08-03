@@ -1,19 +1,18 @@
 // ═══════════════════════════════════════════════
-// hooks/useTheme.ts — Aplica colores CSS desde Firestore
+// hooks/useTheme.ts — Aplica colores CSS desde Supabase
 // ═══════════════════════════════════════════════
 
 import { useEffect } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import { applyThemeColors } from '@/lib/utils';
 
 export function useTheme() {
   useEffect(() => {
     async function loadColors() {
       try {
-        const colorDoc = await getDoc(doc(db, 'config', 'colores'));
-        if (colorDoc.exists()) {
-          applyThemeColors(colorDoc.data() as Record<string, string>);
+        const { data } = await supabase.from('config').select('data').eq('key', 'colores').single();
+        if (data && Object.keys(data.data as object).length > 0) {
+          applyThemeColors(data.data as Record<string, string>);
           return;
         }
       } catch (_) {}

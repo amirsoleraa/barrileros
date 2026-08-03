@@ -48,7 +48,7 @@ export function PrivacidadPage() {
 
         <section>
           <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>4. Dónde se almacenan</h2>
-          <p>Tus datos se almacenan de forma segura en la infraestructura de Firebase (Google Cloud), con acceso
+          <p>Tus datos se almacenan de forma segura en la infraestructura de Supabase, con acceso
             restringido solo al personal autorizado de {nombre}.</p>
         </section>
 

@@ -10,9 +10,6 @@ node_modules/
 dist/
 dist-ssr/
 
-# Cloud Functions build output
-functions/lib/
-
 # Archivos de sistema
 .DS_Store
 Thumbs.db
@@ -20,6 +17,6 @@ Thumbs.db
 # Netlify
 .netlify/
 
-# Firebase / Vercel (estado local de CLI, no debe subirse)
-.firebase/
+# Vercel / Supabase CLI (estado local de CLI, no debe subirse)
 .vercel/
+supabase/.temp/

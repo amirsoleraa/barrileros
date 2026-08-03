@@ -1,14 +1,13 @@
 import { useState, useRef } from 'react';
 import { Eye, Trash2, ChevronRight, ChevronLeft, Clock, RotateCcw, Archive, ExternalLink, Plus, PenLine, AlertTriangle } from 'lucide-react';
-import { updateDoc, deleteDoc, doc, addDoc, collection, serverTimestamp, writeBatch, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import { useAdminStore } from '@/stores/useAdminStore';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { fmtPrice, ESTADO_INFO, generarNumeroPedido } from '@/lib/utils';
 import { evaluatePromos } from '@/lib/promos';
-import type { Pedido, PedidoTab, RutaEntrega } from '@/types';
+import type { Pedido, PedidoTab } from '@/types';
 
 const COLS: { key: PedidoTab; label: string; color: string }[] = [
   { key: 'activos',    label: 'Activos',    color: '#15803D' },
@@ -113,7 +112,8 @@ export function OrdersPanel() {
       return;
     }
     try {
-      await updateDoc(doc(db, 'pedidos', pedidoId), { estado });
+      const { error } = await supabase.from('pedidos').update({ estado }).eq('id', pedidoId);
+      if (error) throw error;
       showToast(`→ ${ESTADO_INFO[estado].label}`);
     } catch (e) {
       showToast('Sin permisos para actualizar este pedido', 'error');
@@ -130,7 +130,7 @@ export function OrdersPanel() {
     const ok = await confirm({ title: 'Eliminar pedido', message: '¿Eliminar este pedido?', danger: true, confirmLabel: 'Eliminar' });
     if (!ok) return;
     setDeleting(pedidoId);
-    await deleteDoc(doc(db, 'pedidos', pedidoId));
+    await supabase.from('pedidos').delete().eq('id', pedidoId);
     setDeleting(null);
     showToast('Pedido eliminado');
   }
@@ -146,14 +146,15 @@ export function OrdersPanel() {
     setPinTarget(null);
     if (action === 'entregado') {
       try {
-        await updateDoc(doc(db, 'pedidos', pedidoId), { estado: 'entregado' });
+        const { error } = await supabase.from('pedidos').update({ estado: 'entregado' }).eq('id', pedidoId);
+        if (error) throw error;
         showToast(`→ ${ESTADO_INFO['entregado'].label}`);
       } catch { showToast('Sin permisos para actualizar este pedido', 'error'); }
     } else {
       const ok = await confirm({ title: 'Eliminar pedido', message: '¿Eliminar este pedido?', danger: true, confirmLabel: 'Eliminar' });
       if (!ok) return;
       setDeleting(pedidoId);
-      await deleteDoc(doc(db, 'pedidos', pedidoId));
+      await supabase.from('pedidos').delete().eq('id', pedidoId);
       setDeleting(null);
       showToast('Pedido eliminado');
     }
@@ -184,14 +185,9 @@ export function OrdersPanel() {
     try {
       if (enCamino.length > 0) {
         const fechaHoy = new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
-        const batchCamino = writeBatch(db);
-        enCamino.forEach(p => {
-          batchCamino.update(doc(db, 'pedidos', p.id), {
-            estado: 'preparando',
-            notaPendiente: `Pendiente del ${fechaHoy}`,
-          });
-        });
-        await batchCamino.commit();
+        await Promise.all(enCamino.map(p =>
+          supabase.from('pedidos').update({ estado: 'preparando', nota_pendiente: `Pendiente del ${fechaHoy}` }).eq('id', p.id)
+        ));
       }
 
       if (finalizados.length === 0) {
@@ -201,11 +197,10 @@ export function OrdersPanel() {
 
       const rutasMap: Record<string, { nombre: string; repartidor?: string }> = {};
       try {
-        const snap = await getDocs(query(collection(db, 'rutas'), where('estado', '==', 'completada')));
-        snap.forEach(d => {
-          const data = d.data() as RutaEntrega;
-          for (const pid of (data.pedidoIds ?? [])) {
-            if (!rutasMap[pid]) rutasMap[pid] = { nombre: data.nombre, repartidor: data.repartidor };
+        const { data: rutasRows } = await supabase.from('rutas').select('*').eq('estado', 'completada');
+        (rutasRows ?? []).forEach((row: { nombre: string; repartidor?: string; pedido_ids: string[] }) => {
+          for (const pid of (row.pedido_ids ?? [])) {
+            if (!rutasMap[pid]) rutasMap[pid] = { nombre: row.nombre, repartidor: row.repartidor };
           }
         });
       } catch {}
@@ -221,20 +216,18 @@ export function OrdersPanel() {
       const fechaLabel = ahora.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
       const totalRecaudo = entregados.reduce((s, p) => s + p.total, 0);
 
-      await addDoc(collection(db, 'historial_pedidos'), {
-        fecha, fechaLabel,
+      // pedidos guarda un snapshot en camelCase tal cual lo espera el resto
+      // de la app (Historial/Cartera lo leen directo) — no pasar por toSnake.
+      const { error: histError } = await supabase.from('historial_pedidos').insert({
+        fecha, fecha_label: fechaLabel,
         pedidos: historialPedidos,
-        totalEntregados: entregados.length,
-        totalCancelados: cancelados.length,
-        totalRecaudo,
-        creadoEn: serverTimestamp(),
+        total_entregados: entregados.length,
+        total_cancelados: cancelados.length,
+        total_recaudo: totalRecaudo,
       });
+      if (histError) throw histError;
 
-      for (let i = 0; i < finalizados.length; i += 499) {
-        const batch = writeBatch(db);
-        finalizados.slice(i, i + 499).forEach(p => batch.delete(doc(db, 'pedidos', p.id)));
-        await batch.commit();
-      }
+      await supabase.from('pedidos').delete().in('id', finalizados.map(p => p.id));
 
       const msgs = [`${finalizados.length} pedidos archivados`];
       if (enCamino.length > 0) msgs.push(`${enCamino.length} devueltos a Preparando`);
@@ -280,30 +273,33 @@ export function OrdersPanel() {
       const domicilio = parseFloat(manualForm.domicilio) || 0;
       const total = subtotal + domicilio - promoResult.descuentoProductos - promoResult.descuentoDomicilio;
 
-      const pedido: Omit<Pedido, 'id'> = {
+      const cliente = {
+        nombre: manualForm.clienteNombre.trim(),
+        tel: manualForm.clienteTel.trim() || undefined,
+        dir: manualForm.clienteDir.trim() || undefined,
+        barrio: manualForm.clienteBarrio || undefined,
+      };
+
+      // items/cliente/location/promos_aplicadas son JSONB embebidos que la
+      // app lee tal cual (camelCase) — no pasan por toSnake, solo las
+      // columnas de primer nivel.
+      const { error } = await supabase.from('pedidos').insert({
         numero: generarNumeroPedido(),
         estado: 'activos',
-        cliente: {
-          nombre: manualForm.clienteNombre.trim(),
-          tel: manualForm.clienteTel.trim() || undefined,
-          dir: manualForm.clienteDir.trim() || undefined,
-          barrio: manualForm.clienteBarrio || undefined,
-        },
+        cliente,
         items,
         subtotal,
         domicilio,
         descuento: promoResult.descuentoProductos,
         total,
         cupon: null,
-        mensajeConfirmacion: '',
+        mensaje_confirmacion: '',
         location: null,
-        esManual: true,
+        es_manual: true,
         notas: manualForm.notas.trim() || undefined,
-        ...(promoResult.promosAplicadas.length > 0 && { promosAplicadas: promoResult.promosAplicadas }),
-        createdAt: serverTimestamp() as unknown as Pedido['createdAt'],
-      };
-
-      await addDoc(collection(db, 'pedidos'), pedido);
+        ...(promoResult.promosAplicadas.length > 0 && { promos_aplicadas: promoResult.promosAplicadas }),
+      });
+      if (error) throw error;
       showToast('Pedido manual creado', 'success');
       setManualOpen(false);
       setManualForm(DEFAULT_MANUAL);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Download, GitMerge } from 'lucide-react';
-import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
+import { toSnake } from '@/lib/caseConvert';
 import { useAppStore } from '@/stores/useAppStore';
 import { Modal } from '@/components/ui/Modal';
 import { Toggle } from '@/components/ui/Toggle';
@@ -54,14 +54,11 @@ export function BarriosPanel() {
   async function autoImport() {
     setImporting(true);
     try {
-      const batch = writeBatch(db);
+      const rows = BARRIOS_DEFAULT.map((nombre, i) => ({ nombre, activo: true, orden: i }));
+      const { data, error } = await supabase.from('barrios').insert(rows).select();
+      if (error) throw error;
       const newBarrios: Record<string, Barrio> = {};
-      BARRIOS_DEFAULT.forEach((nombre, i) => {
-        const ref = doc(collection(db, 'barrios'));
-        batch.set(ref, { nombre, activo: true, orden: i });
-        newBarrios[ref.id] = { id: ref.id, nombre, activo: true, orden: i };
-      });
-      await batch.commit();
+      (data ?? []).forEach((r) => { newBarrios[r.id] = { id: r.id, nombre: r.nombre, activo: r.activo, orden: r.orden }; });
       setBarrios(newBarrios);
     } catch {
       // silent — user can still use the button
@@ -94,12 +91,14 @@ export function BarriosPanel() {
     setSaving(true);
     try {
       if (editId) {
-        await updateDoc(doc(db, 'barrios', editId), { nombre: nombre.trim(), activo });
+        const { error } = await supabase.from('barrios').update({ nombre: nombre.trim(), activo }).eq('id', editId);
+        if (error) throw error;
         setBarrios({ ...barrios, [editId]: { ...barrios[editId], nombre: nombre.trim(), activo } });
         showToast('Barrio actualizado', 'success');
       } else {
-        const r = await addDoc(collection(db, 'barrios'), { nombre: nombre.trim(), activo, orden: list.length });
-        setBarrios({ ...barrios, [r.id]: { id: r.id, nombre: nombre.trim(), activo, orden: list.length } });
+        const { data: row, error } = await supabase.from('barrios').insert({ nombre: nombre.trim(), activo, orden: list.length }).select().single();
+        if (error) throw error;
+        setBarrios({ ...barrios, [row.id]: { id: row.id, nombre: nombre.trim(), activo, orden: list.length } });
         showToast('Barrio creado', 'success');
       }
       setIsOpen(false);
@@ -113,7 +112,7 @@ export function BarriosPanel() {
   async function handleDelete(id: string) {
     const ok = await confirm({ title: 'Eliminar barrio', message: '¿Eliminar este barrio?', danger: true, confirmLabel: 'Eliminar' });
     if (!ok) return;
-    await deleteDoc(doc(db, 'barrios', id));
+    await supabase.from('barrios').delete().eq('id', id);
     const next = { ...barrios };
     delete next[id];
     setBarrios(next);
@@ -121,7 +120,7 @@ export function BarriosPanel() {
   }
 
   async function handleToggle(b: Barrio) {
-    await updateDoc(doc(db, 'barrios', b.id), { activo: !b.activo });
+    await supabase.from('barrios').update({ activo: !b.activo }).eq('id', b.id);
     setBarrios({ ...barrios, [b.id]: { ...b, activo: !b.activo } });
   }
 
@@ -139,9 +138,7 @@ export function BarriosPanel() {
       const sorted = [...g].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
       sorted.slice(1).forEach(b => toDelete.push(b.id));
     });
-    const batch = writeBatch(db);
-    toDelete.forEach(id => batch.delete(doc(db, 'barrios', id)));
-    await batch.commit();
+    await supabase.from('barrios').delete().in('id', toDelete);
     const next = { ...barrios };
     toDelete.forEach(id => delete next[id]);
     setBarrios(next);
@@ -163,15 +160,11 @@ export function BarriosPanel() {
       const toAdd = BARRIOS_DEFAULT.filter(n => !existingNames.has(n.toLowerCase()));
       if (toAdd.length === 0) { showToast('Todos los barrios ya están en la lista', 'info'); return; }
 
-      const batch = writeBatch(db);
+      const rows = toAdd.map((nombre, i) => ({ nombre, activo: true, orden: list.length + i }));
+      const { data, error } = await supabase.from('barrios').insert(rows).select();
+      if (error) throw error;
       const newBarrios: Record<string, Barrio> = { ...barrios };
-      toAdd.forEach((nombre, i) => {
-        const ref = doc(collection(db, 'barrios'));
-        const b: Barrio = { id: ref.id, nombre, activo: true, orden: list.length + i };
-        batch.set(ref, { nombre, activo: true, orden: list.length + i });
-        newBarrios[ref.id] = b;
-      });
-      await batch.commit();
+      (data ?? []).forEach((r) => { newBarrios[r.id] = { id: r.id, nombre: r.nombre, activo: r.activo, orden: r.orden }; });
       setBarrios(newBarrios);
       showToast(`${toAdd.length} barrios importados`, 'success');
     } catch {
